@@ -1,0 +1,175 @@
+name: DWMS Hardening
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply security and safety hardening
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          # ---------------------------------------------------------
+          # 1. Secure Convex device API handling
+          # ---------------------------------------------------------
+          p = Path("convex/devices.ts")
+          s = p.read_text()
+
+          s = s.replace(
+              'import { query, mutation, internalMutation } from "convex/server";',
+              'import { query, mutation, internalMutation, internalQuery } from "convex/server";'
+          )
+
+          s = s.replace(
+              'return await ctx.db.query("devices").collect();',
+              'return await ctx.db.query("devices").collect().then((devices) => devices.map(({ apiKey: _apiKey, ...device }) => device));'
+          )
+
+          s = s.replace(
+              'const apiKey = `ldwms_${args.deviceId}_${Date.now()}`;',
+              'const apiKey = `ldwms_${crypto.randomUUID().replaceAll("-", "")}`;'
+          )
+
+          s = s.replace(
+              'export const internalSaveReading = mutation({',
+              'export const internalSaveReading = internalMutation({'
+          )
+
+          s = s.replace(
+              'export const validateApiKey = query({',
+              'export const validateApiKey = internalQuery({'
+          )
+
+          # Align backend pH critical threshold with DWMS Safety Engine.
+          s = s.replace(
+              'args.ph < 5.0 || args.ph > 10.0',
+              'args.ph < 5.5 || args.ph > 10.0'
+          )
+
+          p.write_text(s)
+
+          # ---------------------------------------------------------
+          # 2. Protect HTTP ingestion from public internal functions
+          #    and reject NaN / Infinity sensor values.
+          # ---------------------------------------------------------
+          p = Path("convex/http.ts")
+          s = p.read_text()
+
+          s = s.replace(
+              'import { api } from "./_generated/api";',
+              'import { api, internal } from "./_generated/api";'
+          )
+
+          s = s.replace(
+              'ctx.runQuery(api.devices.validateApiKey, { apiKey })',
+              'ctx.runQuery(internal.devices.validateApiKey, { apiKey })'
+          )
+
+          s = s.replace(
+              'ctx.runMutation(api.devices.internalSaveReading, {',
+              'ctx.runMutation(internal.devices.internalSaveReading, {'
+          )
+
+          s = s.replace(
+              '''if (ph === undefined || tds === undefined || turbidity === undefined) {''',
+              '''if (
+        ph === undefined ||
+        tds === undefined ||
+        turbidity === undefined ||
+        !Number.isFinite(ph) ||
+        !Number.isFinite(tds) ||
+        !Number.isFinite(turbidity)
+      ) {'''
+          )
+
+          p.write_text(s)
+
+          # ---------------------------------------------------------
+          # 3. Require authentication before Ethm AI can be called.
+          # ---------------------------------------------------------
+          p = Path("convex/chatAction.ts")
+          s = p.read_text()
+
+          s = s.replace(
+              'handler: async (_ctx, args) => {',
+              '''handler: async (ctx, args) => {
+            const identity = await ctx.auth.getUserIdentity();
+            if (!identity) throw new Error("Not authenticated");'''
+          )
+
+          s = s.replace(
+              'Start filtration immediately to dilute dissolved solids.',
+              'Start the configured treatment process; filtration does not inherently reduce dissolved solids unless the installed treatment process is designed to do so.'
+          )
+
+          p.write_text(s)
+
+          # ---------------------------------------------------------
+          # 4. Hardware mode must NOT silently fall back to Demo.
+          # ---------------------------------------------------------
+          p = Path("src/components/providers/process-mode.tsx")
+          s = p.read_text()
+
+          marker = "Hardware mode is sticky"
+
+          if marker not in s:
+              pattern = (
+                  r'''  // Auto-revert to demo if hardware mode stays disconnected for 30 seconds\.\n'''
+                  r'''.*?'''
+                  r'''  \}, \[dataMode, hardwareStatus\]\);\n\n'''
+              )
+
+              replacement = '''  // Hardware mode is sticky: a lost connection stays in Hardware mode
+  // and is surfaced as disconnected/warning.
+  // The operator must explicitly switch back to Demo mode.
+
+'''
+
+              s, count = re.subn(pattern, replacement, s, flags=re.S)
+
+              if count != 1:
+                  raise SystemExit(
+                      "Could not safely locate the Hardware -> Demo fallback block."
+                  )
+
+          p.write_text(s)
+
+          print("DWMS hardening patch applied successfully.")
+          PY
+
+      - name: Install dependencies
+        run: corepack enable && pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Commit hardening changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add convex/devices.ts
+          git add convex/http.ts
+          git add convex/chatAction.ts
+          git add src/components/providers/process-mode.tsx
+
+          if git diff --cached --quiet; then
+            echo "No hardening changes to commit."
+          else
+            git commit -m "Harden DWMS security and safety controls"
+            git push
+          fi
