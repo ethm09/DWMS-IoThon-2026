@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#050c18"/>
+  <!-- Outer glow ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#00f5d4" stroke-width="6" opacity="0.3"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#00f5d4" stroke-width="3" opacity="0.5"/>
+  <!-- Water droplet -->
+  <path d="M256 90 C256 90 152 218 152 278 C152 334 199 381 256 381 C313 381 360 334 360 278 C360 218 256 90 256 90Z" fill="#00f5d4" opacity="0.9"/>
+  <!-- Inner highlight -->
+  <path d="M220 230 C210 260 210 290 228 314" stroke="white" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.5"/>
+  <!-- Circuit dots -->
+  <circle cx="100" cy="150" r="8" fill="#00f5d4" opacity="0.6"/>
+  <circle cx="412" cy="150" r="8" fill="#00f5d4" opacity="0.6"/>
+  <circle cx="100" cy="362" r="8" fill="#00f5d4" opacity="0.6"/>
+  <circle cx="412" cy="362" r="8" fill="#00f5d4" opacity="0.6"/>
+  <line x1="100" y1="150" x2="152" y2="200" stroke="#00f5d4" stroke-width="2" opacity="0.4"/>
+  <line x1="412" y1="150" x2="360" y2="200" stroke="#00f5d4" stroke-width="2" opacity="0.4"/>
+</svg>

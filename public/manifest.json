@@ -1,0 +1,33 @@
+{
+  "name": "DWMS - Defense Water Monitoring",
+  "short_name": "DWMS",
+  "description": "Live Defense Water Monitoring System - real-time water quality monitoring and control",
+  "start_url": "/",
+  "scope": "/",
+  "id": "https://dwms.onhercules.app",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "background_color": "#050c18",
+  "theme_color": "#00f5d4",
+  "orientation": "portrait",
+  "dir": "auto",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
