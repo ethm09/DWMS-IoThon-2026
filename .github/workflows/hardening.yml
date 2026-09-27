@@ -35,6 +35,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Convex bindings in an isolated local backend
+        env:
+          AUTH0_DOMAIN: dwms-ci.invalid
+          AUTH0_CLIENT_ID: ci-placeholder
         run: pnpm exec convex dev --once
 
       - name: Lint DWMS
@@ -46,11 +49,9 @@ jobs:
       - name: Check for exposed environment files
         shell: bash
         run: |
-          if find . \
-            -type f \
-            \( -name ".env" -o -name ".env.local" -o -name ".env.production" \) \
-            -not -path "./node_modules/*" \
-            -not -path "./.git/*" \
+          if git ls-files --cached \
+            | grep -E '(^|/)\.env($|\.)' \
+            | grep -vE '(^|/)\.env\.example$' \
             | grep -q .; then
 
             echo "ERROR: Environment files must not be committed."
@@ -88,3 +89,4 @@ jobs:
           echo "Environment check: PASS"
           echo "Secret scan: PASS"
           echo "======================================"
+
