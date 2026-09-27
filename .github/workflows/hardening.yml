@@ -34,10 +34,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Convex bindings in an isolated local backend
+      - name: Initialize an anonymous local Convex deployment
         env:
-          AUTH0_DOMAIN: dwms-ci.invalid
-          AUTH0_CLIENT_ID: ci-placeholder
+          CONVEX_AGENT_MODE: anonymous
+        run: pnpm exec convex init
+
+      - name: Configure placeholder Auth0 values for CI
+        run: |
+          pnpm exec convex env set AUTH0_DOMAIN dwms-ci.invalid --deployment local
+          pnpm exec convex env set AUTH0_CLIENT_ID ci-placeholder --deployment local
+
+      - name: Generate Convex bindings in an isolated local backend
         run: pnpm exec convex dev --once
 
       - name: Lint DWMS
