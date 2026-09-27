@@ -1,91 +1,25 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// DWMS Safety Engine — single source of truth for all thresholds and decisions.
-// The persistent store, the Ethm AI assistant, and the interactive pop-ups all
-// import from here so they ALWAYS agree on what is safe, unsafe, or critical.
+// DWMS Safety Engine — shared threshold classification and UI decisions.
+// The browser and Convex backend use the same policy module so alerts and
+// operator-facing decisions agree on what is safe, unsafe, or critical.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import {
+  MAX_FILTER_CAPACITY,
+  THRESHOLDS,
+  classifyFlow,
+  classifyParam,
+  classifyPh,
+  classifyTds,
+  classifyTurbidity,
+} from "../../convex/safety-policy";
+import type { ParamKey, SafetyLevel } from "../../convex/safety-policy";
+
+export { MAX_FILTER_CAPACITY, THRESHOLDS, classifyFlow, classifyParam, classifyPh, classifyTds, classifyTurbidity };
+export type { ParamKey, SafetyLevel } from "../../convex/safety-policy";
 
 export type SystemMode = "auto" | "manual" | "emergency";
 export type DataMode = "demo" | "hardware";
-export type SafetyLevel = "safe" | "warning" | "critical";
-export type ParamKey = "ph" | "tds" | "turbidity" | "flowRate";
-
-/** Maximum flow the filter can safely handle (L/min). */
-export const MAX_FILTER_CAPACITY = 2.0;
-
-// ── Thresholds (demo values from the DWMS spec) ───────────────────────────────
-
-export const THRESHOLDS = {
-  ph: {
-    safe: { min: 6.5, max: 8.5 },
-    warning: [
-      { min: 6.0, max: 6.4 },
-      { min: 8.6, max: 9.0 },
-    ],
-    critical: { below: 5.5, above: 10.0 },
-    unit: "",
-    label: "pH",
-  },
-  tds: {
-    safe: { max: 500 },
-    warning: { min: 500, max: 1000 },
-    critical: { above: 1500 },
-    unit: "ppm",
-    label: "TDS",
-  },
-  turbidity: {
-    safe: { max: 5 },
-    warning: { min: 5, max: 20 },
-    critical: { above: 50 },
-    unit: "NTU",
-    label: "Turbidity",
-  },
-  flowRate: {
-    safe: { min: 0.5, max: 2.0 },
-    warning: { min: 2.1, max: 3.0 },
-    critical: { above: 3.0 },
-    unit: "L/min",
-    label: "Flow Rate",
-  },
-} as const;
-
-// ── Per-parameter classification ──────────────────────────────────────────────
-
-export function classifyPh(ph: number): SafetyLevel {
-  if (ph < 5.5 || ph > 10.0) return "critical";
-  if (ph >= 6.5 && ph <= 8.5) return "safe";
-  return "warning";
-}
-
-export function classifyTds(tds: number): SafetyLevel {
-  if (tds > 1500) return "critical";
-  if (tds < 500) return "safe";
-  return "warning";
-}
-
-export function classifyTurbidity(turbidity: number): SafetyLevel {
-  if (turbidity > 50) return "critical";
-  if (turbidity < 5) return "safe";
-  return "warning";
-}
-
-export function classifyFlow(flow: number): SafetyLevel {
-  if (flow > 3.0) return "critical";
-  if (flow >= 0.5 && flow <= 2.0) return "safe";
-  return "warning";
-}
-
-export function classifyParam(key: ParamKey, value: number): SafetyLevel {
-  switch (key) {
-    case "ph":
-      return classifyPh(value);
-    case "tds":
-      return classifyTds(value);
-    case "turbidity":
-      return classifyTurbidity(value);
-    case "flowRate":
-      return classifyFlow(value);
-  }
-}
 
 // ── Overall water quality ─────────────────────────────────────────────────────
 
@@ -141,27 +75,27 @@ export function evaluateState(r: Readings): SafetyDecision {
   const flow = r.flowRate ?? undefined;
 
   // ── Level 3 — Emergency Shutdown conditions (highest priority) ──
-  if (flow !== undefined && flow > 3.0) {
+  if (flow !== undefined && flow > THRESHOLDS.flowRate.critical.above) {
     return {
       kind: "emergency",
       parameter: "Flow Rate",
       riskLevel: "critical",
-      reason: `Flow rate is ${flow.toFixed(2)} L/min, above the critical limit of 3.0 L/min.`,
+      reason: `Flow rate is ${flow.toFixed(2)} L/min, above the critical limit of ${THRESHOLDS.flowRate.critical.above} L/min.`,
       recommendation: "Pump stopped immediately to protect the system. Acknowledge to restart.",
       emergency: true,
     };
   }
-  if (ph !== undefined && (ph < 5.5 || ph > 10.0)) {
+  if (ph !== undefined && (ph < THRESHOLDS.ph.critical.below || ph > THRESHOLDS.ph.critical.above)) {
     return {
       kind: "emergency",
       parameter: "pH",
       riskLevel: "critical",
-      reason: `pH is ${ph.toFixed(2)}, outside the critical safety band (5.5–10.0).`,
+      reason: `pH is ${ph.toFixed(2)}, outside the critical safety band (${THRESHOLDS.ph.critical.below}–${THRESHOLDS.ph.critical.above}).`,
       recommendation: "Pump stopped to prevent corrosion or contamination. Acknowledge to restart.",
       emergency: true,
     };
   }
-  if (turb !== undefined && turb > 50 && flow !== undefined && flow > 2.0) {
+  if (turb !== undefined && turb > THRESHOLDS.turbidity.critical.above && flow !== undefined && flow > MAX_FILTER_CAPACITY) {
     return {
       kind: "emergency",
       parameter: "Turbidity",
@@ -173,7 +107,7 @@ export function evaluateState(r: Readings): SafetyDecision {
   }
 
   // ── Level 2 — Auto-correction (flow above filter capacity) ──
-  if (flow !== undefined && flow > MAX_FILTER_CAPACITY && flow <= 3.0) {
+  if (flow !== undefined && flow > MAX_FILTER_CAPACITY && flow <= THRESHOLDS.flowRate.critical.above) {
     return {
       kind: "correction",
       parameter: "Flow Rate",
@@ -185,22 +119,22 @@ export function evaluateState(r: Readings): SafetyDecision {
   }
 
   // ── Critical sensor levels that demand filtration in Auto ──
-  if (tds !== undefined && tds > 1500) {
+  if (tds !== undefined && tds > THRESHOLDS.tds.critical.above) {
     return {
       kind: "correction",
       parameter: "TDS",
       riskLevel: "critical",
-      reason: `TDS is ${tds.toFixed(0)} ppm, above the critical limit of 1500 ppm.`,
+      reason: `TDS is ${tds.toFixed(0)} ppm, above the critical limit of ${THRESHOLDS.tds.critical.above} ppm.`,
       recommendation: "Start filtration immediately to dilute dissolved solids.",
       startFiltration: true,
     };
   }
-  if (turb !== undefined && turb > 20) {
+  if (turb !== undefined && turb > THRESHOLDS.turbidity.filtration.above) {
     return {
       kind: "correction",
       parameter: "Turbidity",
-      riskLevel: turb > 50 ? "critical" : "warning",
-      reason: `Turbidity is ${turb.toFixed(1)} NTU, above the 20 NTU action threshold.`,
+      riskLevel: turb > THRESHOLDS.turbidity.critical.above ? "critical" : "warning",
+      reason: `Turbidity is ${turb.toFixed(1)} NTU, above the ${THRESHOLDS.turbidity.filtration.above} NTU filtration threshold.`,
       recommendation: "Start filtration to clear suspended particles.",
       startFiltration: true,
     };
@@ -212,7 +146,7 @@ export function evaluateState(r: Readings): SafetyDecision {
       kind: "advisory",
       parameter: "Flow Rate",
       riskLevel: "warning",
-      reason: `Flow rate ${flow.toFixed(2)} L/min is above the recommended 2.0 L/min.`,
+      reason: `Flow rate ${flow.toFixed(2)} L/min is above the recommended ${MAX_FILTER_CAPACITY} L/min.`,
       recommendation: "This setting may reduce filtration efficiency.",
       correctedValue: MAX_FILTER_CAPACITY,
     };
@@ -222,7 +156,7 @@ export function evaluateState(r: Readings): SafetyDecision {
       kind: "advisory",
       parameter: "pH",
       riskLevel: "warning",
-      reason: `pH is ${ph.toFixed(2)}, outside the optimal 6.5–8.5 range.`,
+      reason: `pH is ${ph.toFixed(2)}, outside the optimal ${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max} range.`,
       recommendation: "Consider adjusting chemical dosing to restore balance.",
     };
   }
@@ -231,7 +165,7 @@ export function evaluateState(r: Readings): SafetyDecision {
       kind: "advisory",
       parameter: "TDS",
       riskLevel: "warning",
-      reason: `TDS is ${tds.toFixed(0)} ppm, above the recommended 500 ppm.`,
+      reason: `TDS is ${tds.toFixed(0)} ppm, above the recommended ${THRESHOLDS.tds.safe.max} ppm.`,
       recommendation: "Monitor closely and consider increasing filtration.",
     };
   }
@@ -240,7 +174,7 @@ export function evaluateState(r: Readings): SafetyDecision {
       kind: "advisory",
       parameter: "Turbidity",
       riskLevel: "warning",
-      reason: `Turbidity is ${turb.toFixed(1)} NTU, above the recommended 5 NTU.`,
+      reason: `Turbidity is ${turb.toFixed(1)} NTU, above the recommended ${THRESHOLDS.turbidity.safe.max} NTU.`,
       recommendation: "Monitor outlet clarity; a backwash may help.",
     };
   }
@@ -261,12 +195,12 @@ export function evaluateState(r: Readings): SafetyDecision {
  */
 export function evaluateChange(key: ParamKey, value: number): SafetyDecision {
   if (key === "flowRate") {
-    if (value > 3.0) {
+    if (value > THRESHOLDS.flowRate.critical.above) {
       return {
         kind: "emergency",
         parameter: "Flow Rate",
         riskLevel: "critical",
-        reason: `Flow rate ${value.toFixed(2)} L/min exceeds the critical limit of 3.0 L/min.`,
+        reason: `Flow rate ${value.toFixed(2)} L/min exceeds the critical limit of ${THRESHOLDS.flowRate.critical.above} L/min.`,
         recommendation: "Emergency shutdown required to protect the system.",
         emergency: true,
       };

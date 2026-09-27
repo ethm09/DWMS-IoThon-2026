@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -50,7 +50,7 @@ http.route({
     }
 
     // Validate API key
-    const device = await ctx.runQuery(api.devices.validateApiKey, { apiKey });
+    const device = await ctx.runQuery(internal.devices.validateApiKey, { apiKey });
     if (!device || device.deviceId !== deviceId) {
       return new Response(JSON.stringify({ error: "Invalid API key or device ID" }), {
         status: 403,
@@ -59,15 +59,23 @@ http.route({
     }
 
     // Parse body
-    let body: Record<string, unknown>;
+    let parsedBody: unknown;
     try {
-      body = await request.json() as Record<string, unknown>;
+      parsedBody = await request.json();
     } catch {
       return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (typeof parsedBody !== "object" || parsedBody === null || Array.isArray(parsedBody)) {
+      return new Response(JSON.stringify({ error: "JSON body must be an object" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const body = parsedBody as Record<string, unknown>;
 
     // Validate: must have all three sensor values as numbers
     const ph = typeof body.ph === "number" ? body.ph : undefined;
@@ -81,8 +89,23 @@ http.route({
       });
     }
 
+    if (
+      !Number.isFinite(ph) ||
+      !Number.isFinite(tds) ||
+      !Number.isFinite(turbidity) ||
+      ph < 0 ||
+      ph > 14 ||
+      tds < 0 ||
+      turbidity < 0
+    ) {
+      return new Response(JSON.stringify({ error: "Sensor values are outside valid measurement ranges" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Save reading (triggers threshold alerts + offline scheduling)
-    await ctx.runMutation(api.devices.internalSaveReading, {
+    await ctx.runMutation(internal.devices.internalSaveReading, {
       deviceId,
       ph,
       tds,

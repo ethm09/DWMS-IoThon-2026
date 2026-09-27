@@ -6,19 +6,28 @@ export default defineSchema({
     tokenIdentifier: v.string(),
     name: v.optional(v.string()),
     email: v.optional(v.string()),
-    role: v.union(v.literal("admin"), v.literal("operator"), v.literal("viewer")),
+    role: v.union(
+      v.literal("admin"),
+      v.literal("operator"),
+      v.literal("viewer"),
+    ),
   })
     .index("by_token", ["tokenIdentifier"])
+    .index("by_email", ["email"])
     .index("by_role", ["role"]),
 
   // Arduino device registry
   devices: defineTable({
-    deviceId: v.string(),       // unique device identifier
+    deviceId: v.string(), // unique device identifier
     name: v.string(),
     location: v.optional(v.string()),
-    apiKey: v.string(),         // secret key for device auth
+    apiKey: v.string(), // secret key for device auth
     lastSeen: v.optional(v.string()), // ISO timestamp
-    status: v.union(v.literal("online"), v.literal("offline"), v.literal("error")),
+    status: v.union(
+      v.literal("online"),
+      v.literal("offline"),
+      v.literal("error"),
+    ),
   })
     .index("by_deviceId", ["deviceId"])
     .index("by_apiKey", ["apiKey"]),
@@ -26,7 +35,7 @@ export default defineSchema({
   // Sensor readings from Arduino (pH, TDS, Turbidity only)
   sensorReadings: defineTable({
     deviceId: v.string(),
-    timestamp: v.string(),      // ISO timestamp
+    timestamp: v.string(), // ISO timestamp
     ph: v.number(),
     tds: v.number(),
     turbidity: v.number(),
@@ -37,12 +46,16 @@ export default defineSchema({
   // Persistent alert notifications
   notifications: defineTable({
     userId: v.id("users"),
-    level: v.union(v.literal("critical"), v.literal("warning"), v.literal("info")),
+    level: v.union(
+      v.literal("critical"),
+      v.literal("warning"),
+      v.literal("info"),
+    ),
     category: v.union(
       v.literal("threshold"),
       v.literal("device"),
       v.literal("system"),
-      v.literal("maintenance")
+      v.literal("maintenance"),
     ),
     title: v.string(),
     message: v.string(),
@@ -68,14 +81,12 @@ export default defineSchema({
     enableMaintenance: v.boolean(),
     soundEnabled: v.boolean(),
     browserNotifications: v.boolean(),
-  })
-    .index("by_userId", ["userId"]),
+  }).index("by_userId", ["userId"]),
 
   // S.A.M.I chat messages
   chatMessages: defineTable({
     userId: v.id("users"),
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
-  })
-    .index("by_userId", ["userId"]),
+  }).index("by_userId", ["userId"]),
 });

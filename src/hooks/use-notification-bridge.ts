@@ -14,19 +14,14 @@ import type { SafetyLevel } from "@/lib/dwms-safety.ts";
  */
 export function useNotificationBridge() {
   const { user } = useAuth();
-  const { decision, quality, mode } = useProcessMode();
+  const { decision, quality, mode, dataMode } = useProcessMode();
   const createNotification = useMutation(api.notifications.create);
   const lastLevel = useRef<SafetyLevel>("safe");
   const lastEmergency = useRef(false);
 
   useEffect(() => {
-    // Skip if not authenticated
+    // Skip if not authenticated.
     if (!user) return;
-
-    // Only fire notifications on transitions (not continuously)
-    if (quality === lastLevel.current && (mode === "emergency") === lastEmergency.current) {
-      return;
-    }
 
     const prevLevel = lastLevel.current;
     const prevEmergency = lastEmergency.current;
@@ -44,6 +39,13 @@ export function useNotificationBridge() {
       });
       return;
     }
+
+    // Sensor threshold notifications are created by Convex in hardware mode.
+    // Keep local flow notifications, since flow is not part of the Arduino API.
+    if (dataMode === "hardware" && decision.parameter !== "Flow Rate") return;
+
+    // Only fire notifications on transitions (not continuously).
+    if (quality === prevLevel && (mode === "emergency") === prevEmergency) return;
 
     // Transition to critical
     if (quality === "critical" && prevLevel !== "critical") {
@@ -68,5 +70,5 @@ export function useNotificationBridge() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quality, mode, user]);
+  }, [quality, mode, user, dataMode]);
 }

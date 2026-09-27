@@ -9,6 +9,7 @@ lerna-debug.log*
 
 # Dependencies and build artifacts
 node_modules
+.pnpm-store/
 /dist
 /dist-ssr
 *.local
@@ -28,3 +29,4 @@ tsconfig.tsbuildinfo
 
 # Environment variables
 .env*
+!.env.example

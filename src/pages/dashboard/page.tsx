@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
@@ -16,6 +16,7 @@ import {
   LEVEL_COLOR, LEVEL_LABEL, type SafetyLevel,
 } from "@/lib/dwms-safety.ts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import { useProcessMode } from "@/hooks/use-process-mode.ts";
 
 type DataPoint = { time: string; tds: number; turbidity: number; ph: number };
 
@@ -118,15 +119,15 @@ function SensorFlowDiagram({ isOnline }: { isOnline: boolean }) {
 }
 
 function DashboardInner() {
+  const { selectedDeviceId, setSelectedDeviceId } = useProcessMode();
   const devices = useQuery(api.devices.listDevices, {});
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
 
-  // Auto-select first device
+  // Keep the dashboard and hardware safety engine on the same selected device.
   useEffect(() => {
-    if (devices && devices.length > 0 && !selectedDeviceId) {
+    if (devices && devices.length > 0 && (!selectedDeviceId || !devices.some((d) => d.deviceId === selectedDeviceId))) {
       setSelectedDeviceId(devices[0].deviceId);
     }
-  }, [devices, selectedDeviceId]);
+  }, [devices, selectedDeviceId, setSelectedDeviceId]);
 
   const latestReading = useQuery(
     api.devices.getLatestReading,

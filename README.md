@@ -42,10 +42,6 @@ The deterministic Safety Engine is the authority for threshold evaluation. The A
 
 Where hardware is not physically connected, the interface must clearly identify simulated/demo data. Flow rate is not represented as a physical live sensor unless a corresponding hardware source is connected.
 
-## Demo
-
-https://dwms.onhercules.app/
-
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
@@ -54,6 +50,20 @@ https://dwms.onhercules.app/
 
 ## Development
 
-This project uses Vite, React, TypeScript, Convex, and Hercules OIDC authentication. Convex generated bindings are environment/deployment generated and are intentionally not included in this source package.
+This project uses Vite, React, TypeScript, Convex, and Auth0 authentication. Convex generates the `convex/_generated` bindings from the local schema and functions; those generated files are not included in this source package.
+
+Install dependencies, then run `pnpm exec convex dev` in one terminal to select or create a development deployment and generate the Convex bindings. Keep it running while you use the app. Set `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` for that deployment, then run `pnpm dev` in a second terminal. A production deployment is not needed for local development.
+
+### Configure Auth0
+
+Create an Auth0 Single Page Application and add the local and deployed callback URLs (`http://localhost:5173/auth/callback` and `<your-site-origin>/auth/callback`), logout URLs, and web origins. Copy the Auth0 domain and client ID into `VITE_AUTH0_DOMAIN` and `VITE_AUTH0_CLIENT_ID`.
+
+Set the same Auth0 domain and client ID as `AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` in the Convex deployment environment, then run `pnpm exec convex dev` or `pnpm exec convex deploy` to publish the auth provider configuration. Until both server-side values are configured, Convex remains in guest/local mode. The first login links an existing DWMS user by verified email so their stored role is retained.
+
+### Configure the AI assistant
+
+Set `OPENAI_API_KEY` as a server-side environment variable for the Convex deployment. The key is used only by the Convex action and must not be prefixed with `VITE_`.
+
+Set `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` for the selected Convex deployment. The device setup page uses the Convex site URL for the Arduino HTTP endpoint.
 
 Never commit real environment variables, API keys, tokens, or deployment secrets.

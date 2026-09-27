@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldwms-v1";
+const CACHE_NAME = "ldwms-v2";
 const urlsToCache = ["/", "/icon/icon-192.png", "/icon/icon-512.png"];
 
 // Install event - cache core assets
@@ -18,7 +18,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Never intercept cross-origin requests. The Hercules CDN and other third parties already set their own HTTP cache headers
+  // Never intercept cross-origin requests. Third parties set their own HTTP cache headers.
   let url;
   try {
     url = new URL(event.request.url);

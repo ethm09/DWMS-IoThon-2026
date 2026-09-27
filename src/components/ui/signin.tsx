@@ -61,8 +61,14 @@ export const SignInButton = forwardRef<HTMLButtonElement, SignInButtonProps>(
     },
     ref,
   ) => {
-    const { isAuthenticated, signinRedirect, removeUser, isLoading, error } =
-      useAuth();
+    const {
+      isAuthenticated,
+      signinRedirect,
+      removeUser,
+      isLoading,
+      error,
+      isConfigured,
+    } = useAuth();
 
     useEffect(() => {
       if (error) {
@@ -78,6 +84,14 @@ export const SignInButton = forwardRef<HTMLButtonElement, SignInButtonProps>(
         // Run custom onClick first
         onClick?.(event);
 
+        if (!isConfigured) {
+          toast.error("Sign-in is not configured", {
+            description:
+              "Set VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID to enable sign-in.",
+          });
+          return;
+        }
+
         try {
           if (isAuthenticated) {
             await removeUser();
@@ -89,7 +103,7 @@ export const SignInButton = forwardRef<HTMLButtonElement, SignInButtonProps>(
           // Don't prevent the default here as the auth library handles errors
         }
       },
-      [isAuthenticated, removeUser, signinRedirect, onClick],
+      [isAuthenticated, removeUser, signinRedirect, onClick, isConfigured],
     );
 
     const isDisabled = disabled || isLoading;

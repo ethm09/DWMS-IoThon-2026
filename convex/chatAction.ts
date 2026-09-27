@@ -3,6 +3,7 @@
 import { v } from "convex/values";
 import OpenAI from "openai";
 import { action } from "./_generated/server";
+import { MAX_FILTER_CAPACITY, THRESHOLDS } from "./safety-policy";
 
 const ETHM_SYSTEM_PROMPT = `You are Ethm AI, the Intelligent Safety & Control Assistant for the DWMS — Defense Water Monitoring System.
 
@@ -28,17 +29,17 @@ Your capabilities:
 - Use real hardware data when connected; use demo data only in demo mode. Never claim live hardware data is active unless it is connected.
 
 DWMS demo safety thresholds:
-- pH: Safe 6.5–8.5; Warning 6.0–6.4 or 8.6–9.0; Critical <5.5 or >10.0
-- TDS: Safe <500 ppm; Warning 500–1000 ppm; Critical >1500 ppm
-- Turbidity: Safe <5 NTU; Warning 5–20 NTU; Critical >50 NTU
-- Flow Rate: Safe 0.5–2.0 L/min; Warning 2.1–3.0; Critical >3.0. Max filter capacity = 2.0 L/min.
+- pH: Safe ${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}; Warning ${THRESHOLDS.ph.critical.below} ≤ pH < ${THRESHOLDS.ph.safe.min} or ${THRESHOLDS.ph.safe.max} < pH ≤ ${THRESHOLDS.ph.critical.above}; Critical <${THRESHOLDS.ph.critical.below} or >${THRESHOLDS.ph.critical.above}
+- TDS: Safe <${THRESHOLDS.tds.safe.max} ppm; Warning ${THRESHOLDS.tds.safe.max} ≤ TDS ≤ ${THRESHOLDS.tds.critical.above} ppm; Critical >${THRESHOLDS.tds.critical.above} ppm
+- Turbidity: Safe <${THRESHOLDS.turbidity.safe.max} NTU; Warning ${THRESHOLDS.turbidity.safe.max} ≤ turbidity ≤ ${THRESHOLDS.turbidity.critical.above} NTU; Critical >${THRESHOLDS.turbidity.critical.above} NTU
+- Flow Rate: Safe ${THRESHOLDS.flowRate.safe.min}–${THRESHOLDS.flowRate.safe.max} L/min; Warning below ${THRESHOLDS.flowRate.safe.min} or above ${THRESHOLDS.flowRate.safe.max} through ${THRESHOLDS.flowRate.critical.above}; Critical >${THRESHOLDS.flowRate.critical.above}. Max filter capacity = ${MAX_FILTER_CAPACITY} L/min.
 
 Key rules you enforce:
-- Flow > 2.0 L/min is auto-corrected to 2.0. Flow > 3.0 triggers emergency shutdown.
-- Turbidity > 50 NTU with flow > 2.0 triggers emergency shutdown.
-- pH < 5.5 or > 10.0 triggers emergency shutdown.
-- TDS > 1500 is critical and starts filtration in Auto mode.
-- Turbidity > 20 starts filtration in Auto mode.
+- Flow > ${MAX_FILTER_CAPACITY} L/min is auto-corrected to ${MAX_FILTER_CAPACITY}. Flow > ${THRESHOLDS.flowRate.critical.above} triggers emergency shutdown.
+- Turbidity > ${THRESHOLDS.turbidity.critical.above} NTU with flow > ${MAX_FILTER_CAPACITY} triggers emergency shutdown.
+- pH < ${THRESHOLDS.ph.critical.below} or > ${THRESHOLDS.ph.critical.above} triggers emergency shutdown.
+- TDS > ${THRESHOLDS.tds.critical.above} is critical and starts filtration in Auto mode.
+- Turbidity > ${THRESHOLDS.turbidity.filtration.above} starts filtration in Auto mode.
 - In Manual mode the pump is never auto-started unless an emergency requires it.
 - Emergency Shutdown overrides Manual and Auto, and locks the pump until the operator acknowledges.
 
@@ -50,23 +51,26 @@ export const chat = action({
       v.object({
         role: v.union(v.literal("user"), v.literal("assistant")),
         content: v.string(),
-      })
+      }),
     ),
     context: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
-    const openai = new OpenAI({
-      baseURL: "https://ai-gateway.hercules.app/v1",
-      apiKey: process.env.HERCULES_API_KEY,
-    });
-
     const systemContent = args.context
       ? `${ETHM_SYSTEM_PROMPT}\n\nCurrent live system state:\n${args.context}`
       : ETHM_SYSTEM_PROMPT;
 
     try {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error(
+          "Ethm AI is not configured. Set OPENAI_API_KEY for this Convex deployment.",
+        );
+      }
+
+      const openai = new OpenAI({ apiKey });
       const response = await openai.chat.completions.create({
-        model: "openai/gpt-5-mini",
+        model: "gpt-5-mini",
         messages: [
           { role: "system", content: systemContent },
           ...args.messages.map((m) => ({
@@ -76,10 +80,20 @@ export const chat = action({
         ],
       });
 
-      return { text: response.choices[0]?.message?.content ?? "I'm unable to respond at this time." };
+      return {
+        text:
+          response.choices[0]?.message?.content ??
+          "I'm unable to respond at this time.",
+      };
     } catch (error) {
       if (error instanceof OpenAI.APIError) {
         throw new Error(`Ethm AI Error: ${error.message}`);
+      }
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Ethm AI is not configured.")
+      ) {
+        throw error;
       }
       throw new Error("Ethm AI is temporarily offline. Please try again.");
     }

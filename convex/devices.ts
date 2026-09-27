@@ -1,9 +1,10 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel.d.ts";
 import type { MutationCtx } from "./_generated/server";
 import { createSystemNotification } from "./notifications";
+import { classifyPh, classifyTds, classifyTurbidity, THRESHOLDS } from "./safety-policy";
 
 // Helper to require admin
 async function requireAdmin(ctx: MutationCtx) {
@@ -17,8 +18,13 @@ async function requireAdmin(ctx: MutationCtx) {
 // List all registered devices (public read — guests can view)
 export const listDevices = query({
   args: {},
-  handler: async (ctx): Promise<Doc<"devices">[]> => {
-    return await ctx.db.query("devices").collect();
+  handler: async (ctx): Promise<Array<Omit<Doc<"devices">, "apiKey">>> => {
+    const devices = await ctx.db.query("devices").collect();
+    return devices.map((device) => {
+      const { apiKey, ...publicDevice } = device;
+      void apiKey;
+      return publicDevice;
+    });
   },
 });
 
@@ -27,6 +33,7 @@ export const registerDevice = mutation({
   args: {
     deviceId: v.string(),
     name: v.string(),
+    apiKey: v.string(),
     location: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -35,16 +42,19 @@ export const registerDevice = mutation({
     const existing = await ctx.db.query("devices").withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId)).unique();
     if (existing) throw new ConvexError({ message: "Device ID already registered", code: "CONFLICT" });
 
-    // Generate a simple API key
-    const apiKey = `ldwms_${args.deviceId}_${Date.now()}`;
+    const existingKey = await ctx.db
+      .query("devices")
+      .withIndex("by_apiKey", (q) => q.eq("apiKey", args.apiKey))
+      .unique();
+    if (existingKey) throw new ConvexError({ message: "API key collision — try again", code: "CONFLICT" });
     await ctx.db.insert("devices", {
       deviceId: args.deviceId,
       name: args.name,
       location: args.location,
-      apiKey,
+      apiKey: args.apiKey,
       status: "offline",
     });
-    return { apiKey };
+    return { apiKey: args.apiKey };
   },
 });
 
@@ -84,7 +94,7 @@ export const getRecentReadings = query({
 });
 
 // Internal: save a sensor reading (called from HTTP action)
-export const internalSaveReading = mutation({
+export const internalSaveReading = internalMutation({
   args: {
     deviceId: v.string(),
     ph: v.number(),
@@ -93,6 +103,11 @@ export const internalSaveReading = mutation({
   },
   handler: async (ctx, args): Promise<void> => {
     const now = new Date().toISOString();
+    const previousReading = await ctx.db
+      .query("sensorReadings")
+      .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+      .order("desc")
+      .first();
 
     // Update device lastSeen + status to online
     const device = await ctx.db.query("devices").withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId)).unique();
@@ -117,49 +132,57 @@ export const internalSaveReading = mutation({
 
     // Threshold alert logic — broadcast to all admin/operator users
     const alerts: Array<{ level: "critical" | "warning"; title: string; message: string; parameter: string; value: string }> = [];
+    const severity = { safe: 0, warning: 1, critical: 2 } as const;
+    const shouldNotify = (
+      previous: "safe" | "warning" | "critical" | undefined,
+      current: "safe" | "warning" | "critical",
+    ): current is "warning" | "critical" =>
+      current !== "safe" && (previous === undefined || severity[current] > severity[previous]);
 
-    // pH thresholds: safe 6.5–8.5, critical <5.0 or >10.0
-    if (args.ph < 6.5 || args.ph > 8.5) {
-      const level = args.ph < 5.0 || args.ph > 10.0 ? "critical" : "warning";
+    const phLevel = classifyPh(args.ph);
+    const previousPhLevel = previousReading ? classifyPh(previousReading.ph) : undefined;
+    if (shouldNotify(previousPhLevel, phLevel)) {
+      const level = phLevel;
       alerts.push({
         level,
         title: `pH ${level === "critical" ? "CRITICAL" : "Warning"}: ${args.ph.toFixed(2)}`,
-        message: `pH reading of ${args.ph.toFixed(2)} is outside the safe range (6.5–8.5). Device: ${args.deviceId}`,
+        message: `pH reading of ${args.ph.toFixed(2)} is outside the safe range (${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}). Device: ${args.deviceId}`,
         parameter: "pH",
         value: args.ph.toFixed(2),
       });
     }
 
-    // TDS thresholds: warning >500, critical >800
-    if (args.tds > 500) {
-      const level = args.tds > 800 ? "critical" : "warning";
+    const tdsLevel = classifyTds(args.tds);
+    const previousTdsLevel = previousReading ? classifyTds(previousReading.tds) : undefined;
+    if (shouldNotify(previousTdsLevel, tdsLevel)) {
+      const level = tdsLevel;
       alerts.push({
         level,
         title: `TDS ${level === "critical" ? "CRITICAL" : "Warning"}: ${args.tds.toFixed(0)} ppm`,
-        message: `TDS reading of ${args.tds.toFixed(0)} ppm exceeds 500 ppm threshold. Device: ${args.deviceId}`,
+        message: `TDS reading of ${args.tds.toFixed(0)} ppm is at or above the recommended limit of ${THRESHOLDS.tds.safe.max} ppm. Device: ${args.deviceId}`,
         parameter: "TDS",
         value: `${args.tds.toFixed(0)} ppm`,
       });
     }
 
-    // Turbidity thresholds: warning >20, critical >50
-    if (args.turbidity > 20) {
-      const level = args.turbidity > 50 ? "critical" : "warning";
+    const turbidityLevel = classifyTurbidity(args.turbidity);
+    const previousTurbidityLevel = previousReading ? classifyTurbidity(previousReading.turbidity) : undefined;
+    if (shouldNotify(previousTurbidityLevel, turbidityLevel)) {
+      const level = turbidityLevel;
       alerts.push({
         level,
         title: `Turbidity ${level === "critical" ? "CRITICAL" : "Warning"}: ${args.turbidity.toFixed(1)} NTU`,
-        message: `Turbidity reading of ${args.turbidity.toFixed(1)} NTU exceeds 20 NTU threshold. Device: ${args.deviceId}`,
+        message: `Turbidity reading of ${args.turbidity.toFixed(1)} NTU is at or above the warning threshold of ${THRESHOLDS.turbidity.warning.min} NTU. Device: ${args.deviceId}`,
         parameter: "Turbidity",
         value: `${args.turbidity.toFixed(1)} NTU`,
       });
     }
 
-    // Broadcast alerts to all admin/operator users
+    // Water-quality alerts are visible to every authenticated dashboard role.
     if (alerts.length > 0) {
       const users = await ctx.db.query("users").collect();
-      const targets = users.filter((u) => u.role === "admin" || u.role === "operator");
       for (const alert of alerts) {
-        for (const target of targets) {
+        for (const target of users) {
           await createSystemNotification(ctx, target._id, {
             level: alert.level,
             category: "threshold",
@@ -207,7 +230,7 @@ export const checkDeviceStale = internalMutation({
 });
 
 // Internal: validate API key and return device
-export const validateApiKey = query({
+export const validateApiKey = internalQuery({
   args: { apiKey: v.string() },
   handler: async (ctx, args): Promise<Doc<"devices"> | null> => {
     return await ctx.db.query("devices").withIndex("by_apiKey", (q) => q.eq("apiKey", args.apiKey)).unique();

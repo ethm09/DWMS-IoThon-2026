@@ -370,7 +370,7 @@ export default function ThresholdsPage() {
     localStorage.setItem(META_KEY, JSON.stringify(newMeta));
     setMeta(newMeta);
     setHasChanges(false);
-    toast.success("Thresholds saved successfully");
+    toast.success("Thresholds saved in this browser; live backend alert limits are unchanged");
   }, [thresholds, user]);
 
   const restoreDefaults = useCallback(() => {
@@ -398,7 +398,10 @@ export default function ThresholdsPage() {
             <SlidersHorizontal className="w-5 h-5" /> Thresholds & Calibration
           </h2>
           <p className="text-xs text-muted-foreground tracking-wider mt-0.5">
-            Configure safety thresholds and manage sensor calibration
+            Configure local threshold preferences and manage sensor calibration
+          </p>
+          <p className="text-xs text-amber-500/90 mt-1">
+            Thresholds and calibration records are stored in this browser. Live hardware alerts still use the backend safety policy.
           </p>
         </div>
         {!canEdit && (

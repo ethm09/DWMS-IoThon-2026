@@ -11,7 +11,6 @@ const teamMembers = [
     role: "Project Leader",
     tagline: "Leading the development of an intelligent water monitoring and control system.",
     responsibility: "System Design & Integration",
-    img: "https://hercules-cdn.com/file_Cu6H447tlE1PJ4ovbO04cCr0",
     isLeader: true,
   },
   {
@@ -19,7 +18,6 @@ const teamMembers = [
     role: "Operational Planning",
     tagline: "Coordinating operational workflows and system planning.",
     responsibility: "Operational Planning",
-    img: "https://hercules-cdn.com/file_G24OOmvhFsNMP252gMyHJl39",
     isLeader: false,
   },
   {
@@ -27,7 +25,6 @@ const teamMembers = [
     role: "Designer",
     tagline: "Crafting the visual identity and system interface.",
     responsibility: "Design",
-    img: "https://hercules-cdn.com/file_IhGUboeU9EgJ5xiiDCbkDCui",
     isLeader: false,
   },
   {
@@ -35,7 +32,6 @@ const teamMembers = [
     role: "Quality Inspector",
     tagline: "Ensuring accuracy and reliability of all system outputs.",
     responsibility: "Quality Inspection",
-    img: "https://hercules-cdn.com/file_mmk5OzQ3oCcFB4nq31GukKdw",
     isLeader: false,
   },
 ];
@@ -163,12 +159,19 @@ function TeamCard({ member }: { member: Member }) {
     >
       <CardContent className="pt-0 pb-4 flex flex-col items-center text-center gap-3">
         <div className="w-full h-2 mb-0" style={{ background: member.isLeader ? "oklch(0.6 0.17 145)" : "oklch(0.26 0.04 145)" }} />
-        <img
-          src={member.img}
-          alt={member.name}
-          className="w-24 h-24 rounded-full object-cover object-top border-2"
+        <div
+          role="img"
+          aria-label={member.name}
+          className="w-24 h-24 rounded-full border-2 flex items-center justify-center bg-primary/10 text-2xl font-bold tracking-wider text-primary"
           style={{ borderColor: member.isLeader ? "oklch(0.6 0.17 145)" : "oklch(0.35 0.05 145)" }}
-        />
+        >
+          {member.name
+            .split(/\s+/)
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase()}
+        </div>
         <div>
           <div className={`font-bold tracking-wider ${member.isLeader ? "text-primary text-base" : "text-foreground text-sm"}`}>
             {member.name}

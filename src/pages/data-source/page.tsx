@@ -168,8 +168,8 @@ function DataSourceInner() {
             style={{ background: "oklch(0.1 0.03 145)", border: "1px solid oklch(0.2 0.04 145)" }}>
             <p className="font-bold tracking-wider text-muted-foreground mb-1">SAFETY RULE</p>
             <p className="text-muted-foreground">
-              When hardware is actively sending data, switching to Demo mode will not overwrite live readings.
-              Demo drift only runs while no hardware data is received.
+              Demo mode uses simulated readings and replaces the displayed values with the simulation.
+              Choose Real Hardware to display readings received from the selected device.
             </p>
           </div>
         </CardContent>

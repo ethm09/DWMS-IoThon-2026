@@ -4,10 +4,13 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
@@ -31,8 +34,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Convex bindings
-        run: pnpm exec convex codegen
+      - name: Generate Convex bindings in an isolated local backend
+        run: pnpm exec convex dev --once
+
+      - name: Lint DWMS
+        run: pnpm run lint
 
       - name: Build DWMS
         run: pnpm run build
@@ -77,6 +83,7 @@ jobs:
           echo "======================================"
           echo "Dependencies: PASS"
           echo "Convex Codegen: PASS"
+          echo "Lint: PASS"
           echo "Build: PASS"
           echo "Environment check: PASS"
           echo "Secret scan: PASS"
