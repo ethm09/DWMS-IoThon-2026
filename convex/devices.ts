@@ -1,17 +1,40 @@
-import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
+import {
+  query,
+  mutation,
+  internalMutation,
+  internalQuery,
+} from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel.d.ts";
 import type { MutationCtx } from "./_generated/server";
 import { createSystemNotification } from "./notifications";
-import { classifyPh, classifyTds, classifyTurbidity, THRESHOLDS } from "./safety-policy";
+import {
+  classifyPh,
+  classifyTds,
+  classifyTurbidity,
+  THRESHOLDS,
+} from "./safetyPolicy";
 
 // Helper to require admin
 async function requireAdmin(ctx: MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
-  if (!identity) throw new ConvexError({ message: "Not authenticated", code: "UNAUTHENTICATED" });
-  const user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier)).unique();
-  if (!user || user.role !== "admin") throw new ConvexError({ message: "Admin access required", code: "FORBIDDEN" });
+  if (!identity)
+    throw new ConvexError({
+      message: "Not authenticated",
+      code: "UNAUTHENTICATED",
+    });
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_token", (q) =>
+      q.eq("tokenIdentifier", identity.tokenIdentifier),
+    )
+    .unique();
+  if (!user || user.role !== "admin")
+    throw new ConvexError({
+      message: "Admin access required",
+      code: "FORBIDDEN",
+    });
   return user;
 }
 
@@ -39,14 +62,25 @@ export const registerDevice = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     // Check for duplicate
-    const existing = await ctx.db.query("devices").withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId)).unique();
-    if (existing) throw new ConvexError({ message: "Device ID already registered", code: "CONFLICT" });
+    const existing = await ctx.db
+      .query("devices")
+      .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
+      .unique();
+    if (existing)
+      throw new ConvexError({
+        message: "Device ID already registered",
+        code: "CONFLICT",
+      });
 
     const existingKey = await ctx.db
       .query("devices")
       .withIndex("by_apiKey", (q) => q.eq("apiKey", args.apiKey))
       .unique();
-    if (existingKey) throw new ConvexError({ message: "API key collision — try again", code: "CONFLICT" });
+    if (existingKey)
+      throw new ConvexError({
+        message: "API key collision — try again",
+        code: "CONFLICT",
+      });
     await ctx.db.insert("devices", {
       deviceId: args.deviceId,
       name: args.name,
@@ -63,8 +97,12 @@ export const deleteDevice = mutation({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    const device = await ctx.db.query("devices").withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId)).unique();
-    if (!device) throw new ConvexError({ message: "Device not found", code: "NOT_FOUND" });
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
+      .unique();
+    if (!device)
+      throw new ConvexError({ message: "Device not found", code: "NOT_FOUND" });
     await ctx.db.delete(device._id);
   },
 });
@@ -75,7 +113,9 @@ export const getLatestReading = query({
   handler: async (ctx, args): Promise<Doc<"sensorReadings"> | null> => {
     return await ctx.db
       .query("sensorReadings")
-      .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_timestamp", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .first();
   },
@@ -87,7 +127,9 @@ export const getRecentReadings = query({
   handler: async (ctx, args): Promise<Doc<"sensorReadings">[]> => {
     return await ctx.db
       .query("sensorReadings")
-      .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_timestamp", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .take(args.limit ?? 50);
   },
@@ -105,12 +147,17 @@ export const internalSaveReading = internalMutation({
     const now = new Date().toISOString();
     const previousReading = await ctx.db
       .query("sensorReadings")
-      .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_timestamp", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .first();
 
     // Update device lastSeen + status to online
-    const device = await ctx.db.query("devices").withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId)).unique();
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
+      .unique();
     if (device) {
       await ctx.db.patch(device._id, { lastSeen: now, status: "online" });
     }
@@ -131,16 +178,25 @@ export const internalSaveReading = internalMutation({
     });
 
     // Threshold alert logic — broadcast to all admin/operator users
-    const alerts: Array<{ level: "critical" | "warning"; title: string; message: string; parameter: string; value: string }> = [];
+    const alerts: Array<{
+      level: "critical" | "warning";
+      title: string;
+      message: string;
+      parameter: string;
+      value: string;
+    }> = [];
     const severity = { safe: 0, warning: 1, critical: 2 } as const;
     const shouldNotify = (
       previous: "safe" | "warning" | "critical" | undefined,
       current: "safe" | "warning" | "critical",
     ): current is "warning" | "critical" =>
-      current !== "safe" && (previous === undefined || severity[current] > severity[previous]);
+      current !== "safe" &&
+      (previous === undefined || severity[current] > severity[previous]);
 
     const phLevel = classifyPh(args.ph);
-    const previousPhLevel = previousReading ? classifyPh(previousReading.ph) : undefined;
+    const previousPhLevel = previousReading
+      ? classifyPh(previousReading.ph)
+      : undefined;
     if (shouldNotify(previousPhLevel, phLevel)) {
       const level = phLevel;
       alerts.push({
@@ -153,7 +209,9 @@ export const internalSaveReading = internalMutation({
     }
 
     const tdsLevel = classifyTds(args.tds);
-    const previousTdsLevel = previousReading ? classifyTds(previousReading.tds) : undefined;
+    const previousTdsLevel = previousReading
+      ? classifyTds(previousReading.tds)
+      : undefined;
     if (shouldNotify(previousTdsLevel, tdsLevel)) {
       const level = tdsLevel;
       alerts.push({
@@ -166,7 +224,9 @@ export const internalSaveReading = internalMutation({
     }
 
     const turbidityLevel = classifyTurbidity(args.turbidity);
-    const previousTurbidityLevel = previousReading ? classifyTurbidity(previousReading.turbidity) : undefined;
+    const previousTurbidityLevel = previousReading
+      ? classifyTurbidity(previousReading.turbidity)
+      : undefined;
     if (shouldNotify(previousTurbidityLevel, turbidityLevel)) {
       const level = turbidityLevel;
       alerts.push({
@@ -211,12 +271,17 @@ export const checkDeviceStale = internalMutation({
     if (!device) return;
 
     // If lastSeen hasn't changed since we scheduled this check, mark offline
-    if (device.lastSeen === args.expectedLastSeen && device.status === "online") {
+    if (
+      device.lastSeen === args.expectedLastSeen &&
+      device.status === "online"
+    ) {
       await ctx.db.patch(device._id, { status: "offline" });
 
       // Notify admin/operator users
       const users = await ctx.db.query("users").collect();
-      const targets = users.filter((u) => u.role === "admin" || u.role === "operator");
+      const targets = users.filter(
+        (u) => u.role === "admin" || u.role === "operator",
+      );
       for (const target of targets) {
         await createSystemNotification(ctx, target._id, {
           level: "warning",
@@ -233,6 +298,9 @@ export const checkDeviceStale = internalMutation({
 export const validateApiKey = internalQuery({
   args: { apiKey: v.string() },
   handler: async (ctx, args): Promise<Doc<"devices"> | null> => {
-    return await ctx.db.query("devices").withIndex("by_apiKey", (q) => q.eq("apiKey", args.apiKey)).unique();
+    return await ctx.db
+      .query("devices")
+      .withIndex("by_apiKey", (q) => q.eq("apiKey", args.apiKey))
+      .unique();
   },
 });

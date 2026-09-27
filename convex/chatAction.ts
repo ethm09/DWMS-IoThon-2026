@@ -3,7 +3,7 @@
 import { v } from "convex/values";
 import OpenAI from "openai";
 import { action } from "./_generated/server";
-import { MAX_FILTER_CAPACITY, THRESHOLDS } from "./safety-policy";
+import { MAX_FILTER_CAPACITY, THRESHOLDS } from "./safetyPolicy";
 
 const ETHM_SYSTEM_PROMPT = `You are Ethm AI, the Intelligent Safety & Control Assistant for the DWMS — Defense Water Monitoring System.
 

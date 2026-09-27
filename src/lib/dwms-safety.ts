@@ -12,11 +12,19 @@ import {
   classifyPh,
   classifyTds,
   classifyTurbidity,
-} from "../../convex/safety-policy";
-import type { ParamKey, SafetyLevel } from "../../convex/safety-policy";
+} from "../../convex/safetyPolicy";
+import type { ParamKey, SafetyLevel } from "../../convex/safetyPolicy";
 
-export { MAX_FILTER_CAPACITY, THRESHOLDS, classifyFlow, classifyParam, classifyPh, classifyTds, classifyTurbidity };
-export type { ParamKey, SafetyLevel } from "../../convex/safety-policy";
+export {
+  MAX_FILTER_CAPACITY,
+  THRESHOLDS,
+  classifyFlow,
+  classifyParam,
+  classifyPh,
+  classifyTds,
+  classifyTurbidity,
+};
+export type { ParamKey, SafetyLevel } from "../../convex/safetyPolicy";
 
 export type SystemMode = "auto" | "manual" | "emergency";
 export type DataMode = "demo" | "hardware";
@@ -81,39 +89,55 @@ export function evaluateState(r: Readings): SafetyDecision {
       parameter: "Flow Rate",
       riskLevel: "critical",
       reason: `Flow rate is ${flow.toFixed(2)} L/min, above the critical limit of ${THRESHOLDS.flowRate.critical.above} L/min.`,
-      recommendation: "Pump stopped immediately to protect the system. Acknowledge to restart.",
+      recommendation:
+        "Pump stopped immediately to protect the system. Acknowledge to restart.",
       emergency: true,
     };
   }
-  if (ph !== undefined && (ph < THRESHOLDS.ph.critical.below || ph > THRESHOLDS.ph.critical.above)) {
+  if (
+    ph !== undefined &&
+    (ph < THRESHOLDS.ph.critical.below || ph > THRESHOLDS.ph.critical.above)
+  ) {
     return {
       kind: "emergency",
       parameter: "pH",
       riskLevel: "critical",
       reason: `pH is ${ph.toFixed(2)}, outside the critical safety band (${THRESHOLDS.ph.critical.below}–${THRESHOLDS.ph.critical.above}).`,
-      recommendation: "Pump stopped to prevent corrosion or contamination. Acknowledge to restart.",
+      recommendation:
+        "Pump stopped to prevent corrosion or contamination. Acknowledge to restart.",
       emergency: true,
     };
   }
-  if (turb !== undefined && turb > THRESHOLDS.turbidity.critical.above && flow !== undefined && flow > MAX_FILTER_CAPACITY) {
+  if (
+    turb !== undefined &&
+    turb > THRESHOLDS.turbidity.critical.above &&
+    flow !== undefined &&
+    flow > MAX_FILTER_CAPACITY
+  ) {
     return {
       kind: "emergency",
       parameter: "Turbidity",
       riskLevel: "critical",
       reason: `Turbidity is ${turb.toFixed(1)} NTU with flow ${flow.toFixed(2)} L/min — filter breach risk.`,
-      recommendation: "Pump stopped to protect the filter media. Acknowledge to restart.",
+      recommendation:
+        "Pump stopped to protect the filter media. Acknowledge to restart.",
       emergency: true,
     };
   }
 
   // ── Level 2 — Auto-correction (flow above filter capacity) ──
-  if (flow !== undefined && flow > MAX_FILTER_CAPACITY && flow <= THRESHOLDS.flowRate.critical.above) {
+  if (
+    flow !== undefined &&
+    flow > MAX_FILTER_CAPACITY &&
+    flow <= THRESHOLDS.flowRate.critical.above
+  ) {
     return {
       kind: "correction",
       parameter: "Flow Rate",
       riskLevel: "warning",
       reason: `Flow rate ${flow.toFixed(2)} L/min exceeds the filter capacity of ${MAX_FILTER_CAPACITY} L/min.`,
-      recommendation: "Ethm AI can reduce the flow rate to protect filter performance.",
+      recommendation:
+        "Ethm AI can reduce the flow rate to protect filter performance.",
       correctedValue: MAX_FILTER_CAPACITY,
     };
   }
@@ -125,7 +149,8 @@ export function evaluateState(r: Readings): SafetyDecision {
       parameter: "TDS",
       riskLevel: "critical",
       reason: `TDS is ${tds.toFixed(0)} ppm, above the critical limit of ${THRESHOLDS.tds.critical.above} ppm.`,
-      recommendation: "Start filtration immediately to dilute dissolved solids.",
+      recommendation:
+        "Start filtration immediately to dilute dissolved solids.",
       startFiltration: true,
     };
   }
@@ -133,7 +158,8 @@ export function evaluateState(r: Readings): SafetyDecision {
     return {
       kind: "correction",
       parameter: "Turbidity",
-      riskLevel: turb > THRESHOLDS.turbidity.critical.above ? "critical" : "warning",
+      riskLevel:
+        turb > THRESHOLDS.turbidity.critical.above ? "critical" : "warning",
       reason: `Turbidity is ${turb.toFixed(1)} NTU, above the ${THRESHOLDS.turbidity.filtration.above} NTU filtration threshold.`,
       recommendation: "Start filtration to clear suspended particles.",
       startFiltration: true,
@@ -211,7 +237,8 @@ export function evaluateChange(key: ParamKey, value: number): SafetyDecision {
         parameter: "Flow Rate",
         riskLevel: "warning",
         reason: `Flow rate ${value.toFixed(2)} L/min is above the filter capacity of ${MAX_FILTER_CAPACITY} L/min.`,
-        recommendation: "Ethm AI can auto-correct the flow rate to protect filter performance.",
+        recommendation:
+          "Ethm AI can auto-correct the flow rate to protect filter performance.",
         correctedValue: MAX_FILTER_CAPACITY,
       };
     }

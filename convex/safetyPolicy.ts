@@ -40,8 +40,10 @@ export const THRESHOLDS = {
 } as const;
 
 export function classifyPh(ph: number): SafetyLevel {
-  if (ph < THRESHOLDS.ph.critical.below || ph > THRESHOLDS.ph.critical.above) return "critical";
-  if (ph >= THRESHOLDS.ph.safe.min && ph <= THRESHOLDS.ph.safe.max) return "safe";
+  if (ph < THRESHOLDS.ph.critical.below || ph > THRESHOLDS.ph.critical.above)
+    return "critical";
+  if (ph >= THRESHOLDS.ph.safe.min && ph <= THRESHOLDS.ph.safe.max)
+    return "safe";
   return "warning";
 }
 
@@ -59,7 +61,11 @@ export function classifyTurbidity(turbidity: number): SafetyLevel {
 
 export function classifyFlow(flow: number): SafetyLevel {
   if (flow > THRESHOLDS.flowRate.critical.above) return "critical";
-  if (flow >= THRESHOLDS.flowRate.safe.min && flow <= THRESHOLDS.flowRate.safe.max) return "safe";
+  if (
+    flow >= THRESHOLDS.flowRate.safe.min &&
+    flow <= THRESHOLDS.flowRate.safe.max
+  )
+    return "safe";
   return "warning";
 }
 
