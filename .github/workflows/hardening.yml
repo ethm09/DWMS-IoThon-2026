@@ -15,6 +15,8 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      CONVEX_AGENT_MODE: anonymous
 
     steps:
       - name: Checkout
@@ -35,8 +37,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Initialize an anonymous local Convex deployment
-        env:
-          CONVEX_AGENT_MODE: anonymous
         run: pnpm exec convex init
 
       - name: Configure placeholder Auth0 values for CI
