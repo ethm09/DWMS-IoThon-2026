@@ -116,7 +116,7 @@ function summarizeToolResult(name: string, result: ToolResult) {
   }
   if (name === "getRecentSensorReadings") return `${String(result.count ?? 0)} persisted readings retrieved.`;
   if (name === "getActiveAlerts" || name === "getRecentAlerts") {
-    const count = Array.isArray(result) ? result.length : 0;
+    const count = Array.isArray(result.alerts) ? result.alerts.length : 0;
     return `${count} notification record${count === 1 ? "" : "s"} retrieved.`;
   }
   if (name === "analyzeWaterQuality") return String(result.summary ?? "Water-quality analysis completed.").slice(0, 350);
@@ -124,9 +124,9 @@ function summarizeToolResult(name: string, result: ToolResult) {
   if (name === "evaluateSafetyState") return String(result.reason ?? "Safety evaluation completed.").slice(0, 350);
   if (name === "getDataMode") return `Data mode ${String(result.mode ?? "UNKNOWN")}; freshness ${String(result.freshness ?? "unknown")}.`;
   if (name === "getDeviceStatus") return `Device status ${String(result.status ?? "unknown")}; mode ${String(result.controlMode ?? "unknown")}; reported pump ${String(result.reportedPumpState ?? "unknown")}.`;
-  if (name === "listDevices") return `${Array.isArray(result) ? result.length : 0} registered device records retrieved.`;
-  if (name === "getRecentEvents") return `${Array.isArray(result) ? result.length : 0} persisted control events retrieved.`;
-  if (name === "getRelevantExperiences") return `${Array.isArray(result) ? result.length : 0} relevant DWMS experiences retrieved.`;
+  if (name === "listDevices") return `${Array.isArray(result.devices) ? result.devices.length : 0} registered device records retrieved.`;
+  if (name === "getRecentEvents") return `${Array.isArray(result.events) ? result.events.length : 0} persisted control events retrieved.`;
+  if (name === "getRelevantExperiences") return `${Array.isArray(result.experiences) ? result.experiences.length : 0} relevant DWMS experiences retrieved.`;
   return "DWMS data retrieved.";
 }
 
@@ -146,7 +146,7 @@ async function executeReadTool(
 ): Promise<ToolResult> {
   switch (toolName) {
     case "listDevices":
-      return await ctx.runQuery(internal.agentTools.listDevices, {});
+      return { devices: await ctx.runQuery(internal.agentTools.listDevices, {}) };
     case "getLatestSensorReadings":
       return await ctx.runQuery(internal.agentTools.getLatestSensorReadings, { deviceId: stringArgument(args, "deviceId") });
     case "getRecentSensorReadings":
@@ -154,9 +154,9 @@ async function executeReadTool(
     case "getDeviceStatus":
       return await ctx.runQuery(internal.agentTools.getDeviceStatus, { deviceId: stringArgument(args, "deviceId") });
     case "getActiveAlerts":
-      return await ctx.runQuery(internal.agentTools.getActiveAlerts, { userId: userId as never });
+      return { alerts: await ctx.runQuery(internal.agentTools.getActiveAlerts, { userId: userId as never }) };
     case "getRecentAlerts":
-      return await ctx.runQuery(internal.agentTools.getRecentAlerts, { userId: userId as never, limit: numberArgument(args, "limit", 20) });
+      return { alerts: await ctx.runQuery(internal.agentTools.getRecentAlerts, { userId: userId as never, limit: numberArgument(args, "limit", 20) }) };
     case "getSystemMode":
       return await ctx.runQuery(internal.agentTools.getSystemMode, { deviceId: stringArgument(args, "deviceId") });
     case "getDataMode":
@@ -168,9 +168,9 @@ async function executeReadTool(
     case "analyzeSensorTrends":
       return await ctx.runQuery(internal.agentTools.analyzeSensorTrends, { deviceId: stringArgument(args, "deviceId"), limit: numberArgument(args, "limit", 20) });
     case "getRecentEvents":
-      return await ctx.runQuery(internal.agentTools.getRecentEvents, { deviceId: stringArgument(args, "deviceId"), limit: numberArgument(args, "limit", 10) });
+      return { events: await ctx.runQuery(internal.agentTools.getRecentEvents, { deviceId: stringArgument(args, "deviceId"), limit: numberArgument(args, "limit", 10) }) };
     case "getRelevantExperiences":
-      return await ctx.runQuery(internal.agentTools.getRelevantExperiences, { deviceId: stringArgument(args, "deviceId"), limit: numberArgument(args, "limit", 4) });
+      return { experiences: await ctx.runQuery(internal.agentTools.getRelevantExperiences, { deviceId: stringArgument(args, "deviceId"), limit: numberArgument(args, "limit", 4) }) };
     default:
       throw new Error("Tool is not in the Ethm registry.");
   }
