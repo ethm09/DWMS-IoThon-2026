@@ -86,6 +86,37 @@ export const getRun = query({
   },
 });
 
+export const cancelPendingAction = mutation({
+  args: { runId: v.id("agentRuns") },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    const run = await ctx.db.get(args.runId);
+    if (!run || run.userId !== user._id) {
+      throw new ConvexError({ code: "NOT_FOUND", message: "Agent run not found." });
+    }
+    if (run.status !== "awaiting_confirmation" || !run.pendingAction) {
+      throw new ConvexError({ code: "INVALID_ACTION", message: "No pending action is available." });
+    }
+
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.runId, {
+      status: "blocked",
+      pendingAction: undefined,
+      result: "Operator dismissed the pump proposal. No hardware command was created.",
+      completedAt: now,
+    });
+    await ctx.db.insert("agentRunEvents", {
+      runId: args.runId,
+      userId: user._id,
+      state: "blocked",
+      label: "Proposal dismissed",
+      summary: "Operator dismissed the proposal before a device command was created.",
+      createdAt: now,
+    });
+    return true;
+  },
+});
+
 export const getRunEvents = query({
   args: { runId: v.id("agentRuns") },
   handler: async (ctx, args) => {
