@@ -95,14 +95,14 @@ function buildComponents(readings: { ph: number | null; tds: number | null; turb
       name: "TDS Sensor",
       sublabel: "Conductivity probe — electrode degradation model",
       icon: Droplets,
-      healthScore: Math.round(92 - tdsStress * 15 - Math.random() * 5),
-      remainingLife: Math.round(180 - tdsStress * 60 - Math.random() * 20),
+      healthScore: Math.round(92 - tdsStress * 15),
+      remainingLife: Math.round(180 - tdsStress * 60),
       failureProbability: 0.05 + tdsStress * 0.15,
-      lastMaintenance: format(addDays(now, -45), "yyyy-MM-dd"),
+      lastMaintenance: "Not recorded",
       nextMaintenance: format(addDays(now, Math.round(90 - tdsStress * 30)), "yyyy-MM-dd"),
       riskLevel: "low",
       degradationRate: 2.1 + tdsStress * 1.5,
-      operatingHours: 4320 + Math.round(Math.random() * 200),
+      operatingHours: 4320,
       meanTimeBetweenFailures: 8760,
       recommendations: [
         "Calibrate sensor weekly with standard solution",
@@ -115,14 +115,14 @@ function buildComponents(readings: { ph: number | null; tds: number | null; turb
       name: "Turbidity Sensor",
       sublabel: "Optical nephelometer — lens fouling model",
       icon: Wind,
-      healthScore: Math.round(88 - turbStress * 25 - Math.random() * 5),
-      remainingLife: Math.round(150 - turbStress * 80 - Math.random() * 15),
+      healthScore: Math.round(88 - turbStress * 25),
+      remainingLife: Math.round(150 - turbStress * 80),
       failureProbability: 0.08 + turbStress * 0.25,
-      lastMaintenance: format(addDays(now, -30), "yyyy-MM-dd"),
+      lastMaintenance: "Not recorded",
       nextMaintenance: format(addDays(now, Math.round(60 - turbStress * 25)), "yyyy-MM-dd"),
       riskLevel: "low",
       degradationRate: 3.2 + turbStress * 3.0,
-      operatingHours: 4320 + Math.round(Math.random() * 200),
+      operatingHours: 4320,
       meanTimeBetweenFailures: 6570,
       recommendations: [
         "Clean optical lens bi-weekly to prevent fouling buildup",
@@ -135,14 +135,14 @@ function buildComponents(readings: { ph: number | null; tds: number | null; turb
       name: "pH Sensor",
       sublabel: "Glass electrode — reference junction model",
       icon: FlaskConical,
-      healthScore: Math.round(85 - phStress * 20 - Math.random() * 8),
-      remainingLife: Math.round(120 - phStress * 50 - Math.random() * 20),
+      healthScore: Math.round(85 - phStress * 20),
+      remainingLife: Math.round(120 - phStress * 50),
       failureProbability: 0.1 + phStress * 0.2,
-      lastMaintenance: format(addDays(now, -60), "yyyy-MM-dd"),
+      lastMaintenance: "Not recorded",
       nextMaintenance: format(addDays(now, Math.round(45 - phStress * 20)), "yyyy-MM-dd"),
       riskLevel: "medium",
       degradationRate: 4.0 + phStress * 2.5,
-      operatingHours: 4320 + Math.round(Math.random() * 200),
+      operatingHours: 4320,
       meanTimeBetweenFailures: 5840,
       recommendations: [
         "Store in KCl solution when not in use",
@@ -156,14 +156,14 @@ function buildComponents(readings: { ph: number | null; tds: number | null; turb
       name: "Main Pump",
       sublabel: "Centrifugal pump — bearing wear model",
       icon: Power,
-      healthScore: Math.round(94 - flowStress * 12 - Math.random() * 4),
-      remainingLife: Math.round(365 - flowStress * 100 - Math.random() * 30),
+      healthScore: Math.round(94 - flowStress * 12),
+      remainingLife: Math.round(365 - flowStress * 100),
       failureProbability: 0.03 + flowStress * 0.1,
-      lastMaintenance: format(addDays(now, -90), "yyyy-MM-dd"),
+      lastMaintenance: "Not recorded",
       nextMaintenance: format(addDays(now, Math.round(180 - flowStress * 60)), "yyyy-MM-dd"),
       riskLevel: "low",
       degradationRate: 1.2 + flowStress * 1.8,
-      operatingHours: 4320 + Math.round(Math.random() * 200),
+      operatingHours: 4320,
       meanTimeBetweenFailures: 17520,
       recommendations: [
         "Check bearing temperature quarterly — replace if >80C",
@@ -176,14 +176,14 @@ function buildComponents(readings: { ph: number | null; tds: number | null; turb
       name: "Filter Media",
       sublabel: "Sand/carbon — media saturation model",
       icon: Activity,
-      healthScore: Math.round(78 - (tdsStress + turbStress) * 15 - Math.random() * 6),
-      remainingLife: Math.round(90 - (tdsStress + turbStress) * 30 - Math.random() * 10),
+      healthScore: Math.round(78 - (tdsStress + turbStress) * 15),
+      remainingLife: Math.round(90 - (tdsStress + turbStress) * 30),
       failureProbability: 0.15 + (tdsStress + turbStress) * 0.15,
-      lastMaintenance: format(addDays(now, -21), "yyyy-MM-dd"),
+      lastMaintenance: "Not recorded",
       nextMaintenance: format(addDays(now, Math.round(30 - (tdsStress + turbStress) * 10)), "yyyy-MM-dd"),
       riskLevel: "medium",
       degradationRate: 5.5 + (tdsStress + turbStress) * 3.0,
-      operatingHours: 4320 + Math.round(Math.random() * 200),
+      operatingHours: 4320,
       meanTimeBetweenFailures: 4380,
       recommendations: [
         "Backwash weekly to prevent channeling",
@@ -197,14 +197,14 @@ function buildComponents(readings: { ph: number | null; tds: number | null; turb
       name: "MCU / Controller",
       sublabel: "Arduino Mega — firmware & connectivity model",
       icon: Cpu,
-      healthScore: 98 - Math.round(Math.random() * 3),
-      remainingLife: 730 + Math.round(Math.random() * 100),
+      healthScore: 98,
+      remainingLife: 730,
       failureProbability: 0.01,
-      lastMaintenance: format(addDays(now, -120), "yyyy-MM-dd"),
+      lastMaintenance: "Not recorded",
       nextMaintenance: format(addDays(now, 365), "yyyy-MM-dd"),
       riskLevel: "low",
       degradationRate: 0.3,
-      operatingHours: 4320 + Math.round(Math.random() * 200),
+      operatingHours: 4320,
       meanTimeBetweenFailures: 43800,
       recommendations: [
         "Update firmware quarterly for security patches",
@@ -223,49 +223,19 @@ function buildComponents(readings: { ph: number | null; tds: number | null; turb
 
 // ── AI Recommendation Engine ───────────────────────────────────────────────
 
-function generateAIInsights(components: PredictiveComponent[]): string[] {
-  const insights: string[] = [];
-  const criticalComps = components.filter((c) => c.riskLevel === "critical");
-  const highComps = components.filter((c) => c.riskLevel === "high");
-  const nearMaint = components.filter((c) => c.remainingLife < 30);
+function generateMaintenanceInsights(components: PredictiveComponent[]): string[] {
+  const flagged = components.filter(
+    (component) => component.riskLevel === "critical" || component.riskLevel === "high",
+  );
+  const modelSummary = flagged.length
+    ? `The example formula assigns a high score to ${flagged.map((component) => component.name).join(", ")}. This is not an inspection result or maintenance alarm.`
+    : "The example formula does not assign a high score to a component. This does not establish equipment condition.";
 
-  if (criticalComps.length > 0) {
-    insights.push(
-      `URGENT: ${criticalComps.map((c) => c.name).join(", ")} ${criticalComps.length > 1 ? "are" : "is"} in critical condition. Immediate maintenance required to prevent system failure.`
-    );
-  }
-
-  if (highComps.length > 0) {
-    insights.push(
-      `Schedule maintenance for ${highComps.map((c) => c.name).join(", ")} within the next 2 weeks. Degradation rate exceeds normal parameters.`
-    );
-  }
-
-  if (nearMaint.length > 0) {
-    insights.push(
-      `${nearMaint.map((c) => c.name).join(", ")} ${nearMaint.length > 1 ? "have" : "has"} less than 30 days of estimated remaining useful life.`
-    );
-  }
-
-  const avgHealth = components.reduce((sum, c) => sum + c.healthScore, 0) / components.length;
-  if (avgHealth > 85) {
-    insights.push("Overall system health is good. Continue standard preventive maintenance schedule.");
-  } else if (avgHealth > 70) {
-    insights.push("System health is moderate. Consider accelerating maintenance intervals by 20% to prevent cascading failures.");
-  } else {
-    insights.push("System health is below optimal. Multiple components showing wear. Comprehensive maintenance window recommended within 7 days.");
-  }
-
-  // Correlation insight
-  const filterComp = components.find((c) => c.id === "filter");
-  const pumpComp = components.find((c) => c.id === "pump");
-  if (filterComp && pumpComp && filterComp.healthScore < 80) {
-    insights.push(
-      "Correlation detected: Filter media degradation is causing increased pump load. Replacing filter media will extend pump bearing life by an estimated 15-25%."
-    );
-  }
-
-  return insights;
+  return [
+    modelSummary,
+    "The plotted degradation, service dates, MTBF values, and operating hours are fixed example assumptions, not measured history or validated predictions.",
+    "No component failure history, maintenance log, or equipment telemetry is stored. Compare any planning decision with manufacturer guidance and the approved site maintenance program.",
+  ];
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -325,13 +295,13 @@ function ComponentCard({ component }: { component: PredictiveComponent }) {
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
             <div>
-              <span className="text-[9px] text-muted-foreground">Remaining Life</span>
+              <span className="text-[9px] text-muted-foreground">Illustrative Remaining Life</span>
               <div className="text-xs font-bold font-mono" style={{ color: component.remainingLife < 30 ? "#ef4444" : component.remainingLife < 60 ? "#eab308" : "#22c55e" }}>
-                {component.remainingLife} days
+                ~{component.remainingLife} days
               </div>
             </div>
             <div>
-              <span className="text-[9px] text-muted-foreground">Failure Prob (30d)</span>
+              <span className="text-[9px] text-muted-foreground">Illustrative risk score (30d)</span>
               <div className="text-xs font-bold font-mono" style={{ color: component.failureProbability > 0.3 ? "#ef4444" : component.failureProbability > 0.15 ? "#eab308" : "#22c55e" }}>
                 {(component.failureProbability * 100).toFixed(1)}%
               </div>
@@ -341,7 +311,7 @@ function ComponentCard({ component }: { component: PredictiveComponent }) {
               <div className="text-xs font-bold font-mono text-foreground">{component.degradationRate.toFixed(1)}%/mo</div>
             </div>
             <div>
-              <span className="text-[9px] text-muted-foreground">Next Maintenance</span>
+              <span className="text-[9px] text-muted-foreground">Model Target</span>
               <div className="text-xs font-bold font-mono text-foreground">{format(new Date(component.nextMaintenance), "MMM d")}</div>
             </div>
           </div>
@@ -351,7 +321,7 @@ function ComponentCard({ component }: { component: PredictiveComponent }) {
       {/* Recommendations */}
       <div className="space-y-1 pt-2 border-t border-border/40">
         <div className="text-[9px] font-bold tracking-widest text-muted-foreground flex items-center gap-1">
-          <Brain className="w-3 h-3" /> AI RECOMMENDATIONS
+          <Wrench className="w-3 h-3" /> MODEL SUGGESTIONS
         </div>
         {component.recommendations.map((rec, i) => (
           <div key={i} className="flex items-start gap-1.5">
@@ -392,8 +362,8 @@ function DegradationChart({ component }: { component: PredictiveComponent }) {
             labelStyle={{ color: "oklch(0.6 0.02 145)" }}
           />
           <ReferenceLine y={40} stroke="#ef4444" strokeDasharray="5 5" label={{ value: "Maintenance Threshold", fill: "#ef4444", fontSize: 9 }} />
-          <Area type="monotone" dataKey="health" stroke="#22c55e" fill="#22c55e15" strokeWidth={2} name="Actual Health" />
-          <Area type="monotone" dataKey="predicted" stroke="#06b6d4" fill="#06b6d415" strokeWidth={2} strokeDasharray="4 4" name="Predicted" />
+          <Area type="monotone" dataKey="health" stroke="#22c55e" fill="#22c55e15" strokeWidth={2} name="Illustrative Baseline" />
+          <Area type="monotone" dataKey="predicted" stroke="#06b6d4" fill="#06b6d415" strokeWidth={2} strokeDasharray="4 4" name="Model estimate" />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -426,7 +396,7 @@ function MaintenanceSchedule({ components }: { components: PredictiveComponent[]
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold tracking-wider">{comp.name}</div>
               <div className="text-[10px] text-muted-foreground">
-                Last: {format(new Date(comp.lastMaintenance), "MMM d, yyyy")}
+                Last service: {comp.lastMaintenance}
               </div>
             </div>
             <div className="text-right">
@@ -451,7 +421,7 @@ export default function Maintenance() {
   const [selectedComponent, setSelectedComponent] = useState<ComponentId | null>(null);
 
   const components = useMemo(() => buildComponents(readings), [readings]);
-  const aiInsights = useMemo(() => generateAIInsights(components), [components]);
+  const modelInsights = useMemo(() => generateMaintenanceInsights(components), [components]);
 
   const avgHealth = Math.round(components.reduce((sum, c) => sum + c.healthScore, 0) / components.length);
   const criticalCount = components.filter((c) => c.riskLevel === "critical").length;
@@ -470,21 +440,25 @@ export default function Maintenance() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Predictive Maintenance AI</h2>
+          <Wrench className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Maintenance Planning Model</h2>
         </div>
         <p className="text-xs text-muted-foreground tracking-wider mt-0.5">
-          AI-powered failure prediction, degradation analysis, and maintenance scheduling
+          Illustrative estimates based on the current readings and fixed prototype assumptions
         </p>
+      </div>
+
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[10px] text-muted-foreground">
+        <span className="font-bold text-amber-400">PLANNING MODEL ONLY.</span> Health scores, risk scores, operating hours, degradation curves, and service dates are estimates from unvalidated assumptions. The app has no failure history, maintenance log, or component telemetry to support real predictions; last service is therefore shown as not recorded.
       </div>
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "SYSTEM HEALTH", value: `${avgHealth}%`, color: avgHealth >= 80 ? "#22c55e" : avgHealth >= 60 ? "#eab308" : "#ef4444", icon: Gauge },
-          { label: "CRITICAL ALERTS", value: `${criticalCount + highCount}`, color: criticalCount > 0 ? "#ef4444" : highCount > 0 ? "#eab308" : "#22c55e", icon: ShieldAlert },
-          { label: "NEXT MAINTENANCE", value: daysToNext > 0 ? `${daysToNext}d` : "NOW", color: daysToNext < 14 ? "#ef4444" : daysToNext < 30 ? "#eab308" : "#22c55e", icon: Calendar },
-          { label: "PREDICTIONS", value: `${components.length} active`, color: "#06b6d4", icon: Zap },
+          { label: "MODEL HEALTH SCORE", value: `${avgHealth}%`, color: avgHealth >= 80 ? "#22c55e" : avgHealth >= 60 ? "#eab308" : "#ef4444", icon: Gauge },
+          { label: "HIGH MODEL SCORES", value: `${criticalCount + highCount}`, color: criticalCount > 0 ? "#ef4444" : highCount > 0 ? "#eab308" : "#22c55e", icon: ShieldAlert },
+          { label: "ILLUSTRATIVE DATE", value: daysToNext > 0 ? `~${daysToNext}d model` : "REVIEW", color: "#06b6d4", icon: Calendar },
+          { label: "MODEL OUTPUTS", value: `${components.length} examples`, color: "#06b6d4", icon: Zap },
         ].map((k) => {
           const Icon = k.icon;
           return (
@@ -504,13 +478,13 @@ export default function Maintenance() {
       {/* AI Insights Panel */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-            <Brain className="w-4 h-4" /> ETHM AI — MAINTENANCE INSIGHTS
+            <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
+              <Wrench className="w-4 h-4" /> MAINTENANCE MODEL NOTES
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {aiInsights.map((insight, i) => (
+          {modelInsights.map((insight, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -8 }}
@@ -580,7 +554,7 @@ export default function Maintenance() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-                  <TrendingDown className="w-4 h-4" /> {selected.name.toUpperCase()} — 90-DAY DEGRADATION FORECAST
+                  <TrendingDown className="w-4 h-4" /> {selected.name.toUpperCase()} — 90-DAY ILLUSTRATIVE MODEL TREND
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -588,11 +562,11 @@ export default function Maintenance() {
                 <div className="flex items-center gap-4 mt-3 text-[10px]">
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-0.5 rounded-full bg-green-500" />
-                    <span className="text-muted-foreground">Actual Health</span>
+                    <span className="text-muted-foreground">Illustrative Baseline</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-0.5 rounded-full bg-cyan-500" style={{ borderBottom: "1px dashed" }} />
-                    <span className="text-muted-foreground">AI Predicted</span>
+                    <span className="text-muted-foreground">Model estimate</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-0.5 rounded-full bg-red-500" style={{ borderBottom: "1px dashed" }} />
@@ -605,7 +579,7 @@ export default function Maintenance() {
             <Card>
               <CardContent className="py-12 text-center">
                 <TrendingDown className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground tracking-wider">Select a component above to view its degradation forecast</p>
+                <p className="text-xs text-muted-foreground tracking-wider">Select a component above to view its illustrative model trend</p>
               </CardContent>
             </Card>
           )}
@@ -616,7 +590,7 @@ export default function Maintenance() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> PREDICTED MAINTENANCE SCHEDULE
+                <Calendar className="w-4 h-4" /> ILLUSTRATIVE SERVICE-DATE MODEL
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -654,7 +628,7 @@ export default function Maintenance() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-                <Clock className="w-4 h-4" /> MEAN TIME BETWEEN FAILURES (MTBF)
+                <Clock className="w-4 h-4" /> EXAMPLE MTBF ASSUMPTIONS
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -696,7 +670,7 @@ export default function Maintenance() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-                <Power className="w-4 h-4" /> OPERATING HOURS & UTILIZATION
+                <Power className="w-4 h-4" /> EXAMPLE OPERATING-HOUR ASSUMPTIONS
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -713,7 +687,7 @@ export default function Maintenance() {
                         <span className="text-[10px] font-bold tracking-wider truncate">{comp.name}</span>
                       </div>
                       <div className="text-lg font-bold font-mono text-foreground">
-                        {comp.operatingHours.toLocaleString()}h
+                        ~{comp.operatingHours.toLocaleString()}h
                       </div>
                       <div className="flex items-center gap-1 mt-1">
                         <div className="h-1 flex-1 rounded-full bg-border overflow-hidden">

@@ -119,7 +119,8 @@ function SensorFlowDiagram({ isOnline }: { isOnline: boolean }) {
 }
 
 function DashboardInner() {
-  const { selectedDeviceId, setSelectedDeviceId } = useProcessMode();
+  const { selectedDeviceId, setSelectedDeviceId, dataMode, readings: simulatedReadings } = useProcessMode();
+  const usingHardware = dataMode === "hardware";
   const devices = useQuery(api.devices.listDevices, {});
 
   // Keep the dashboard and hardware safety engine on the same selected device.
@@ -131,18 +132,18 @@ function DashboardInner() {
 
   const latestReading = useQuery(
     api.devices.getLatestReading,
-    selectedDeviceId ? { deviceId: selectedDeviceId } : "skip"
+    usingHardware && selectedDeviceId ? { deviceId: selectedDeviceId } : "skip"
   );
   const recentReadings = useQuery(
     api.devices.getRecentReadings,
-    selectedDeviceId ? { deviceId: selectedDeviceId, limit: 30 } : "skip"
+    usingHardware && selectedDeviceId ? { deviceId: selectedDeviceId, limit: 30 } : "skip"
   );
 
   const selectedDevice = devices?.find((d) => d.deviceId === selectedDeviceId);
-  const isOnline = selectedDevice?.status === "online";
+  const isOnline = usingHardware && selectedDevice?.status === "online";
 
   // Build chart data from recent readings (reversed to show oldest first)
-  const history: DataPoint[] = (recentReadings ?? [])
+  const history: DataPoint[] = (usingHardware ? recentReadings ?? [] : [])
     .slice()
     .reverse()
     .map((r) => ({
@@ -153,14 +154,17 @@ function DashboardInner() {
     }));
 
   // Current values
-  const ph = latestReading?.ph ?? 7;
-  const tds = latestReading?.tds ?? 0;
-  const turbidity = latestReading?.turbidity ?? 0;
+  const ph = usingHardware ? latestReading?.ph ?? null : simulatedReadings.ph;
+  const tds = usingHardware ? latestReading?.tds ?? null : simulatedReadings.tds;
+  const turbidity = usingHardware ? latestReading?.turbidity ?? null : simulatedReadings.turbidity;
+  const hasReadings = usingHardware
+    ? latestReading !== null && latestReading !== undefined
+    : ph !== null && tds !== null && turbidity !== null;
 
   // Classify safety levels
-  const tdsStatus = classifyTds(tds);
-  const turbStatus = classifyTurbidity(turbidity);
-  const phStatus = classifyPh(ph);
+  const tdsStatus = classifyTds(tds ?? 0);
+  const turbStatus = classifyTurbidity(turbidity ?? 0);
+  const phStatus = classifyPh(ph ?? 7);
 
   // Overall water quality
   const levels: SafetyLevel[] = [phStatus, tdsStatus, turbStatus];
@@ -172,13 +176,13 @@ function DashboardInner() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Live Dashboard</h2>
-          <p className="text-xs text-muted-foreground tracking-wider">DWMS — Real-time water quality monitoring</p>
+          <p className="text-xs text-muted-foreground tracking-wider">DWMS — {usingHardware ? "Hardware readings" : "Local simulation"}</p>
         </div>
         <div className="flex items-center gap-2">
           <motion.div animate={{ opacity: isOnline ? [1, 0.3, 1] : 0.3 }} transition={{ duration: 1.5, repeat: Infinity }}
             className="w-2 h-2 rounded-full" style={{ background: isOnline ? LEVEL_COLOR[quality] : "#6b7280" }} />
           <span className="text-xs font-bold tracking-widest" style={{ color: isOnline ? LEVEL_COLOR[quality] : "#6b7280" }}>
-            {isOnline ? `WATER ${LEVEL_LABEL[quality]}` : "OFFLINE"}
+            {!usingHardware ? `DEMO · WATER ${LEVEL_LABEL[quality]}` : isOnline ? `WATER ${LEVEL_LABEL[quality]}` : "OFFLINE"}
           </span>
         </div>
       </div>
@@ -209,19 +213,25 @@ function DashboardInner() {
 
       {/* Status indicator cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatusCard icon={isOnline ? Wifi : WifiOff} label="DEVICE STATUS" value={isOnline ? "ONLINE" : "OFFLINE"} color={isOnline ? "#22c55e" : "#6b7280"} />
-        <StatusCard icon={Droplets} label="WATER QUALITY" value={latestReading ? LEVEL_LABEL[quality] : "—"} color={latestReading ? LEVEL_COLOR[quality] : "#6b7280"} />
-        <StatusCard icon={Clock} label="LAST READING" value={latestReading ? new Date(latestReading.timestamp).toLocaleTimeString() : "—"} color="#3b82f6" />
-        <StatusCard icon={Cpu} label="DEVICE" value={selectedDevice?.name ?? "None"} color="#00f5d4" />
+        <StatusCard icon={!usingHardware ? Activity : isOnline ? Wifi : WifiOff} label={usingHardware ? "DEVICE STATUS" : "DATA SOURCE"} value={!usingHardware ? "DEMO" : isOnline ? "ONLINE" : "OFFLINE"} color={!usingHardware ? "#eab308" : isOnline ? "#22c55e" : "#6b7280"} />
+        <StatusCard icon={Droplets} label="WATER QUALITY" value={hasReadings ? LEVEL_LABEL[quality] : "—"} color={hasReadings ? LEVEL_COLOR[quality] : "#6b7280"} />
+        <StatusCard icon={Clock} label="LAST READING" value={!usingHardware ? "SIMULATED" : latestReading ? new Date(latestReading.timestamp).toLocaleTimeString() : "—"} color="#3b82f6" />
+        <StatusCard icon={Cpu} label="DEVICE" value={!usingHardware ? "Local simulation" : selectedDevice?.name ?? "None"} color="#00f5d4" />
       </div>
 
+      {!usingHardware && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-500">
+          Demo values are generated in this browser. They are not sensor readings and are not saved to history.
+        </div>
+      )}
+
       {/* Gauges */}
-      {latestReading ? (
+      {hasReadings ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: "TDS", value: tds, min: 0, max: 2000, unit: "ppm", status: tdsStatus, icon: <Droplets className="w-4 h-4 text-emerald-400" /> },
-            { label: "TURBIDITY", value: turbidity, min: 0, max: 100, unit: "NTU", status: turbStatus, icon: <Wind className="w-4 h-4 text-yellow-400" /> },
-            { label: "pH LEVEL", value: ph, min: 0, max: 14, unit: "pH", status: phStatus, icon: <FlaskConical className="w-4 h-4 text-green-400" /> },
+            { label: "TDS", value: tds ?? 0, min: 0, max: 2000, unit: "ppm", status: tdsStatus, icon: <Droplets className="w-4 h-4 text-emerald-400" /> },
+            { label: "TURBIDITY", value: turbidity ?? 0, min: 0, max: 100, unit: "NTU", status: turbStatus, icon: <Wind className="w-4 h-4 text-yellow-400" /> },
+            { label: "pH LEVEL", value: ph ?? 0, min: 0, max: 14, unit: "pH", status: phStatus, icon: <FlaskConical className="w-4 h-4 text-green-400" /> },
           ].map((g) => (
             <Card key={g.label} className="border-border flex items-center justify-center py-4">
               <RadialGauge value={g.value} min={g.min} max={g.max} label={g.label} unit={g.unit} status={g.status} icon={g.icon} />
@@ -232,7 +242,7 @@ function DashboardInner() {
         <Card className="p-8 text-center space-y-3">
           <Cpu className="w-10 h-10 text-muted-foreground mx-auto" />
           <p className="text-sm font-bold tracking-widest text-muted-foreground">NO SENSOR DATA</p>
-          <p className="text-xs text-muted-foreground">Connect your Arduino and run the Python Serial Bridge to start receiving data</p>
+          <p className="text-xs text-muted-foreground">Select Demo mode for a local simulation, or connect an Arduino and run the Python Serial Bridge for hardware readings.</p>
         </Card>
       )}
 
@@ -241,7 +251,7 @@ function DashboardInner() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-              <Activity className="w-4 h-4" /> LIVE SENSOR GRAPH
+              <Activity className="w-4 h-4" /> RECENT SENSOR READINGS
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -275,12 +285,12 @@ function DashboardInner() {
       </Card>
 
       {/* Status Summary */}
-      {latestReading && (
+      {hasReadings && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "TDS Level", value: `${tds.toFixed(0)} ppm`, status: tdsStatus },
-            { label: "Turbidity", value: `${turbidity.toFixed(2)} NTU`, status: turbStatus },
-            { label: "pH Level", value: ph.toFixed(2), status: phStatus },
+            { label: "TDS Level", value: `${(tds ?? 0).toFixed(0)} ppm`, status: tdsStatus },
+            { label: "Turbidity", value: `${(turbidity ?? 0).toFixed(2)} NTU`, status: turbStatus },
+            { label: "pH Level", value: (ph ?? 0).toFixed(2), status: phStatus },
           ].map((item) => (
             <div key={item.label} className="rounded-lg border p-3"
               style={{ borderColor: LEVEL_COLOR[item.status], background: `${LEVEL_COLOR[item.status]}10` }}>
@@ -292,7 +302,7 @@ function DashboardInner() {
       )}
 
       {/* Warning banner */}
-      {latestReading && quality !== "safe" && (
+      {hasReadings && quality !== "safe" && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-3 rounded-lg border p-3"
           style={{ borderColor: LEVEL_COLOR[quality], background: `${LEVEL_COLOR[quality]}12` }}>

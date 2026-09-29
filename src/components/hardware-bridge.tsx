@@ -12,7 +12,7 @@ import { api } from "@/convex/_generated/api.js";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 
 export default function HardwareBridge() {
-  const { dataMode, selectedDeviceId, setSensorData } = useProcessMode();
+  const { dataMode, selectedDeviceId, setSensorData, syncHardwareControlState } = useProcessMode();
 
   // Only subscribe when in hardware mode and a device is selected
   const shouldSubscribe = dataMode === "hardware" && !!selectedDeviceId;
@@ -21,15 +21,21 @@ export default function HardwareBridge() {
     api.devices.getLatestReading,
     shouldSubscribe ? { deviceId: selectedDeviceId } : "skip"
   );
+  const controlState = useQuery(
+    api.devices.getControlState,
+    shouldSubscribe ? { deviceId: selectedDeviceId } : "skip",
+  );
 
   // Track last timestamp to avoid re-processing the same reading
   const lastTimestamp = useRef<string>("");
+  const lastControlState = useRef<string>("");
 
   useEffect(() => {
     if (!latestReading) return;
-    if (latestReading.timestamp === lastTimestamp.current) return;
+    const signature = `${selectedDeviceId}:${latestReading.timestamp}`;
+    if (signature === lastTimestamp.current) return;
 
-    lastTimestamp.current = latestReading.timestamp;
+    lastTimestamp.current = signature;
 
     setSensorData({
       ph: latestReading.ph,
@@ -38,7 +44,16 @@ export default function HardwareBridge() {
       timestamp: latestReading.timestamp,
       source: "device",
     });
-  }, [latestReading, setSensorData]);
+  }, [latestReading, selectedDeviceId, setSensorData]);
+
+  useEffect(() => {
+    if (!controlState) return;
+    const reported = controlState.reportedPumpState;
+    const signature = `${selectedDeviceId}:${controlState.mode}:${reported}`;
+    if (signature === lastControlState.current) return;
+    lastControlState.current = signature;
+    syncHardwareControlState(controlState.mode, reported);
+  }, [controlState, selectedDeviceId, syncHardwareControlState]);
 
   return null;
 }

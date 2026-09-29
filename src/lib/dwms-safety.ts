@@ -38,12 +38,15 @@ export type Readings = {
   flowRate?: number | null;
 };
 
-export function overallQuality(r: Readings): SafetyLevel {
+export type OverallQuality = SafetyLevel | "unknown";
+
+export function overallQuality(r: Readings): OverallQuality {
   const levels: SafetyLevel[] = [];
   if (r.ph != null) levels.push(classifyPh(r.ph));
   if (r.tds != null) levels.push(classifyTds(r.tds));
   if (r.turbidity != null) levels.push(classifyTurbidity(r.turbidity));
   if (r.flowRate != null) levels.push(classifyFlow(r.flowRate));
+  if (levels.length === 0) return "unknown";
   if (levels.includes("critical")) return "critical";
   if (levels.includes("warning")) return "warning";
   return "safe";
@@ -82,6 +85,16 @@ export function evaluateState(r: Readings): SafetyDecision {
   const turb = r.turbidity ?? undefined;
   const flow = r.flowRate ?? undefined;
 
+  if (ph === undefined && tds === undefined && turb === undefined && flow === undefined) {
+    return {
+      kind: "none",
+      parameter: "Sensor data",
+      riskLevel: "safe",
+      reason: "No sensor readings are available; water-quality status cannot be assessed.",
+      recommendation: "Connect sensors or choose the clearly labeled local simulation.",
+    };
+  }
+
   // ── Level 3 — Emergency Shutdown conditions (highest priority) ──
   if (flow !== undefined && flow > THRESHOLDS.flowRate.critical.above) {
     return {
@@ -90,7 +103,7 @@ export function evaluateState(r: Readings): SafetyDecision {
       riskLevel: "critical",
       reason: `Flow rate is ${flow.toFixed(2)} L/min, above the critical limit of ${THRESHOLDS.flowRate.critical.above} L/min.`,
       recommendation:
-        "Pump stopped immediately to protect the system. Acknowledge to restart.",
+        "The prototype rule flags this reading as critical. Verify the sensor and follow approved site procedures; this assessment does not confirm a physical pump stop.",
       emergency: true,
     };
   }
@@ -104,7 +117,7 @@ export function evaluateState(r: Readings): SafetyDecision {
       riskLevel: "critical",
       reason: `pH is ${ph.toFixed(2)}, outside the critical safety band (${THRESHOLDS.ph.critical.below}–${THRESHOLDS.ph.critical.above}).`,
       recommendation:
-        "Pump stopped to prevent corrosion or contamination. Acknowledge to restart.",
+        "The prototype rule flags this reading as critical. Verify the sensor and follow approved site procedures; this assessment does not confirm a physical pump stop.",
       emergency: true,
     };
   }
@@ -120,7 +133,7 @@ export function evaluateState(r: Readings): SafetyDecision {
       riskLevel: "critical",
       reason: `Turbidity is ${turb.toFixed(1)} NTU with flow ${flow.toFixed(2)} L/min — filter breach risk.`,
       recommendation:
-        "Pump stopped to protect the filter media. Acknowledge to restart.",
+        "The prototype rule flags this combination as critical. Verify both readings and follow approved site procedures; this assessment does not confirm a physical pump stop.",
       emergency: true,
     };
   }
@@ -137,7 +150,7 @@ export function evaluateState(r: Readings): SafetyDecision {
       riskLevel: "warning",
       reason: `Flow rate ${flow.toFixed(2)} L/min exceeds the filter capacity of ${MAX_FILTER_CAPACITY} L/min.`,
       recommendation:
-        "Ethm AI can reduce the flow rate to protect filter performance.",
+        "The prototype rule flags flow above its configured limit. Check an independent flow measurement and follow the approved operating procedure.",
       correctedValue: MAX_FILTER_CAPACITY,
     };
   }
@@ -150,7 +163,7 @@ export function evaluateState(r: Readings): SafetyDecision {
       riskLevel: "critical",
       reason: `TDS is ${tds.toFixed(0)} ppm, above the critical limit of ${THRESHOLDS.tds.critical.above} ppm.`,
       recommendation:
-        "Start filtration immediately to dilute dissolved solids.",
+        "The prototype rule flags this reading as critical. Verify the measurement and follow approved site procedures; no treatment method is prescribed.",
       startFiltration: true,
     };
   }
@@ -161,7 +174,8 @@ export function evaluateState(r: Readings): SafetyDecision {
       riskLevel:
         turb > THRESHOLDS.turbidity.critical.above ? "critical" : "warning",
       reason: `Turbidity is ${turb.toFixed(1)} NTU, above the ${THRESHOLDS.turbidity.filtration.above} NTU filtration threshold.`,
-      recommendation: "Start filtration to clear suspended particles.",
+      recommendation:
+        "The prototype rule flags this reading above the configured filtration trigger. Verify the measurement and follow approved site procedures.",
       startFiltration: true,
     };
   }
@@ -183,7 +197,8 @@ export function evaluateState(r: Readings): SafetyDecision {
       parameter: "pH",
       riskLevel: "warning",
       reason: `pH is ${ph.toFixed(2)}, outside the optimal ${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max} range.`,
-      recommendation: "Consider adjusting chemical dosing to restore balance.",
+      recommendation:
+        "Verify the measurement and follow the approved site response procedure. This assessment does not prescribe chemical dosing.",
     };
   }
   if (tds !== undefined && classifyTds(tds) === "warning") {
@@ -192,7 +207,8 @@ export function evaluateState(r: Readings): SafetyDecision {
       parameter: "TDS",
       riskLevel: "warning",
       reason: `TDS is ${tds.toFixed(0)} ppm, above the recommended ${THRESHOLDS.tds.safe.max} ppm.`,
-      recommendation: "Monitor closely and consider increasing filtration.",
+      recommendation:
+        "Verify the measurement and follow the approved site response procedure. This assessment does not control treatment equipment.",
     };
   }
   if (turb !== undefined && classifyTurbidity(turb) === "warning") {
@@ -201,7 +217,8 @@ export function evaluateState(r: Readings): SafetyDecision {
       parameter: "Turbidity",
       riskLevel: "warning",
       reason: `Turbidity is ${turb.toFixed(1)} NTU, above the recommended ${THRESHOLDS.turbidity.safe.max} NTU.`,
-      recommendation: "Monitor outlet clarity; a backwash may help.",
+      recommendation:
+        "Verify the measurement and follow the approved site response procedure. This assessment does not prescribe treatment actions.",
     };
   }
 
@@ -209,8 +226,9 @@ export function evaluateState(r: Readings): SafetyDecision {
     kind: "none",
     parameter: "All Parameters",
     riskLevel: "safe",
-    reason: "All parameters are within safe operating range.",
-    recommendation: "No action required.",
+    reason: "Available readings are within the configured prototype thresholds.",
+    recommendation:
+      "This prototype result is not a water-safety certification; verify readings with approved instruments and procedures.",
   };
 }
 
@@ -227,7 +245,7 @@ export function evaluateChange(key: ParamKey, value: number): SafetyDecision {
         parameter: "Flow Rate",
         riskLevel: "critical",
         reason: `Flow rate ${value.toFixed(2)} L/min exceeds the critical limit of ${THRESHOLDS.flowRate.critical.above} L/min.`,
-        recommendation: "Emergency shutdown required to protect the system.",
+        recommendation: "The prototype rule flags this reading as critical. Confirm any hardware response through device status and follow approved site procedures.",
         emergency: true,
       };
     }
@@ -238,7 +256,7 @@ export function evaluateChange(key: ParamKey, value: number): SafetyDecision {
         riskLevel: "warning",
         reason: `Flow rate ${value.toFixed(2)} L/min is above the filter capacity of ${MAX_FILTER_CAPACITY} L/min.`,
         recommendation:
-          "Ethm AI can auto-correct the flow rate to protect filter performance.",
+          "The prototype rule flags flow above its configured limit. Verify the measurement and follow the approved site procedure.",
         correctedValue: MAX_FILTER_CAPACITY,
       };
     }
@@ -252,7 +270,7 @@ export function evaluateChange(key: ParamKey, value: number): SafetyDecision {
       parameter: cfg.label,
       riskLevel: "critical",
       reason: `${cfg.label} value ${value} ${cfg.unit} is in the critical range.`,
-      recommendation: "Emergency shutdown required.",
+      recommendation: "The prototype rule flags this reading as critical. Confirm any hardware response through device status and follow approved site procedures.",
       emergency: true,
     };
   }
@@ -270,24 +288,28 @@ export function evaluateChange(key: ParamKey, value: number): SafetyDecision {
     parameter: cfg.label,
     riskLevel: "safe",
     reason: `${cfg.label} value ${value} ${cfg.unit} is within the safe range.`,
-    recommendation: "No action required.",
+    recommendation:
+      "This prototype result is not a water-safety certification; verify readings with approved instruments and procedures.",
   };
 }
 
 // ── Display helpers ───────────────────────────────────────────────────────────
 
-export const LEVEL_COLOR: Record<SafetyLevel, string> = {
+export const LEVEL_COLOR: Record<OverallQuality, string> = {
   safe: "#22c55e",
   warning: "#eab308",
   critical: "#ef4444",
+  unknown: "#6b7280",
 };
 
-export const LEVEL_LABEL: Record<SafetyLevel, string> = {
+export const LEVEL_LABEL: Record<OverallQuality, string> = {
   safe: "SAFE",
   warning: "WARNING",
   critical: "CRITICAL",
+  unknown: "UNKNOWN",
 };
 
-export function riskLabel(level: SafetyLevel): string {
+export function riskLabel(level: OverallQuality): string {
+  if (level === "unknown") return "Unknown";
   return level === "critical" ? "High" : level === "warning" ? "Medium" : "Low";
 }

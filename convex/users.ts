@@ -59,6 +59,17 @@ export const updateCurrentUser = mutation({
       )
       .unique();
     if (user !== null) {
+      const initialAdminEmail = process.env.DWMS_INITIAL_ADMIN_EMAIL
+        ?.trim()
+        .toLowerCase();
+      if (
+        initialAdminEmail &&
+        identity.emailVerified === true &&
+        identity.email?.trim().toLowerCase() === initialAdminEmail &&
+        user.role !== "admin"
+      ) {
+        await ctx.db.patch(user._id, { role: "admin" });
+      }
       return user._id;
     }
 
@@ -97,10 +108,16 @@ export const updateCurrentUser = mutation({
       }
     }
 
-    // Check if this is the very first user — make them admin
-    const existingCount = await ctx.db.query("users").take(1);
-    const role =
-      existingCount.length === 0 ? ("admin" as const) : ("viewer" as const);
+    // Only a verified, explicitly configured owner can bootstrap admin access.
+    // New accounts otherwise start as viewers, even when the database is empty.
+    const initialAdminEmail = process.env.DWMS_INITIAL_ADMIN_EMAIL
+      ?.trim()
+      .toLowerCase();
+    const isInitialAdmin =
+      !!initialAdminEmail &&
+      identity.emailVerified === true &&
+      identity.email?.trim().toLowerCase() === initialAdminEmail;
+    const role = isInitialAdmin ? ("admin" as const) : ("viewer" as const);
     return await ctx.db.insert("users", {
       name: identity.name,
       email: identity.email,

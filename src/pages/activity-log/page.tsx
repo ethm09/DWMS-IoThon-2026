@@ -103,7 +103,7 @@ function EventRow({ event, index }: { event: DwmsEvent; index: number }) {
             </span>
             <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
               <Power className="w-2.5 h-2.5" />
-              PUMP {event.pumpStatus ? "ON" : "OFF"}
+              PUMP {event.pumpStatusKnown ? (event.pumpStatus ? "ON" : "OFF") : "UNCONFIRMED"}
             </span>
           </div>
         </div>
@@ -282,7 +282,7 @@ export default function ActivityLog() {
             <ScrollText className="w-5 h-5" /> Activity Log
           </h2>
           <p className="text-xs text-muted-foreground tracking-wider mt-0.5">
-            {isAdmin ? "Full system audit trail" : "Your activity history"} — {eventLog.length} total events
+            Local browser activity history — {eventLog.length} events (not a shared system audit trail)
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -454,8 +454,7 @@ export default function ActivityLog() {
         >
           <Shield className="w-4 h-4 text-yellow-500 shrink-0" />
           <span className="text-[10px] text-muted-foreground">
-            <strong className="text-yellow-500">Limited view:</strong> You are viewing events from your current session.
-            Admin users have access to the full audit trail with export and management capabilities.
+            This log is stored only in this browser and is not a centralized audit trail. Admin controls can export or clear this local history.
           </span>
         </motion.div>
       )}

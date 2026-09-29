@@ -437,9 +437,9 @@ export default function RemoteMonitoring() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Remote Monitoring</h2>
+          <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Remote Monitoring Demo</h2>
           <p className="text-xs text-muted-foreground tracking-wider">
-            Multi-site command center — {sites.length} stations monitored · Last refresh: {lastRefresh}
+            Local simulation — {sites.length} sample sites · Last simulated refresh: {lastRefresh}
           </p>
         </div>
         <button
@@ -451,6 +451,10 @@ export default function RemoteMonitoring() {
           </motion.div>
           REFRESH
         </button>
+      </div>
+
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[10px] text-muted-foreground">
+        <span className="font-bold text-amber-400">SIMULATION ONLY.</span> These site names, locations, statuses, alerts, and readings are sample data generated in this browser. This page is not connected to remote devices or a monitoring service.
       </div>
 
       {/* Summary stats */}
@@ -474,7 +478,7 @@ export default function RemoteMonitoring() {
             <CardContent className="p-0">
               <div className="px-4 pt-4 pb-2 flex items-center justify-between">
                 <div className="text-[10px] font-bold tracking-widest text-muted-foreground">TACTICAL MAP — SITE LOCATIONS</div>
-                <div className="text-[9px] text-muted-foreground font-mono">LIVE · {sites.filter(s => s.status !== "offline").length} ACTIVE</div>
+                 <div className="text-[9px] text-muted-foreground font-mono">SIMULATED · {sites.filter(s => s.status !== "offline").length} SAMPLE SITES</div>
               </div>
               <div
                 className="relative mx-4 mb-4 rounded-lg overflow-hidden"
@@ -621,7 +625,7 @@ export default function RemoteMonitoring() {
                 <AlertTriangle className="w-4 h-4 text-red-400" />
               </motion.div>
               <div className="text-xs font-bold tracking-widest text-red-400">
-                {critical} SITE{critical > 1 ? "S" : ""} IN CRITICAL STATE — IMMEDIATE ATTENTION REQUIRED
+                DEMO MODEL: {critical} SAMPLE SITE{critical !== 1 ? "S" : ""} SHOWN AS CRITICAL — NO LIVE ALERT
               </div>
             </div>
             <div className="space-y-1">

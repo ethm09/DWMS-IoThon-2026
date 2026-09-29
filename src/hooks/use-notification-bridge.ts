@@ -3,7 +3,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { useAuth } from "@/hooks/use-auth.ts";
-import type { SafetyLevel } from "@/lib/dwms-safety.ts";
+import type { OverallQuality } from "@/lib/dwms-safety.ts";
 
 /**
  * Bridges the local process-mode safety engine with the database-persisted
@@ -16,12 +16,15 @@ export function useNotificationBridge() {
   const { user } = useAuth();
   const { decision, quality, mode, dataMode } = useProcessMode();
   const createNotification = useMutation(api.notifications.create);
-  const lastLevel = useRef<SafetyLevel>("safe");
+  const lastLevel = useRef<OverallQuality>("safe");
   const lastEmergency = useRef(false);
 
   useEffect(() => {
-    // Skip if not authenticated.
-    if (!user) return;
+    if (!user || dataMode === "hardware") {
+      lastLevel.current = quality;
+      lastEmergency.current = mode === "emergency";
+      return;
+    }
 
     const prevLevel = lastLevel.current;
     const prevEmergency = lastEmergency.current;
@@ -40,10 +43,6 @@ export function useNotificationBridge() {
       return;
     }
 
-    // Sensor threshold notifications are created by Convex in hardware mode.
-    // Keep local flow notifications, since flow is not part of the Arduino API.
-    if (dataMode === "hardware" && decision.parameter !== "Flow Rate") return;
-
     // Only fire notifications on transitions (not continuously).
     if (quality === prevLevel && (mode === "emergency") === prevEmergency) return;
 
@@ -60,7 +59,7 @@ export function useNotificationBridge() {
     }
 
     // Transition to warning
-    if (quality === "warning" && prevLevel === "safe") {
+    if (quality === "warning" && (prevLevel === "safe" || prevLevel === "unknown")) {
       createNotification({
         level: "warning",
         category: "threshold",

@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { SystemMode, DataMode, SafetyLevel, SafetyDecision } from "@/lib/dwms-safety.ts";
+import type { SystemMode, DataMode, SafetyDecision, OverallQuality } from "@/lib/dwms-safety.ts";
 
 // Canonical control mode is the three-state SystemMode from the safety engine.
 export type ControlMode = SystemMode;
@@ -49,6 +49,7 @@ export type DwmsEvent = {
   action?: string;
   systemMode: SystemMode;
   pumpStatus: boolean;
+  pumpStatusKnown?: boolean;
 };
 
 export type ProcessModeContextType = {
@@ -71,6 +72,7 @@ export type ProcessModeContextType = {
 
   // ── Pump / filtration ──
   pumpStatus: boolean;
+  pumpStatusKnown: boolean;
   setPumpStatus: (on: boolean, manual?: boolean) => void;
   filterStatus: boolean;
   setFilterStatus: (on: boolean) => void;
@@ -82,7 +84,7 @@ export type ProcessModeContextType = {
 
   // ── Latest safety decision (continuously evaluated) ──
   decision: SafetyDecision;
-  quality: SafetyLevel;
+  quality: OverallQuality;
 
   // ── Data source / hardware ──
   dataMode: DataMode;
@@ -96,10 +98,12 @@ export type ProcessModeContextType = {
   setSelectedDeviceId: (id: string) => void;
   sensorData: SensorSnapshot | null;
   setSensorData: (data: SensorSnapshot) => void;
+  /** Mirror acknowledged control state from the selected physical device. */
+  syncHardwareControlState: (mode: ControlMode, pumpOn: boolean | null) => void;
 
   // ── Event log (persisted) ──
   eventLog: DwmsEvent[];
-  logEvent: (e: Omit<DwmsEvent, "id" | "timestamp" | "systemMode" | "pumpStatus">) => void;
+  logEvent: (e: Omit<DwmsEvent, "id" | "timestamp" | "systemMode" | "pumpStatus" | "pumpStatusKnown">) => void;
   clearEventLog: () => void;
 
   // ── Ethm AI alerts (the Guardian overlay) ──

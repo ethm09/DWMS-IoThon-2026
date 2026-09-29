@@ -36,29 +36,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Initialize an anonymous local Convex deployment
-        run: pnpm exec convex init
-
       - name: Generate Convex bindings in an isolated local backend
-        shell: bash
-        run: |
-          auth_config_backup="$(mktemp)"
-          cp convex/auth.config.ts "$auth_config_backup"
-          restore_auth_config() {
-            cp "$auth_config_backup" convex/auth.config.ts
-            rm -f "$auth_config_backup"
-          }
-          trap restore_auth_config EXIT
-
-          cat > convex/auth.config.ts <<'EOF'
-          import { AuthConfig } from "convex/server";
-
-          export default {
-            providers: [],
-          } satisfies AuthConfig;
-          EOF
-
-          pnpm exec convex dev --once
+        run: bash scripts/prepare-convex-build.sh
 
       - name: Lint DWMS
         run: pnpm run lint
@@ -109,4 +88,3 @@ jobs:
           echo "Environment check: PASS"
           echo "Secret scan: PASS"
           echo "======================================"
-

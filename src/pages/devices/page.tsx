@@ -217,68 +217,13 @@ function RegisterDeviceDialog({ onRegistered }: { onRegistered: (device: Registe
 function SerialBridgeModal({ deviceId, apiKey, httpUrl }: RegisteredDevice & { httpUrl: string }) {
   const [open, setOpen] = useState(false);
   const postUrl = `${httpUrl}/arduino/data`;
-  const code = `import serial
-import requests
-import json
-import time
-
-SERIAL_PORT = "COM3"
-BAUD_RATE = 9600
-
-HTTP_ACTIONS_URL = "${httpUrl}"
-DEVICE_ID = ${JSON.stringify(deviceId)}
-API_KEY = ${JSON.stringify(apiKey)}
-
-POST_URL = HTTP_ACTIONS_URL.rstrip("/") + "/arduino/data"
-
-headers = {
-    "Content-Type": "application/json",
-    "X-API-Key": API_KEY,
-    "X-Device-ID": DEVICE_ID
-}
-
-print("Starting DWMS Bridge...")
-print("Sending to:", POST_URL)
-
-arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=2)
-time.sleep(2)
-
-print("Arduino connected.")
-
-while True:
-    try:
-        line = arduino.readline().decode("utf-8", errors="ignore").strip()
-
-        if not line:
-            continue
-
-        if not line.startswith("{") or not line.endswith("}"):
-            print("Ignored:", line)
-            continue
-
-        data = json.loads(line)
-
-        payload = {
-            "ph": float(data["ph"]),
-            "tds": float(data["tds"]),
-            "turbidity": float(data["turbidity"])
-        }
-
-        response = requests.post(
-            POST_URL,
-            headers=headers,
-            json=payload,
-            timeout=5
-        )
-
-        print("Sent:", payload, "Response:", response.status_code)
-
-        time.sleep(1)
-
-    except Exception as e:
-        print("Error:", e)
-        time.sleep(2)
-`;
+  const quoteForPowerShell = (value: string) =>
+    `"${value.replace(/`/g, "``").replace(/\$/g, "`$").replace(/"/g, '`"')}"`;
+  const code = `$env:DWMS_HTTP_URL = ${quoteForPowerShell(httpUrl)}
+$env:DWMS_DEVICE_ID = ${quoteForPowerShell(deviceId)}
+$env:DWMS_API_KEY = ${quoteForPowerShell(apiKey)}
+$env:DWMS_SERIAL_PORT = "COM3"
+python .\\serial_bridge.py`;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -293,13 +238,20 @@ while True:
             PYTHON SERIAL BRIDGE
           </DialogTitle>
         </DialogHeader>
+        <a
+          href="/hardware/serial_bridge.py"
+          download="serial_bridge.py"
+          className="inline-flex w-fit items-center rounded-md border border-primary/40 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
+        >
+          Download the DWMS serial bridge
+        </a>
         <div className="relative">
           <pre className="text-xs font-mono rounded-lg p-4 overflow-auto max-h-96 leading-relaxed"
             style={{ background: "oklch(0.08 0.02 145)", color: "#a8d8b9", border: "1px solid oklch(0.2 0.04 145)" }}>
             {code}
           </pre>
           <button
-            onClick={() => { void navigator.clipboard.writeText(code); toast.success("Script copied"); }}
+            onClick={() => { void navigator.clipboard.writeText(code); toast.success("Setup snippet copied"); }}
             className="absolute top-2 right-2 p-1.5 rounded cursor-pointer text-muted-foreground hover:text-foreground"
             style={{ background: "oklch(0.15 0.03 145)" }}
           >
@@ -309,12 +261,12 @@ while True:
         <div className="space-y-2 pt-2">
           <p className="text-xs font-bold tracking-wider text-primary">SETUP INSTRUCTIONS</p>
           <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-            <li>Install Python 3.8+ on your computer</li>
-            <li>Run: <code className="text-primary font-mono">pip install pyserial requests</code></li>
-            <li>Connect your Arduino Uno via USB to <code className="text-primary font-mono">COM3</code> (edit SERIAL_PORT if different)</li>
-            <li>The endpoint, device ID, and API key are prefilled for this device; keep this script private because it contains the device credential</li>
-            <li>Save the script as <code className="text-primary font-mono">bridge.py</code></li>
-            <li>Run: <code className="text-primary font-mono">python bridge.py</code></li>
+            <li>Download the bridge file and install Python 3.10+ on the computer connected to the Arduino.</li>
+            <li>Install dependencies with <code className="text-primary font-mono">python -m pip install pyserial requests</code>.</li>
+            <li>Upload the DWMS sketch to an Arduino Uno and connect it over USB.</li>
+            <li>Paste the PowerShell setup snippet above in a private terminal. Change COM3 if your board uses another port.</li>
+            <li>Keep the API key private. The snippet contains this device's credential.</li>
+            <li>The sketch deliberately reports no measurements and rejects pump starts until its exact sensor calibration and relay settings are verified.</li>
           </ol>
           <div className="rounded-lg p-3 mt-3 text-xs"
             style={{ background: "oklch(0.1 0.03 145)", border: "1px solid oklch(0.2 0.04 145)" }}>
@@ -323,13 +275,11 @@ while True:
           </div>
           <div className="rounded-lg p-3 mt-2 text-xs"
             style={{ background: "oklch(0.1 0.03 145)", border: "1px solid oklch(0.2 0.04 145)" }}>
-            <p className="font-bold tracking-wider text-primary mb-1">ARDUINO SKETCH FORMAT</p>
-            <code className="text-muted-foreground">
-              {'Serial.println("{\\"ph\\":7.20,\\"tds\\":310.50,\\"turbidity\\":12.40}");'}
-            </code>
+            <p className="font-bold tracking-wider text-primary mb-1">HARDWARE CONTROL</p>
+            <p className="text-muted-foreground">Relay commands expire after 20 seconds and are shown as unconfirmed unless the Arduino returns an acknowledgement. The included sketch keeps relay control disabled by default.</p>
           </div>
           <p className="text-xs text-muted-foreground pt-1">
-            The bridge reads JSON from the Arduino at 9600 baud and POSTs each reading to your DWMS cloud endpoint.
+            The bridge sends calibrated sensor data, polls for short-lived relay commands, and forwards the Arduino's command acknowledgements.
           </p>
         </div>
       </DialogContent>

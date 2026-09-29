@@ -10,7 +10,6 @@ import {
   type HardwareStatus,
 } from "@/hooks/use-process-mode.ts";
 import { evaluateState, overallQuality, type DataMode } from "@/lib/dwms-safety.ts";
-import { toast } from "sonner";
 
 const DEVICE_KEY = "ldwms.selectedDeviceId";
 const STATE_KEY = "ldwms.dwmsState";
@@ -20,6 +19,7 @@ const LOG_KEY = "ldwms.eventLog";
 // change so it is restored BEFORE any default automatic values are applied.
 type PersistedState = {
   pumpStatus: boolean;
+  pumpStatusKnown: boolean;
   systemMode: ControlMode;
   manualOverride: boolean;
   emergencyShutdown: boolean;
@@ -35,6 +35,7 @@ type PersistedState = {
 
 const DEFAULT_STATE: PersistedState = {
   pumpStatus: false,
+  pumpStatusKnown: true,
   systemMode: "auto",
   manualOverride: false,
   emergencyShutdown: false,
@@ -55,6 +56,9 @@ function loadPersisted(): PersistedState {
     if (!raw) return DEFAULT_STATE;
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     const state = { ...DEFAULT_STATE, ...parsed };
+
+    // Old saved states predate explicit hardware-output confirmation.
+    if (state.dataMode === "hardware") state.pumpStatusKnown = false;
 
     // If in demo mode, clamp readings to safe ranges and clear any lingering
     // emergency state that was triggered by the old unclamped drift.
@@ -94,6 +98,7 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
   const [manualOverride, setManualOverride] = useState<boolean>(initial.current.manualOverride);
   const [emergencyShutdown, setEmergencyShutdown] = useState<boolean>(initial.current.emergencyShutdown);
   const [pumpStatus, setPumpStatusState] = useState<boolean>(initial.current.pumpStatus);
+  const [pumpStatusKnown, setPumpStatusKnown] = useState<boolean>(initial.current.pumpStatusKnown);
   const [filterStatus, setFilterStatusState] = useState<boolean>(initial.current.filterStatus);
   const [readings, setReadings] = useState<Readings>({
     ph: initial.current.ph,
@@ -122,8 +127,8 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
 
   // Mirror live state into a ref so callbacks can build accurate log entries
   // without being re-created on every state change.
-  const stateRef = useRef({ mode, pumpStatus });
-  stateRef.current = { mode, pumpStatus };
+  const stateRef = useRef({ mode, pumpStatus, pumpStatusKnown });
+  stateRef.current = { mode, pumpStatus, pumpStatusKnown };
 
   // Single helper that writes the full DWMS state to localStorage immediately.
   const persist = useCallback((patch: Partial<PersistedState>) => {
@@ -140,13 +145,14 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
 
   // ── Event log ────────────────────────────────────────────────────────────
   const logEvent = useCallback(
-    (e: Omit<DwmsEvent, "id" | "timestamp" | "systemMode" | "pumpStatus">) => {
+    (e: Omit<DwmsEvent, "id" | "timestamp" | "systemMode" | "pumpStatus" | "pumpStatusKnown">) => {
       const entry: DwmsEvent = {
         ...e,
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         timestamp: new Date().toISOString(),
         systemMode: stateRef.current.mode,
         pumpStatus: stateRef.current.pumpStatus,
+        pumpStatusKnown: stateRef.current.pumpStatusKnown,
       };
       setEventLog((prev) => {
         const next = [entry, ...prev].slice(0, 300);
@@ -165,6 +171,7 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
   // ── Mode ──────────────────────────────────────────────────────────────────
   const setMode = useCallback(
     (m: ControlMode) => {
+      if (dataMode === "hardware") return;
       // Emergency cannot be left except via acknowledge.
       if (stateRef.current.mode === "emergency" && m !== "emergency") return;
       setModeInternal((prev) => {
@@ -175,13 +182,14 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
       });
       persist({ systemMode: m });
     },
-    [persist, logEvent]
+    [dataMode, persist, logEvent]
   );
 
   // ── Pump ────────────────────────────────────────────────────────────────
   // Manual OFF engages Manual Override so Auto logic cannot turn it back on.
   const setPumpStatus = useCallback(
     (on: boolean, manual: boolean = true) => {
+      if (dataMode === "hardware") return;
       // While locked by emergency, the pump can only be forced OFF.
       if (stateRef.current.mode === "emergency" && on) return;
       setPumpStatusState((prev) => {
@@ -196,54 +204,60 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
         }
         return on;
       });
+      setPumpStatusKnown(true);
       if (manual && !on) {
         setManualOverride(true);
         setModeInternal("manual");
-        persist({ pumpStatus: on, manualOverride: true, systemMode: "manual" });
+        persist({ pumpStatus: on, pumpStatusKnown: true, manualOverride: true, systemMode: "manual" });
         logEvent({ type: "Manual Override Activated", parameter: "Pump", decision: "Pump forced OFF — auto control blocked" });
       } else if (manual) {
         setModeInternal("manual");
-        persist({ pumpStatus: on, systemMode: "manual" });
+        persist({ pumpStatus: on, pumpStatusKnown: true, systemMode: "manual" });
       } else {
-        persist({ pumpStatus: on });
+        persist({ pumpStatus: on, pumpStatusKnown: true });
       }
     },
-    [persist, logEvent]
+    [dataMode, persist, logEvent]
   );
 
   const setFilterStatus = useCallback(
     (on: boolean) => {
+      if (dataMode === "hardware") return;
       setFilterStatusState(on);
       persist({ filterStatus: on });
     },
-    [persist]
+    [dataMode, persist]
   );
 
   // ── Manual override ────────────────────────────────────────────────────────
   const engageManualOverride = useCallback(() => {
+    if (dataMode === "hardware") return;
     if (stateRef.current.mode === "emergency") return;
     setManualOverride(true);
     setModeInternal("manual");
     persist({ manualOverride: true, systemMode: "manual" });
     logEvent({ type: "Manual Override Activated", decision: "Operator engaged manual override" });
-  }, [persist, logEvent]);
+  }, [dataMode, persist, logEvent]);
 
   const returnToAuto = useCallback(() => {
+    if (dataMode === "hardware") return;
     if (stateRef.current.mode === "emergency") return; // must acknowledge first
     setManualOverride(false);
     setModeInternal("auto");
     persist({ manualOverride: false, systemMode: "auto" });
     logEvent({ type: "Returned to Auto Mode", decision: "Automatic control restored" });
-  }, [persist, logEvent]);
+  }, [dataMode, persist, logEvent]);
 
   // ── Emergency shutdown ───────────────────────────────────────────────────
   const triggerEmergency = useCallback(
     (reason: string, parameter: string) => {
+      if (dataMode === "hardware") return;
       if (stateRef.current.mode === "emergency") return; // already locked
       setEmergencyShutdown(true);
       setModeInternal("emergency");
       setPumpStatusState(false);
-      persist({ emergencyShutdown: true, systemMode: "emergency", pumpStatus: false });
+      setPumpStatusKnown(true);
+      persist({ emergencyShutdown: true, systemMode: "emergency", pumpStatus: false, pumpStatusKnown: true });
       logEvent({
         type: "Emergency Shutdown",
         parameter,
@@ -251,10 +265,11 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
         action: "Pump stopped and system locked",
       });
     },
-    [persist, logEvent]
+    [dataMode, persist, logEvent]
   );
 
   const acknowledgeEmergency = useCallback(() => {
+    if (dataMode === "hardware") return;
     setEmergencyShutdown(false);
     setManualOverride(false);
     setModeInternal("auto");
@@ -262,36 +277,61 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
     logEvent({ type: "Emergency Acknowledged", decision: "Operator acknowledged shutdown — returned to Auto" });
     // Start a 30-second grace period so the same condition doesn't re-trigger instantly.
     lastAcknowledgedAt.current = Date.now();
-  }, [persist, logEvent]);
+  }, [dataMode, persist, logEvent]);
 
   // ── Readings ────────────────────────────────────────────────────────────
   const applyReading = useCallback(
     (key: keyof Readings, value: number) => {
+      if (dataMode === "hardware") return;
       setReadings((prev) => {
         const next = { ...prev, [key]: value };
         persist({ ph: next.ph, tds: next.tds, turbidity: next.turbidity, flowRate: next.flowRate });
         return next;
       });
     },
-    [persist]
+    [dataMode, persist]
   );
 
   // ── Data source / hardware ─────────────────────────────────────────────────
   const setDataMode = useCallback(
     (m: DataMode) => {
       setDataModeState(m);
-      persist({ dataMode: m });
       logEvent({ type: "Data Source Changed", newValue: m === "demo" ? "Demo Data" : "Real Hardware" });
       if (m === "hardware") {
         setHardwareStatus("disconnected");
         lastHardwareAt.current = null;
-      }
-      // When switching to demo, clear any emergency state so the user starts fresh.
-      if (m === "demo" && stateRef.current.mode === "emergency") {
+        setSensorDataState(null);
+        setPumpStatusKnown(false);
+        setReadings({ ph: null, tds: null, turbidity: null, flowRate: null });
+        persist({
+          dataMode: m,
+          ph: null,
+          tds: null,
+          turbidity: null,
+          flowRate: null,
+          pumpStatusKnown: false,
+        });
+      } else {
+        setReadings({ ph: DEFAULT_STATE.ph, tds: DEFAULT_STATE.tds, turbidity: DEFAULT_STATE.turbidity, flowRate: DEFAULT_STATE.flowRate });
+        setPumpStatusState(false);
+        setPumpStatusKnown(true);
+        setFilterStatusState(false);
         setEmergencyShutdown(false);
         setManualOverride(false);
         setModeInternal("auto");
-        persist({ dataMode: m, emergencyShutdown: false, systemMode: "auto", manualOverride: false });
+        persist({
+          dataMode: m,
+          ph: DEFAULT_STATE.ph,
+          tds: DEFAULT_STATE.tds,
+          turbidity: DEFAULT_STATE.turbidity,
+          flowRate: DEFAULT_STATE.flowRate,
+          pumpStatus: false,
+          pumpStatusKnown: true,
+          filterStatus: false,
+          emergencyShutdown: false,
+          manualOverride: false,
+          systemMode: "auto",
+        });
       }
     },
     [persist, logEvent]
@@ -307,8 +347,16 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
 
   const setSelectedDeviceId = useCallback((id: string) => {
     setSelectedDeviceIdState(id);
+    setHardwareStatus("disconnected");
+    lastHardwareAt.current = null;
+    if (dataMode === "hardware") {
+      setSensorDataState(null);
+      setPumpStatusKnown(false);
+      setReadings({ ph: null, tds: null, turbidity: null, flowRate: null });
+      persist({ ph: null, tds: null, turbidity: null, flowRate: null, pumpStatusKnown: false });
+    }
     if (typeof window !== "undefined") localStorage.setItem(DEVICE_KEY, id);
-  }, []);
+  }, [dataMode, persist]);
 
   // Persist incoming device sensor readings and feed them into global readings.
   const setSensorData = useCallback(
@@ -330,6 +378,30 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
       });
     },
     [persist]
+  );
+
+  const syncHardwareControlState = useCallback(
+    (remoteMode: ControlMode, remotePumpOn: boolean | null) => {
+      setModeInternal(remoteMode);
+      setEmergencyShutdown(remoteMode === "emergency");
+      setManualOverride(remoteMode === "manual");
+      if (remotePumpOn !== null) {
+        setPumpStatusState(remotePumpOn);
+        setFilterStatusState(remotePumpOn);
+        setPumpStatusKnown(true);
+      } else {
+        setPumpStatusKnown(false);
+      }
+      persist({
+        systemMode: remoteMode,
+        emergencyShutdown: remoteMode === "emergency",
+        manualOverride: remoteMode === "manual",
+        ...(remotePumpOn !== null
+          ? { pumpStatus: remotePumpOn, filterStatus: remotePumpOn, pumpStatusKnown: true }
+          : { pumpStatusKnown: false }),
+      });
+    },
+    [persist],
   );
 
   // ── Ethm AI alerts ─────────────────────────────────────────────────────────
@@ -354,6 +426,9 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
   // overridden) may auto-correct flow and auto-start filtration. Manual mode
   // never auto-starts the pump unless an emergency is required.
   useEffect(() => {
+    // Physical commands are evaluated and acknowledged by the backend/device.
+    // The browser must not optimistically switch a real relay based on local state.
+    if (dataMode === "hardware") return;
     if (decision.emergency && !emergencyShutdown && mode !== "emergency") {
       // Never trigger emergency shutdowns in demo mode — demo is for safe testing.
       if (dataMode === "demo") return;
@@ -400,7 +475,7 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [decision, mode, manualOverride, emergencyShutdown, pumpStatus]);
+  }, [dataMode, decision, mode, manualOverride, emergencyShutdown, pumpStatus]);
 
   // ── Demo data simulator — gentle live drift when in Demo mode. ──────────────
   // Flow rate is treated as a control parameter and is NOT drifted.
@@ -444,46 +519,6 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [dataMode]);
 
-  // Auto-revert to demo if hardware mode stays disconnected for 30 seconds.
-  // This fires once after switching to hardware mode. If data arrives (status
-  // changes to "connected"), the timer is cleared.
-  const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    // Clear any existing timer on mode/status change.
-    if (revertTimerRef.current) {
-      clearTimeout(revertTimerRef.current);
-      revertTimerRef.current = null;
-    }
-
-    if (dataMode !== "hardware") return;
-    // If already connected, no need to set a revert timer.
-    if (hardwareStatus === "connected") return;
-
-    // Start 30-second countdown to revert to demo.
-    revertTimerRef.current = setTimeout(() => {
-      // Only revert if still in hardware mode and still disconnected.
-      setDataModeState((currentMode) => {
-        if (currentMode !== "hardware") return currentMode;
-        // Perform revert
-        persist({ dataMode: "demo" });
-        logEvent({ type: "Data Source Changed", newValue: "Demo Data", decision: "Auto-reverted: no hardware data received in 30 seconds" });
-        setHardwareStatus("disconnected");
-        toast("Reverted to Demo mode", {
-          description: "No hardware data received in 30 seconds. Connect your device and try again.",
-        });
-        return "demo";
-      });
-    }, 30_000);
-
-    return () => {
-      if (revertTimerRef.current) {
-        clearTimeout(revertTimerRef.current);
-        revertTimerRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataMode, hardwareStatus]);
-
   // Keep state synchronized across tabs/windows.
   useEffect(() => {
     function onStorage(e: StorageEvent) {
@@ -498,6 +533,7 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
         setManualOverride(s.manualOverride);
         setEmergencyShutdown(s.emergencyShutdown);
         setPumpStatusState(s.pumpStatus);
+        setPumpStatusKnown(s.pumpStatusKnown ?? s.dataMode === "demo");
         setFilterStatusState(s.filterStatus);
         setReadings({ ph: s.ph, tds: s.tds, turbidity: s.turbidity, flowRate: s.flowRate });
         setDataModeState(s.dataMode);
@@ -523,6 +559,7 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
         triggerEmergency,
         acknowledgeEmergency,
         pumpStatus,
+        pumpStatusKnown,
         setPumpStatus,
         filterStatus,
         setFilterStatus,
@@ -539,6 +576,7 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
         setSelectedDeviceId,
         sensorData,
         setSensorData,
+        syncHardwareControlState,
         eventLog,
         logEvent,
         clearEventLog,

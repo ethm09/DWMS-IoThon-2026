@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserRole } from "@/hooks/use-user-role.ts";
 import { useAuth } from "@/hooks/use-auth.ts";
 import { toast } from "sonner";
-import { LEVEL_COLOR } from "@/lib/dwms-safety.ts";
+import { LEVEL_COLOR, THRESHOLDS } from "@/lib/dwms-safety.ts";
 
 // ── Threshold types & defaults ──────────────────────────────────────────────
 
@@ -35,16 +35,16 @@ type ThresholdMeta = {
 };
 
 const DEFAULT_THRESHOLDS: ThresholdConfig = {
-  phMin: 6.5,
-  phMax: 8.5,
-  tdsMax: 500,
-  turbidityMax: 5,
-  flowRateMax: 2.0,
-  phCriticalLow: 5.5,
-  phCriticalHigh: 10.0,
-  tdsCritical: 1500,
-  turbidityCritical: 50,
-  flowRateCritical: 3.0,
+  phMin: THRESHOLDS.ph.safe.min,
+  phMax: THRESHOLDS.ph.safe.max,
+  tdsMax: THRESHOLDS.tds.safe.max,
+  turbidityMax: THRESHOLDS.turbidity.safe.max,
+  flowRateMax: THRESHOLDS.flowRate.safe.max,
+  phCriticalLow: THRESHOLDS.ph.critical.below,
+  phCriticalHigh: THRESHOLDS.ph.critical.above,
+  tdsCritical: THRESHOLDS.tds.critical.above,
+  turbidityCritical: THRESHOLDS.turbidity.critical.above,
+  flowRateCritical: THRESHOLDS.flowRate.critical.above,
 };
 
 const STORAGE_KEY = "ldwms.thresholds";
@@ -74,7 +74,7 @@ function loadMeta(): ThresholdMeta | null {
 
 // ── Calibration types ────────────────────────────────────────────────────────
 
-type CalibrationStatus = "calibrated" | "due" | "overdue";
+type CalibrationStatus = "unrecorded" | "calibrated" | "due" | "overdue" | "not-installed";
 
 type SensorCalibration = {
   sensor: string;
@@ -90,35 +90,35 @@ const CALIBRATION_KEY = "ldwms.calibrations";
 const DEFAULT_CALIBRATIONS: SensorCalibration[] = [
   {
     sensor: "pH Sensor",
-    status: "calibrated",
-    lastCalibrationDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    calibratedBy: "System Admin",
-    notes: "Calibrated using pH 4.0, 7.0, and 10.0 buffer solutions",
-    nextDueDate: new Date(Date.now() + 23 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "unrecorded",
+    lastCalibrationDate: "",
+    calibratedBy: "",
+    notes: "",
+    nextDueDate: "",
   },
   {
     sensor: "TDS Sensor",
-    status: "due",
-    lastCalibrationDate: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(),
-    calibratedBy: "System Admin",
-    notes: "Calibrated using 342 ppm NaCl standard solution",
-    nextDueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "unrecorded",
+    lastCalibrationDate: "",
+    calibratedBy: "",
+    notes: "",
+    nextDueDate: "",
   },
   {
     sensor: "Turbidity Sensor",
-    status: "calibrated",
-    lastCalibrationDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-    calibratedBy: "System Admin",
-    notes: "Zero-point baseline set with distilled water",
-    nextDueDate: new Date(Date.now() + 16 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "unrecorded",
+    lastCalibrationDate: "",
+    calibratedBy: "",
+    notes: "",
+    nextDueDate: "",
   },
   {
     sensor: "Flow Rate Sensor",
-    status: "calibrated",
-    lastCalibrationDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    calibratedBy: "System Admin",
-    notes: "Verified against volumetric measurement at 1.0 L/min reference",
-    nextDueDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "not-installed",
+    lastCalibrationDate: "",
+    calibratedBy: "",
+    notes: "No flow-rate sensor is present in the current Arduino design.",
+    nextDueDate: "",
   },
 ];
 
@@ -127,16 +127,24 @@ function loadCalibrations(): SensorCalibration[] {
   try {
     const raw = localStorage.getItem(CALIBRATION_KEY);
     if (!raw) return DEFAULT_CALIBRATIONS;
-    return JSON.parse(raw) as SensorCalibration[];
+    const stored = JSON.parse(raw) as SensorCalibration[];
+    // Older versions persisted these seeded sample entries as if they were
+    // actual calibrations when any card was edited.
+    return DEFAULT_CALIBRATIONS.map((fallback) => {
+      const saved = stored.find((entry) => entry.sensor === fallback.sensor);
+      return !saved || saved.calibratedBy === "System Admin" || fallback.status === "not-installed" ? fallback : saved;
+    });
   } catch {
     return DEFAULT_CALIBRATIONS;
   }
 }
 
 const STATUS_COLORS: Record<CalibrationStatus, string> = {
+  unrecorded: "#6b7280",
   calibrated: "#22c55e",
   due: "#eab308",
   overdue: "#ef4444",
+  "not-installed": "#6b7280",
 };
 
 const SENSOR_ICONS: Record<string, React.ElementType> = {
@@ -215,17 +223,20 @@ function CalibrationCard({
   const [calibratedBy, setCalibratedBy] = useState(cal.calibratedBy);
 
   const handleMarkCalibrated = () => {
+    if (!calibratedBy.trim() || !notes.trim()) {
+      toast.error("Enter the operator and calibration details before saving this local record.");
+      return;
+    }
     const now = new Date();
-    const nextDue = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     onUpdate(cal.sensor, {
       status: "calibrated",
       lastCalibrationDate: now.toISOString(),
       calibratedBy,
       notes,
-      nextDueDate: nextDue.toISOString(),
+      nextDueDate: "",
     });
     setEditing(false);
-    toast.success(`${cal.sensor} marked as calibrated`);
+    toast.success("Calibration record saved in this browser. The app did not calibrate the sensor.");
   };
 
   return (
@@ -247,14 +258,14 @@ function CalibrationCard({
             </div>
           </div>
         </div>
-        {isAdmin && !editing && (
+        {isAdmin && cal.status !== "not-installed" && !editing && (
           <Button
             size="sm"
             variant="ghost"
             onClick={() => setEditing(true)}
             className="text-[9px] font-bold tracking-widest cursor-pointer text-muted-foreground hover:text-foreground"
           >
-            <Wrench className="w-3 h-3 mr-1" /> EDIT
+            <Wrench className="w-3 h-3 mr-1" /> EDIT LOCAL RECORD
           </Button>
         )}
       </div>
@@ -265,7 +276,7 @@ function CalibrationCard({
             <Clock className="w-2.5 h-2.5" /> LAST CALIBRATION
           </div>
           <div className="font-mono text-xs font-bold text-foreground mt-1">
-            {new Date(cal.lastCalibrationDate).toLocaleDateString()}
+            {cal.lastCalibrationDate ? new Date(cal.lastCalibrationDate).toLocaleDateString() : "Not recorded"}
           </div>
         </div>
         <div className="rounded-lg bg-muted/30 p-2.5">
@@ -273,20 +284,20 @@ function CalibrationCard({
             <Clock className="w-2.5 h-2.5" /> NEXT DUE
           </div>
           <div className="font-mono text-xs font-bold mt-1" style={{ color: statusColor }}>
-            {new Date(cal.nextDueDate).toLocaleDateString()}
+            {cal.nextDueDate ? new Date(cal.nextDueDate).toLocaleDateString() : "Not scheduled"}
           </div>
         </div>
         <div className="rounded-lg bg-muted/30 p-2.5">
           <div className="text-[8px] font-bold tracking-widest text-muted-foreground flex items-center gap-1">
             <User className="w-2.5 h-2.5" /> CALIBRATED BY
           </div>
-          <div className="text-xs font-bold text-foreground mt-1">{cal.calibratedBy}</div>
+          <div className="text-xs font-bold text-foreground mt-1">{cal.calibratedBy || "Not recorded"}</div>
         </div>
         <div className="rounded-lg bg-muted/30 p-2.5">
           <div className="text-[8px] font-bold tracking-widest text-muted-foreground flex items-center gap-1">
             <FileText className="w-2.5 h-2.5" /> NOTES
           </div>
-          <div className="text-[10px] text-foreground/80 mt-1 line-clamp-2">{cal.notes}</div>
+          <div className="text-[10px] text-foreground/80 mt-1 line-clamp-2">{cal.notes || "No calibration record is stored."}</div>
         </div>
       </div>
 
@@ -328,7 +339,7 @@ function CalibrationCard({
               className="font-bold tracking-widest cursor-pointer"
               style={{ background: "oklch(0.6 0.17 145)", color: "oklch(0.1 0.02 145)" }}
             >
-              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> MARK CALIBRATED
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> SAVE LOCAL RECORD
             </Button>
             <Button
               size="sm"
@@ -447,8 +458,8 @@ export default function ThresholdsPage() {
             fields={[
               { key: "phMin", label: "SAFE MIN", color: LEVEL_COLOR.safe },
               { key: "phMax", label: "SAFE MAX", color: LEVEL_COLOR.safe },
-              { key: "phCriticalLow", label: "CRITICAL LOW", color: LEVEL_COLOR.critical },
-              { key: "phCriticalHigh", label: "CRITICAL HIGH", color: LEVEL_COLOR.critical },
+              { key: "phCriticalLow", label: "CRITICAL BELOW", color: LEVEL_COLOR.critical },
+              { key: "phCriticalHigh", label: "CRITICAL ABOVE", color: LEVEL_COLOR.critical },
             ]}
           />
 
@@ -461,7 +472,7 @@ export default function ThresholdsPage() {
             disabled={!canEdit}
             fields={[
               { key: "tdsMax", label: "SAFE MAX", color: LEVEL_COLOR.safe },
-              { key: "tdsCritical", label: "CRITICAL MAX", color: LEVEL_COLOR.critical },
+              { key: "tdsCritical", label: "CRITICAL ABOVE", color: LEVEL_COLOR.critical },
             ]}
           />
 
@@ -474,12 +485,12 @@ export default function ThresholdsPage() {
             disabled={!canEdit}
             fields={[
               { key: "turbidityMax", label: "SAFE MAX", color: LEVEL_COLOR.safe },
-              { key: "turbidityCritical", label: "CRITICAL MAX", color: LEVEL_COLOR.critical },
+              { key: "turbidityCritical", label: "CRITICAL ABOVE", color: LEVEL_COLOR.critical },
             ]}
           />
 
           <ThresholdRow
-            label="Flow Rate"
+            label="Flow Rate (no hardware sensor)"
             icon={Activity}
             unit="L/min"
             values={thresholds}
@@ -487,7 +498,7 @@ export default function ThresholdsPage() {
             disabled={!canEdit}
             fields={[
               { key: "flowRateMax", label: "SAFE MAX", color: LEVEL_COLOR.safe },
-              { key: "flowRateCritical", label: "CRITICAL MAX", color: LEVEL_COLOR.critical },
+              { key: "flowRateCritical", label: "CRITICAL ABOVE", color: LEVEL_COLOR.critical },
             ]}
           />
 
@@ -500,7 +511,7 @@ export default function ThresholdsPage() {
                 className="font-bold tracking-widest cursor-pointer"
                 style={hasChanges ? { background: "oklch(0.6 0.17 145)", color: "oklch(0.1 0.02 145)" } : undefined}
               >
-                <Save className="w-4 h-4 mr-1.5" /> SAVE THRESHOLDS
+                <Save className="w-4 h-4 mr-1.5" /> SAVE LOCAL PREFERENCES
               </Button>
               <Button
                 onClick={restoreDefaults}
@@ -523,19 +534,19 @@ export default function ThresholdsPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="rounded-lg border p-3" style={{ borderColor: "oklch(0.26 0.04 145)" }}>
                   <div className="text-[9px] font-bold tracking-widest text-muted-foreground">pH SAFE RANGE</div>
-                  <div className="font-mono text-sm font-bold text-primary mt-1">6.5 — 8.5</div>
+                  <div className="font-mono text-sm font-bold text-primary mt-1">{THRESHOLDS.ph.safe.min} — {THRESHOLDS.ph.safe.max}</div>
                 </div>
                 <div className="rounded-lg border p-3" style={{ borderColor: "oklch(0.26 0.04 145)" }}>
                   <div className="text-[9px] font-bold tracking-widest text-muted-foreground">TDS MAX</div>
-                  <div className="font-mono text-sm font-bold text-primary mt-1">500 ppm</div>
+                  <div className="font-mono text-sm font-bold text-primary mt-1">{THRESHOLDS.tds.safe.max} ppm</div>
                 </div>
                 <div className="rounded-lg border p-3" style={{ borderColor: "oklch(0.26 0.04 145)" }}>
                   <div className="text-[9px] font-bold tracking-widest text-muted-foreground">TURBIDITY MAX</div>
-                  <div className="font-mono text-sm font-bold text-primary mt-1">5 NTU</div>
+                  <div className="font-mono text-sm font-bold text-primary mt-1">{THRESHOLDS.turbidity.safe.max} NTU</div>
                 </div>
                 <div className="rounded-lg border p-3" style={{ borderColor: "oklch(0.26 0.04 145)" }}>
                   <div className="text-[9px] font-bold tracking-widest text-muted-foreground">FLOW RATE MAX</div>
-                  <div className="font-mono text-sm font-bold text-primary mt-1">2.0 L/min</div>
+                  <div className="font-mono text-sm font-bold text-primary mt-1">{THRESHOLDS.flowRate.safe.max} L/min</div>
                 </div>
               </div>
             </CardContent>
@@ -545,8 +556,8 @@ export default function ThresholdsPage() {
         {/* ── CALIBRATION TAB ── */}
         <TabsContent value="calibration" className="space-y-4">
           {/* Calibration status summary */}
-          <div className="grid grid-cols-3 gap-3">
-            {(["calibrated", "due", "overdue"] as CalibrationStatus[]).map((status) => {
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {(["unrecorded", "calibrated", "due", "overdue", "not-installed"] as CalibrationStatus[]).map((status) => {
               const count = calibrations.filter((c) => c.status === status).length;
               return (
                 <div key={status} className="rounded-lg border p-3 text-center" style={{ borderColor: `${STATUS_COLORS[status]}44`, background: `${STATUS_COLORS[status]}08` }}>
@@ -577,6 +588,9 @@ export default function ThresholdsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <p className="text-xs text-amber-500/90">
+                Generic reference examples only. This page neither reads nor calibrates hardware. Follow the exact sensor manufacturer's instructions and approved site procedures. A flow-rate sensor is not present in the current Arduino design.
+              </p>
               <div className="rounded-xl border p-4 space-y-2" style={{ borderColor: "oklch(0.26 0.04 145)" }}>
                 <div className="flex items-center gap-2">
                   <FlaskConical className="w-4 h-4 text-primary" />
@@ -625,16 +639,11 @@ export default function ThresholdsPage() {
               <div className="rounded-xl border p-4 space-y-2" style={{ borderColor: "oklch(0.26 0.04 145)" }}>
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-primary" />
-                  <div className="text-xs font-bold text-foreground">Flow Rate Sensor Calibration</div>
+                  <div className="text-xs font-bold text-foreground">Flow Rate Sensor — Not Installed</div>
                 </div>
-                <ol className="text-[11px] text-muted-foreground space-y-1 list-decimal list-inside ml-6">
-                  <li>Set system to a known flow rate using a <strong>calibrated valve</strong></li>
-                  <li>Collect water in a graduated container for <strong>60 seconds</strong></li>
-                  <li>Calculate actual flow rate (volume / time)</li>
-                  <li>Compare sensor reading with measured value</li>
-                  <li>Adjust sensor K-factor if deviation exceeds ±5%</li>
-                  <li>Repeat at <strong>1.0 L/min</strong> and <strong>2.0 L/min</strong> reference points</li>
-                </ol>
+                <p className="text-[11px] text-muted-foreground">
+                  The current Arduino design has no flow-rate sensor. Flow values and thresholds shown elsewhere are prototype assumptions, not hardware readings.
+                </p>
               </div>
 
               {/* Warning */}
@@ -646,9 +655,7 @@ export default function ThresholdsPage() {
               >
                 <AlertTriangle className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
                 <div className="text-[10px] text-muted-foreground">
-                  <strong className="text-yellow-500">Important:</strong> Always wear appropriate PPE during calibration.
-                  Ensure the system is in Manual mode and pump is OFF before removing sensors for calibration.
-                  Record all calibration activities in the notes field.
+                  <strong className="text-yellow-500">Important:</strong> Follow the sensor manufacturer's instructions and approved site procedures. Isolate equipment and verify the pump is stopped before removing a sensor. This page stores a local record only; it does not calibrate a sensor or write calibration data to the backend.
                 </div>
               </motion.div>
             </CardContent>

@@ -60,9 +60,23 @@ Create an Auth0 Single Page Application and add the local and deployed callback 
 
 Set the same Auth0 domain and client ID as `AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` in the Convex deployment environment, then run `pnpm exec convex dev` or `pnpm exec convex deploy` to publish the auth provider configuration. Until both server-side values are configured, Convex remains in guest/local mode. The first login links an existing DWMS user by verified email so their stored role is retained.
 
+Before enabling sign-in on a new deployment, set `DWMS_INITIAL_ADMIN_EMAIL` in Convex to the owner's email address. That address must be verified by Auth0 to receive the initial administrator role. All other new accounts start as viewers; existing stored roles are retained when accounts are linked.
+
 ### Configure the AI assistant
 
 Set `OPENAI_API_KEY` as a server-side environment variable for the Convex deployment. The key is used only by the Convex action and must not be prefixed with `VITE_`.
+
+### Deploy the dashboard with Vercel
+
+Import `ethm09/DWMS-IoThon-2026` into a Vercel project. `vercel.json` provides the single-page-app route fallback and runs the included Convex binding preparation before the Vite build. Add `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_AUTH0_DOMAIN`, and `VITE_AUTH0_CLIENT_ID` to the Vercel project environment settings. The Convex backend remains a separate deployment: set `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `DWMS_INITIAL_ADMIN_EMAIL`, and (optionally) `OPENAI_API_KEY` in Convex, then deploy the backend with `pnpm exec convex deploy` from an authenticated terminal. Configure the Vercel production origin in Auth0's allowed callback, logout, and web-origin lists.
+
+Vercel deployment is not activated by this repository change; it requires a Vercel project and the public Auth0/Convex deployment values above.
+
+### Connect an Arduino Uno
+
+The firmware template is in `hardware/arduino/dwms_controller/` and the matching Python bridge is available at `/hardware/serial_bridge.py`. The design uses pH A0, TDS A1, turbidity A2, LCD I2C A4/A5, LEDs D2–D4, and relay D7. The sketch intentionally leaves sensor calibration and relay control disabled until the exact probe models, calibration equations, and relay active polarity are verified. It will not upload readings or energize the relay with its defaults. There is no relay-contact or pump-motion feedback sensor, so the web page can show only the controller's reported relay state.
+
+The bridge polls the authenticated `/arduino/control/next` endpoint and acknowledges relay results at `/arduino/control/ack`; controller status is reported at `/arduino/control/status`. Commands expire after 20 seconds without acknowledgement. Server-side Auto starts the pump above the prototype TDS/turbidity thresholds and stops it after readings recover. Critical pH or turbidity enters a latched emergency state. Manual starts require fresh sensor data and pass the same critical-reading interlock. These settings are prototype parameters and require validation against the installed sensor modules and hardware before physical operation.
 
 Set `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` for the selected Convex deployment. The device setup page uses the Convex site URL for the Arduino HTTP endpoint.
 

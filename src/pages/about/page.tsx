@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Target, Shield, Users, Droplets } from "lucide-react";
 
 const MISSION_STATEMENT =
-  "DWMS is a smart water monitoring and control system that measures pH, TDS, and turbidity in real time, activates filtration automatically when water quality exceeds preset limits, and allows authorized users to monitor, control, and generate traceable reports remotely.";
+  "DWMS is a prototype for monitoring pH, TDS, and turbidity against shared threshold rules. Its dashboard supports saved-reading reports and an optional hardware control path that requires compatible equipment and commissioning. Prototype readings do not certify water safety.";
 
 const teamMembers = [
   {
@@ -75,7 +75,7 @@ export default function About() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            This project represents a <span className="text-foreground font-semibold">Smart Water Treatment Monitoring and Control System</span> designed to simulate real-world industrial control rooms. The system continuously monitors water quality using multiple sensors and automatically responds to unsafe conditions.
+            This project is a <span className="text-foreground font-semibold">water-quality monitoring prototype</span> with a dashboard, local simulation, and an optional device control path. Physical relay control is disabled in the included firmware until the sensor models, calibration, and relay polarity are verified; threshold results do not certify water safety.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div className="flex gap-3">
@@ -83,7 +83,7 @@ export default function About() {
               <div>
                 <div className="text-xs font-bold tracking-widest text-foreground">OBJECTIVE</div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Develop a real-time monitoring system that ensures water safety by analyzing TDS, turbidity, and pH — with automated control through a smart interface.
+                  Monitor pH, TDS, and turbidity readings, flag configured prototype thresholds, and provide a path to hardware control after equipment validation.
                 </p>
               </div>
             </div>

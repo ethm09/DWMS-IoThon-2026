@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Droplets, Wind, FlaskConical, Zap, ChevronRight, Mic, Volume2, VolumeX } from "lucide-react";
+import { useProcessMode } from "@/hooks/use-process-mode.ts";
+import { classifyPh, classifyTds, classifyTurbidity, THRESHOLDS, type SafetyLevel } from "@/lib/dwms-safety.ts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type DecisionLevel = "nominal" | "advisory" | "action" | "critical";
+type DecisionLevel = "unknown" | "nominal" | "advisory" | "action" | "critical";
 
 interface Decision {
   id: string;
@@ -15,63 +17,66 @@ interface Decision {
   recommendation: string;
   action: string;
   level: DecisionLevel;
-  confidence: number;
   icon: React.FC<{ className?: string }>;
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const LEVEL_CFG: Record<DecisionLevel, { color: string; glow: string; label: string; priority: number }> = {
+  unknown:  { color: "#6b7280", glow: "#6b728066", label: "NO DATA", priority: -1 },
   nominal:  { color: "#22c55e", glow: "#22c55e66", label: "NOMINAL",   priority: 0 },
-  advisory: { color: "#818cf8", glow: "#818cf866", label: "ADVISORY",  priority: 1 },
+  advisory: { color: "#eab308", glow: "#eab30866", label: "WARNING", priority: 1 },
   action:   { color: "#eab308", glow: "#eab30866", label: "ACTION REQ", priority: 2 },
   critical: { color: "#ef4444", glow: "#ef444466", label: "CRITICAL",  priority: 3 },
 };
 
-const ETHM_LINES = [
-  "All systems are functioning within normal parameters.",
-  "Water treatment efficiency is holding at optimal levels.",
-  "No anomalies detected in the filtration matrix.",
-  "Sensor array calibration confirmed. Standing by.",
-  "Running predictive analysis on incoming telemetry.",
-  "Cross-referencing with baseline quality thresholds.",
-  "Neural pathway scan complete. Awaiting next cycle.",
-  "Threat assessment updated. Environmental factors stable.",
-];
-
 // ─── Decision builder ─────────────────────────────────────────────────────────
 
-function buildDecisions(tds: number, turbidity: number, ph: number): Decision[] {
-  const decisions: Decision[] = [];
+function buildDecision(
+  id: string,
+  parameter: string,
+  value: number | null,
+  unit: string,
+  classify: (value: number) => SafetyLevel,
+  icon: Decision["icon"],
+): Decision {
+  const level: DecisionLevel = value === null
+    ? "unknown"
+    : classify(value) === "critical" ? "critical" : classify(value) === "warning" ? "advisory" : "nominal";
+  const formatted = value === null ? "—" : parameter === "pH" || parameter === "TURBIDITY" ? value.toFixed(2) : value.toFixed(0);
+  const statusText = value === null ? "No current sensor reading" : `${formatted}${unit ? ` ${unit}` : ""} · ${LEVEL_CFG[level].label}`;
 
-  // TDS
-  if (tds > 600) {
-    decisions.push({ id: "tds", parameter: "TDS", condition: `${tds.toFixed(0)} ppm exceeds critical threshold`, value: tds.toFixed(0), unit: "ppm", recommendation: "Sir, dissolved solids have surpassed the critical ceiling of 600 ppm. I'm recommending immediate flushing protocol to dilute concentration before corrosive damage occurs.", action: "INITIATE FLUSHING PROTOCOL", level: "critical", confidence: 98, icon: Droplets });
-  } else if (tds > 300) {
-    decisions.push({ id: "tds", parameter: "TDS", condition: `${tds.toFixed(0)} ppm above advisory level`, value: tds.toFixed(0), unit: "ppm", recommendation: "TDS approaching the upper limit. I suggest increasing filtration cycle frequency by approximately 15% to prevent escalation.", action: "INCREASE FILTRATION RATE", level: "action", confidence: 87, icon: Droplets });
-  } else {
-    decisions.push({ id: "tds", parameter: "TDS", condition: `${tds.toFixed(0)} ppm — within parameters`, value: tds.toFixed(0), unit: "ppm", recommendation: "Dissolved solids remain within acceptable range. No corrective action is required at this time.", action: "MAINTAIN CURRENT OPERATION", level: "nominal", confidence: 99, icon: Droplets });
-  }
+  return {
+    id,
+    parameter,
+    condition: statusText,
+    value: formatted,
+    unit,
+    level,
+    icon,
+    recommendation: level === "unknown"
+      ? "No current reading is available. The system cannot assess this parameter."
+      : level === "critical"
+        ? "Reading is beyond a configured prototype critical threshold. Verify the sensor and follow approved site response procedures. This display does not prescribe treatment."
+        : level === "advisory"
+          ? "Reading is outside a configured prototype range. Verify the reading and review it under validated site procedures."
+          : "Reading is within the configured prototype band. This does not certify water quality or equipment performance.",
+    action: level === "unknown"
+      ? "WAIT FOR SENSOR DATA"
+      : level === "critical"
+        ? "VERIFY READING · FOLLOW SITE PROCEDURES"
+        : level === "advisory"
+          ? "REVIEW WITH QUALIFIED OPERATOR"
+          : "CONTINUE MONITORING UNDER SITE PROCEDURES",
+  };
+}
 
-  // Turbidity
-  if (turbidity > 20) {
-    decisions.push({ id: "turb", parameter: "TURBIDITY", condition: `${turbidity.toFixed(2)} NTU — critical particle load`, value: turbidity.toFixed(2), unit: "NTU", recommendation: "Sir, I'm detecting severe turbidity levels. Primary filter bypass risk is imminent. Secondary filtration must be activated immediately to prevent contamination breach.", action: "ACTIVATE SECONDARY FILTRATION", level: "critical", confidence: 97, icon: Wind });
-  } else if (turbidity > 1) {
-    decisions.push({ id: "turb", parameter: "TURBIDITY", condition: `${turbidity.toFixed(2)} NTU above nominal`, value: turbidity.toFixed(2), unit: "NTU", recommendation: "Suspended particle count has exceeded the 1.0 NTU baseline. A filter backwash cycle is advisable within the next operational window.", action: "BACKWASH FILTER MEDIA", level: "action", confidence: 82, icon: Wind });
-  } else {
-    decisions.push({ id: "turb", parameter: "TURBIDITY", condition: `${turbidity.toFixed(2)} NTU — nominal clarity`, value: turbidity.toFixed(2), unit: "NTU", recommendation: "Water clarity is excellent. Filtration is performing at optimal efficiency.", action: "MONITOR CONTINUOUSLY", level: "nominal", confidence: 99, icon: Wind });
-  }
-
-  // pH
-  if (ph < 5.5 || ph > 9.5) {
-    decisions.push({ id: "ph", parameter: "pH LEVEL", condition: `pH ${ph.toFixed(2)} — outside safe range`, value: ph.toFixed(2), unit: "pH", recommendation: ph < 5.5 ? "Critical acidity detected, sir. Alkaline dosing is required immediately. Prolonged exposure at this pH will cause irreversible pipe corrosion." : "Severe alkalinity alert. The chemical balance has been compromised. Neutralising agent deployment is required without delay.", action: ph < 5.5 ? "DOSE NaOH — ALKALINE INJECTION" : "DOSE HCl — ACID NEUTRALISATION", level: "critical", confidence: 96, icon: FlaskConical });
-  } else if (ph < 6.5 || ph > 8.5) {
-    decisions.push({ id: "ph", parameter: "pH LEVEL", condition: `pH ${ph.toFixed(2)} — outside optimal band`, value: ph.toFixed(2), unit: "pH", recommendation: ph < 6.5 ? "Minor pH deviation detected. A modest alkaline dosing adjustment will restore the balance within the 6.5–8.5 optimal window." : "pH trending slightly alkaline. A minor acid dosing correction is recommended.", action: ph < 6.5 ? "ADJUST ALKALINE DOSING" : "ADJUST ACID DOSING", level: "action", confidence: 84, icon: FlaskConical });
-  } else {
-    decisions.push({ id: "ph", parameter: "pH LEVEL", condition: `pH ${ph.toFixed(2)} — optimal balance`, value: ph.toFixed(2), unit: "pH", recommendation: "Chemical balance is optimal. The pH is well within the 6.5–8.5 safety band. No dosing adjustment is necessary.", action: "MAINTAIN CURRENT DOSING", level: "nominal", confidence: 99, icon: FlaskConical });
-  }
-
-  return decisions;
+function buildDecisions(tds: number | null, turbidity: number | null, ph: number | null): Decision[] {
+  return [
+    buildDecision("tds", "TDS", tds, "ppm", classifyTds, Droplets),
+    buildDecision("turbidity", "TURBIDITY", turbidity, "NTU", classifyTurbidity, Wind),
+    buildDecision("ph", "pH", ph, "", classifyPh, FlaskConical),
+  ];
 }
 
 // ─── Arc Reactor ──────────────────────────────────────────────────────────────
@@ -238,36 +243,23 @@ function HexCard({ decision, index, active }: { decision: Decision; index: numbe
         </div>
       </div>
 
-      {/* JARVIS recommendation */}
+      {/* Shared threshold note */}
       <div className="rounded-lg p-3 mb-3" style={{ background: "oklch(0.08 0.01 145 / 0.8)", border: "1px solid oklch(0.2 0.03 145)" }}>
-        <div className="text-[8px] font-bold tracking-[0.2em] text-muted-foreground mb-1.5">ETHM AI ANALYSIS</div>
+        <div className="text-[8px] font-bold tracking-[0.2em] text-muted-foreground mb-1.5">DWMS RULE ASSESSMENT</div>
         <p className="text-[10px] text-foreground/80 leading-relaxed tracking-wide italic">
           "{decision.recommendation}"
         </p>
       </div>
 
-      {/* Action + confidence */}
+      {/* Suggested review step */}
       <div className="flex items-center gap-2">
         <motion.div
-          className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold tracking-widest"
+          className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold tracking-widest"
           style={{ color: cfg.color, background: `${cfg.color}15`, border: `1px solid ${cfg.color}44` }}
         >
           <ChevronRight className="w-3 h-3 shrink-0" />
           {decision.action}
         </motion.div>
-        <div className="text-right shrink-0">
-          <div className="text-[8px] text-muted-foreground tracking-widest">CONFIDENCE</div>
-          <div className="font-mono text-xs font-bold" style={{ color: cfg.color }}>{decision.confidence}%</div>
-        </div>
-      </div>
-
-      {/* Confidence bar */}
-      <div className="mt-2 h-0.5 rounded-full bg-muted/20 overflow-hidden">
-        <motion.div
-          className="h-full rounded-full"
-          animate={{ width: `${decision.confidence}%`, backgroundColor: cfg.color }}
-          transition={{ duration: 0.6 }}
-        />
       </div>
     </motion.div>
   );
@@ -284,10 +276,10 @@ function VoiceWave({ active, color }: { active: boolean; color: string }) {
           className="w-0.5 rounded-full"
           style={{ background: color }}
           animate={active ? {
-            height: [`${8 + Math.random() * 16}px`, `${4 + Math.random() * 20}px`, `${8 + Math.random() * 16}px`],
+            height: [`${8 + (i % 5) * 3}px`, `${4 + ((i + 2) % 6) * 3}px`, `${8 + (i % 5) * 3}px`],
             opacity: [0.4, 0.9, 0.4],
           } : { height: "3px", opacity: 0.2 }}
-          transition={{ duration: 0.4 + Math.random() * 0.3, repeat: Infinity, delay: i * 0.05 }}
+          transition={{ duration: 0.4 + (i % 3) * 0.1, repeat: Infinity, delay: i * 0.05 }}
         />
       ))}
     </div>
@@ -400,19 +392,16 @@ function BootLine({ text, delay }: { text: string; delay: number }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AIDecision() {
-  const [tds, setTds] = useState(245);
-  const [turbidity, setTurbidity] = useState(0.8);
-  const [ph, setPh] = useState(7.2);
-  const [processing, setProcessing] = useState(false);
-  const [decisions, setDecisions] = useState<Decision[]>(() => buildDecisions(245, 0.8, 7.2));
-  const [cycleCount, setCycleCount] = useState(1);
-  const [ethmLine, setEthmLine] = useState(ETHM_LINES[0]);
-  const [speaking, setSpeaking] = useState(false);
+  const { readings, dataMode, lastUpdated } = useProcessMode();
   const [booted, setBooted] = useState(false);
   const [activeDecision, setActiveDecision] = useState<string | null>(null);
-  const lineRef = useRef(0);
-
   const { voiceEnabled, toggleVoice, speak, isSpeaking } = useEthmVoice();
+  const decisions = buildDecisions(readings.tds, readings.turbidity, readings.ph);
+  const hasReadings = readings.tds !== null && readings.turbidity !== null && readings.ph !== null;
+  const processing = false;
+  const ethmLine = !hasReadings
+    ? "No current sensor readings are available; no assessment can be made."
+    : "Using shared DWMS prototype threshold rules. This is not an AI prediction or water-safety certification.";
 
   // Boot animation
   useEffect(() => {
@@ -420,44 +409,22 @@ export default function AIDecision() {
     return () => clearTimeout(t);
   }, []);
 
-  // Live data simulation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newTds = Math.max(50, Math.min(900, tds + (Math.random() - 0.5) * 35));
-      const newTurb = Math.max(0, Math.min(35, turbidity + (Math.random() - 0.48) * 2));
-      const newPh = Math.max(4, Math.min(11, ph + (Math.random() - 0.5) * 0.18));
-
-      setTds(newTds);
-      setTurbidity(newTurb);
-      setPh(newPh);
-      setProcessing(true);
-
-      setTimeout(() => {
-        setDecisions(buildDecisions(newTds, newTurb, newPh));
-        setProcessing(false);
-        setCycleCount(c => c + 1);
-        setSpeaking(true);
-        lineRef.current = (lineRef.current + 1) % ETHM_LINES.length;
-        setEthmLine(ETHM_LINES[lineRef.current]);
-        setTimeout(() => setSpeaking(false), 2000);
-      }, 700);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [tds, turbidity, ph]);
-
   const criticalCount = decisions.filter(d => d.level === "critical").length;
-  const actionCount = decisions.filter(d => d.level === "action").length;
-  const overallLevel: DecisionLevel = criticalCount > 0 ? "critical" : actionCount > 0 ? "action" : "nominal";
+  const cautionCount = decisions.filter(d => d.level === "action" || d.level === "advisory").length;
+  const overallLevel: DecisionLevel = !hasReadings
+    ? "unknown"
+    : criticalCount > 0 ? "critical" : cautionCount > 0 ? "advisory" : "nominal";
   const overallCfg = LEVEL_CFG[overallLevel];
 
-  // Build the verbal status report — brief, male British style
+  // Voice output repeats the same bounded rule result shown on screen.
   const buildStatusReport = useCallback((lvl: DecisionLevel, d: Decision[]) => {
+    if (lvl === "unknown") return "No current sensor readings are available. Status cannot be assessed.";
     if (lvl === "nominal") {
-      return "All systems nominal. No action required.";
+      return "Current readings are within the configured prototype thresholds. This is not a water-safety certification.";
     }
     const flagged = d.filter(x => x.level !== "nominal");
     const items = flagged.map(x => `${x.parameter}: ${x.value} ${x.unit}`.trim()).join(". ");
-    return `${flagged.length} parameter${flagged.length > 1 ? "s" : ""} flagged. ${items}. Review recommended.`;
+    return `${flagged.length} parameter${flagged.length > 1 ? "s" : ""} outside prototype thresholds. ${items}. Verify readings and follow approved site procedures.`;
   }, []);
 
   const handleCheckStatus = useCallback(() => {
@@ -478,23 +445,23 @@ export default function AIDecision() {
           >
             <div className="font-mono text-2xl font-bold tracking-[0.4em]" style={{ color: "#22c55e" }}>ETHM AI</div>
             <div className="font-mono text-[10px] tracking-[0.3em] text-emerald-400/50 mt-1">
-              INTELLIGENT SAFETY & CONTROL ASSISTANT
+              DWMS PROTOTYPE THRESHOLD REVIEW
             </div>
           </motion.div>
           <div className="space-y-1.5">
             {[
-              "Initialising neural inference engine...",
-              "Loading water quality decision matrix...",
-              "Calibrating sensor fusion protocols...",
-              "Connecting to filtration control bus...",
-              "Running self-diagnostic... OK",
-              "Ethm AI online. Good day, operator.",
+              "Starting the DWMS rule assessment...",
+              "Loading shared prototype threshold rules...",
+              "Reading current application sensor state...",
+              "No hardware controls are issued from this screen...",
+              "Preparing the bounded status summary...",
+              "Rule assessment ready.",
             ].map((line, i) => (
               <BootLine key={i} text={line} delay={i * 300} />
             ))}
           </div>
           <div className="flex justify-center mt-6">
-            <ArcReactor level="nominal" processing={true} />
+            <ArcReactor level="unknown" processing={true} />
           </div>
         </div>
       </div>
@@ -515,11 +482,11 @@ export default function AIDecision() {
               transition={{ duration: 1, repeat: Infinity }}
             />
             <h2 className="font-mono text-sm font-bold tracking-[0.3em]" style={{ color: overallCfg.color }}>
-              ETHM AI — WATER SYSTEMS AI
+              ETHM — RULE-BASED SENSOR REVIEW
             </h2>
           </div>
           <div className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground mt-0.5">
-            ANALYSIS ENGINE v4.1 · CYCLE #{cycleCount} · {new Date().toLocaleTimeString()}
+            PROTOTYPE THRESHOLDS · {dataMode.toUpperCase()} · {lastUpdated && Date.parse(lastUpdated) > 0 ? new Date(lastUpdated).toLocaleTimeString() : "NO CURRENT UPDATE"}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -559,13 +526,21 @@ export default function AIDecision() {
           <div className="text-right shrink-0">
             <div className="text-[8px] font-mono tracking-widest text-muted-foreground">STATUS</div>
             <motion.div className="text-[10px] font-bold font-mono tracking-widest" animate={{ color: overallCfg.color }}>
-              {criticalCount > 0 ? `${criticalCount} CRITICAL` : actionCount > 0 ? `${actionCount} ACTION REQ` : "NOMINAL"}
+              {!hasReadings ? "NO DATA" : criticalCount > 0 ? `${criticalCount} CRITICAL` : cautionCount > 0 ? `${cautionCount} WARNING` : "PROTOTYPE NORMAL"}
             </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Central JARVIS panel */}
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[10px] text-muted-foreground">
+        <span className="font-bold text-amber-400">
+          {dataMode === "hardware" ? "HARDWARE MODE" : "DEMO SIMULATION"}
+        </span>
+        <span className="mx-2">·</span>
+        This screen applies shared prototype threshold rules to the current app readings. It is not an AI prediction service, does not control hardware, and does not certify water quality.
+      </div>
+
+      {/* Rule assessment panel */}
       <div className="rounded-2xl border overflow-hidden"
         style={{ borderColor: `${overallCfg.color}33`, background: `linear-gradient(135deg, oklch(0.11 0.02 145), oklch(0.09 0.015 145))` }}>
 
@@ -604,20 +579,21 @@ export default function AIDecision() {
                   animate={{ color: overallCfg.color }}
                 >
                   {processing ? "ANALYSING SENSOR DATA..." :
-                    overallLevel === "nominal" ? "ALL PARAMETERS WITHIN SAFE OPERATING RANGE." :
-                    overallLevel === "action" ? "CORRECTIVE MEASURES RECOMMENDED, SIR." :
-                    "IMMEDIATE INTERVENTION REQUIRED. STANDING BY."}
+                    overallLevel === "unknown" ? "READINGS UNAVAILABLE — STATUS CANNOT BE ASSESSED." :
+                    overallLevel === "nominal" ? "READINGS WITHIN PROTOTYPE BANDS — NOT A SAFETY CERTIFICATION." :
+                    overallLevel === "advisory" ? "READING OUTSIDE PROTOTYPE BAND — VERIFY THE SENSOR." :
+                    "CRITICAL PROTOTYPE THRESHOLD EXCEEDED — FOLLOW APPROVED SITE PROCEDURES."}
                 </motion.div>
               </motion.div>
 
-              {/* Live metrics strip */}
+              {/* Current source metrics */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: "TDS", value: tds.toFixed(0), unit: "ppm", ok: tds < 500 },
-                  { label: "TURBIDITY", value: turbidity.toFixed(2), unit: "NTU", ok: turbidity < 20 },
-                  { label: "pH LEVEL", value: ph.toFixed(2), unit: "", ok: ph >= 6.5 && ph <= 8.5 },
+                  { label: "TDS", value: readings.tds?.toFixed(0) ?? "—", unit: "ppm", level: readings.tds === null ? "unknown" : classifyTds(readings.tds) },
+                  { label: "TURBIDITY", value: readings.turbidity?.toFixed(2) ?? "—", unit: "NTU", level: readings.turbidity === null ? "unknown" : classifyTurbidity(readings.turbidity) },
+                  { label: "pH LEVEL", value: readings.ph?.toFixed(2) ?? "—", unit: "", level: readings.ph === null ? "unknown" : classifyPh(readings.ph) },
                 ].map(m => {
-                  const color = m.ok ? "#22c55e" : "#ef4444";
+                  const color = m.level === "unknown" ? "#6b7280" : m.level === "safe" ? "#22c55e" : m.level === "warning" ? "#eab308" : "#ef4444";
                   return (
                     <div key={m.label} className="rounded-lg p-2 text-center"
                       style={{ background: `${color}0d`, border: `1px solid ${color}33` }}>
@@ -634,9 +610,9 @@ export default function AIDecision() {
               {/* Ethm AI voice */}
               <div className="rounded-lg p-3 flex items-center gap-3"
                 style={{ background: "oklch(0.08 0.01 145)", border: "1px solid oklch(0.18 0.025 145)" }}>
-                <VoiceWave active={speaking || processing || isSpeaking} color={overallCfg.color} />
+                  <VoiceWave active={processing || isSpeaking} color={overallCfg.color} />
                 <div className="flex-1 min-w-0">
-                  <div className="font-mono text-[8px] tracking-[0.25em] text-muted-foreground mb-0.5">ETHM AI</div>
+                  <div className="font-mono text-[8px] tracking-[0.25em] text-muted-foreground mb-0.5">DWMS RULE NOTE</div>
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={ethmLine}
@@ -691,13 +667,13 @@ export default function AIDecision() {
         </div>
         <div className="divide-y" style={{ borderColor: "oklch(0.16 0.025 145)" }}>
           {[
-            { if: "Turbidity > 20.0 NTU", then: "Activate secondary filtration", level: "critical" as DecisionLevel },
-            { if: "Turbidity > 1.0 NTU", then: "Backwash filter media", level: "action" as DecisionLevel },
-            { if: "pH < 5.5 or pH > 9.5", then: "Emergency chemical dosing", level: "critical" as DecisionLevel },
-            { if: "pH outside 6.5–8.5", then: "Adjust chemical dosing", level: "action" as DecisionLevel },
-            { if: "TDS > 600 ppm", then: "Engage flushing protocol", level: "critical" as DecisionLevel },
-            { if: "TDS 300–600 ppm", then: "Increase filtration rate", level: "action" as DecisionLevel },
-            { if: "All parameters nominal", then: "Continue normal operation", level: "nominal" as DecisionLevel },
+            { if: `Turbidity > ${THRESHOLDS.turbidity.critical.above} NTU`, then: "Flag critical; verify reading and follow site procedures", level: "critical" as DecisionLevel },
+            { if: `Turbidity ≥ ${THRESHOLDS.turbidity.safe.max} NTU`, then: "Flag warning; review under validated site procedures", level: "advisory" as DecisionLevel },
+            { if: `pH < ${THRESHOLDS.ph.critical.below} or > ${THRESHOLDS.ph.critical.above}`, then: "Flag critical; verify reading and follow site procedures", level: "critical" as DecisionLevel },
+            { if: `pH outside ${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}`, then: "Flag warning; review under validated site procedures", level: "advisory" as DecisionLevel },
+            { if: `TDS > ${THRESHOLDS.tds.critical.above} ppm`, then: "Flag critical; verify reading and follow site procedures", level: "critical" as DecisionLevel },
+            { if: `TDS ≥ ${THRESHOLDS.tds.safe.max} ppm`, then: "Flag warning; review under validated site procedures", level: "advisory" as DecisionLevel },
+            { if: "All available parameters inside prototype safe bands", then: "Show prototype normal status; this is not a safety certification", level: "nominal" as DecisionLevel },
           ].map((rule, i) => (
             <div key={i} className="flex items-center gap-4 px-4 py-2.5 hover:bg-white/[0.02] transition-colors">
               <span className="font-mono text-[8px] text-muted-foreground/40 w-5 shrink-0">{String(i + 1).padStart(2, "0")}</span>

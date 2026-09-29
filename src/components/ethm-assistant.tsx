@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils.ts";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const WELCOME =
-  "Hello, I'm Ethm AI, your intelligent safety and control assistant for DWMS. I monitor water quality, system behavior, and operational risks in real time.";
+  "I can explain the readings available to DWMS and its prototype threshold rules. AI-generated responses can be wrong; they are not a safety certification or a control command. Verify conditions with approved instruments and site procedures.";
 
 const SUGGESTED = [
   "What is DWMS?",
@@ -26,7 +26,7 @@ function EthmAssistantInner() {
   const {
     assistantOpen, setAssistantOpen,
     readings, mode, pumpStatus, manualOverride, emergencyShutdown,
-    dataMode, hardwareStatus, decision, quality,
+    dataMode, hardwareStatus, decision, quality, pumpStatusKnown,
   } = useProcessMode();
 
   const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: WELCOME }]);
@@ -42,7 +42,7 @@ function EthmAssistantInner() {
   const buildContext = useCallback(() => {
     return [
       `System mode: ${mode.toUpperCase()}`,
-      `Pump: ${emergencyShutdown ? "LOCKED" : pumpStatus ? "ON" : "OFF"}`,
+      `Pump: ${emergencyShutdown ? "EMERGENCY STATE" : dataMode === "hardware" && !pumpStatusKnown ? "UNKNOWN (controller state not confirmed)" : pumpStatus ? "ON" : "OFF"}`,
       `Manual override: ${manualOverride ? "ACTIVE" : "INACTIVE"}`,
       `Emergency shutdown: ${emergencyShutdown ? "ACTIVE" : "INACTIVE"}`,
       `Data source: ${dataMode === "demo" ? "Demo Data" : "Real Hardware"} (${hardwareStatus})`,
@@ -50,10 +50,10 @@ function EthmAssistantInner() {
       `TDS: ${readings.tds ?? "—"} ppm`,
       `Turbidity: ${readings.turbidity ?? "—"} NTU`,
       `Flow rate: ${readings.flowRate ?? "—"} L/min`,
-      `Water quality: ${quality.toUpperCase()}`,
+      `Prototype threshold status: ${quality.toUpperCase()}`,
       `Latest assessment: ${decision.reason} Recommendation: ${decision.recommendation}`,
     ].join("\n");
-  }, [mode, pumpStatus, manualOverride, emergencyShutdown, dataMode, hardwareStatus, readings, quality, decision]);
+  }, [mode, pumpStatus, pumpStatusKnown, manualOverride, emergencyShutdown, dataMode, hardwareStatus, readings, quality, decision]);
 
   const send = useCallback(
     async (text: string) => {
@@ -117,11 +117,11 @@ function EthmAssistantInner() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-sm tracking-wide" style={{ color: "#22c55e" }}>Ethm AI</div>
-                <div className="text-[10px] text-muted-foreground truncate">Intelligent Safety & Control Assistant</div>
+                <div className="text-[10px] text-muted-foreground truncate">Explanatory assistant · not a safety controller</div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <motion.div className="w-1.5 h-1.5 rounded-full bg-green-400" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
-                <span className="text-[9px] font-bold tracking-widest text-green-400">ONLINE</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                <span className="text-[9px] font-bold tracking-widest text-muted-foreground">ON DEMAND</span>
               </div>
               <button onClick={() => setAssistantOpen(false)} className="p-1 rounded hover:bg-white/10 cursor-pointer text-muted-foreground hover:text-foreground ml-1">
                 <X className="w-4 h-4" />
@@ -172,7 +172,7 @@ function EthmAssistantInner() {
             {/* Live risk strip */}
             <div className="px-3 py-1.5 border-t flex items-center gap-2 text-[9px] font-mono tracking-wider shrink-0" style={{ borderColor: "#22c55e22", background: "oklch(0.1 0.015 145)" }}>
               <span className="text-muted-foreground">RISK:</span>
-              <span style={{ color: quality === "critical" ? "#ef4444" : quality === "warning" ? "#eab308" : "#22c55e" }}>
+              <span style={{ color: quality === "critical" ? "#ef4444" : quality === "warning" ? "#eab308" : quality === "unknown" ? "#6b7280" : "#22c55e" }}>
                 {riskLabel(quality)}
               </span>
               <span className="text-muted-foreground ml-auto">MODE: {mode.toUpperCase()}</span>

@@ -6,8 +6,8 @@ import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import type { SafetyDecision } from "@/lib/dwms-safety.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Ethm AI Safety Pop-ups — three interactive levels triggered by the global
-// rule engine whenever a value moves outside its safe band.
+// Demo-only threshold pop-ups. Physical commands and acknowledgements are
+// handled by the backend and device control panel.
 //   Level 1 Advisory   → Keep Value / Auto Adjust
 //   Level 2 Correction → shows old/new/reason/action (informational)
 //   Level 3 Emergency  → Acknowledge / View Details
@@ -24,7 +24,7 @@ type PopupState = {
 export default function EthmPopups() {
   const {
     decision, mode, manualOverride, emergencyShutdown,
-    readings, applyReading, acknowledgeEmergency, logEvent,
+    readings, applyReading, acknowledgeEmergency, logEvent, dataMode,
   } = useProcessMode();
 
   const location = useLocation();
@@ -34,10 +34,11 @@ export default function EthmPopups() {
   const [showDetails, setShowDetails] = useState(false);
   const lastShownRef = useRef<string>("");
 
-  // Emergency popup always shows when a shutdown is active (unless on suppressed route).
+  // These pop-ups describe local demo state only. Hardware status is shown by
+  // the device control panel, which reports pending and acknowledged commands.
   useEffect(() => {
-    if (isSuppressedRoute) {
-      if (popup?.decision.kind === "emergency") setPopup(null);
+    if (dataMode !== "demo" || isSuppressedRoute) {
+      setPopup((current) => current ? null : current);
       return;
     }
     if (emergencyShutdown) {
@@ -46,12 +47,12 @@ export default function EthmPopups() {
       setPopup(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emergencyShutdown, isSuppressedRoute]);
+  }, [emergencyShutdown, isSuppressedRoute, dataMode]);
 
   // Advisory popup: only in Manual mode (Auto auto-corrects silently) and only
   // when the operator hasn't already been shown this exact advisory.
   useEffect(() => {
-    if (isSuppressedRoute) return;
+    if (dataMode !== "demo" || isSuppressedRoute) return;
     if (emergencyShutdown) return;
     if (decision.kind !== "advisory") {
       if (popup?.decision.kind === "advisory") setPopup(null);
@@ -64,17 +65,17 @@ export default function EthmPopups() {
     lastShownRef.current = sig;
     setPopup({ decision, oldValue: readings.flowRate ?? undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [decision, mode, manualOverride, emergencyShutdown, isSuppressedRoute]);
+  }, [decision, mode, manualOverride, emergencyShutdown, isSuppressedRoute, dataMode]);
 
-  if (!popup) return null;
+  if (dataMode !== "demo" || !popup) return null;
   const d = popup.decision;
 
   const cfg =
     d.kind === "emergency"
-      ? { color: "#ef4444", Icon: ShieldAlert, title: "Emergency Shutdown Activated", tag: "LEVEL 3 — CRITICAL" }
+      ? { color: "#ef4444", Icon: ShieldAlert, title: "Demo emergency state", tag: "SIMULATION — CRITICAL" }
       : d.kind === "correction"
-        ? { color: "#eab308", Icon: AlertTriangle, title: "Ethm AI Auto Correction", tag: "LEVEL 2 — CORRECTION" }
-        : { color: "#4ade80", Icon: Info, title: "Ethm AI Warning", tag: "LEVEL 1 — ADVISORY" };
+        ? { color: "#eab308", Icon: AlertTriangle, title: "Demo rule correction", tag: "SIMULATION — CORRECTION" }
+        : { color: "#4ade80", Icon: Info, title: "Demo threshold notice", tag: "SIMULATION — ADVISORY" };
 
   function close() {
     setPopup(null);
@@ -82,7 +83,7 @@ export default function EthmPopups() {
   }
 
   function keepValue() {
-    logEvent({ type: "Ethm AI Warning", parameter: d.parameter, decision: d.reason, action: "Operator kept value" });
+    logEvent({ type: "Demo threshold notice", parameter: d.parameter, decision: d.reason, action: "Operator kept the simulated value" });
     close();
   }
 
@@ -96,7 +97,7 @@ export default function EthmPopups() {
         oldValue: old ?? null,
         newValue: d.correctedValue,
         decision: d.reason,
-        action: `Ethm AI adjusted ${d.parameter} to ${d.correctedValue}`,
+        action: `Demo state changed ${d.parameter} to ${d.correctedValue}`,
       });
     }
     close();
@@ -135,7 +136,7 @@ export default function EthmPopups() {
 
           {/* Body */}
           <div className="p-5 space-y-3">
-            <div className="text-[10px] font-bold tracking-widest text-muted-foreground">ETHM AI · {d.parameter}</div>
+            <div className="text-[10px] font-bold tracking-widest text-muted-foreground">LOCAL SIMULATION · {d.parameter}</div>
             <p className="text-sm text-foreground/90 leading-relaxed">{d.reason}</p>
             <p className="text-xs text-muted-foreground leading-relaxed">{d.recommendation}</p>
 
@@ -158,7 +159,7 @@ export default function EthmPopups() {
               <div className="rounded-lg p-3 border space-y-1 text-[11px] font-mono" style={{ borderColor: "#ef444444", background: "#ef44440d" }}>
                 <div className="flex justify-between"><span className="text-muted-foreground">PARAMETER</span><span className="text-red-400">{d.parameter}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">RISK</span><span className="text-red-400">CRITICAL</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">PUMP</span><span className="text-red-400">LOCKED</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">DEMO PUMP MODEL</span><span className="text-red-400">SIMULATED STOP</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">pH</span><span>{readings.ph ?? "—"}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">TDS</span><span>{readings.tds ?? "—"} ppm</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">TURBIDITY</span><span>{readings.turbidity ?? "—"} NTU</span></div>
@@ -202,7 +203,7 @@ export default function EthmPopups() {
                 <button onClick={() => { acknowledgeEmergency(); close(); }}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl cursor-pointer font-bold text-xs tracking-widest transition-opacity hover:opacity-80"
                   style={{ background: "#ef444422", color: "#ef4444", border: "1px solid #ef4444" }}>
-                  <Check className="w-3.5 h-3.5" /> ACKNOWLEDGE
+                  <Check className="w-3.5 h-3.5" /> DISMISS SIMULATION NOTICE
                 </button>
               </>
             )}

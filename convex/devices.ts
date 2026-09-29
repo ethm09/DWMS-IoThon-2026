@@ -9,12 +9,135 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel.d.ts";
 import type { MutationCtx } from "./_generated/server";
 import { createSystemNotification } from "./notifications";
+import { getCurrentUserOrThrow } from "./users";
 import {
   classifyPh,
   classifyTds,
   classifyTurbidity,
   THRESHOLDS,
 } from "./safetyPolicy";
+
+const CONTROL_COMMAND_TTL_MS = 20_000;
+
+async function requireOperator(ctx: MutationCtx) {
+  const user = await getCurrentUserOrThrow(ctx);
+  if (user.role !== "admin" && user.role !== "operator") {
+    throw new ConvexError({
+      message: "Operator access required to control hardware",
+      code: "FORBIDDEN",
+    });
+  }
+  return user;
+}
+
+async function findDevice(ctx: MutationCtx, deviceId: string) {
+  const device = await ctx.db
+    .query("devices")
+    .withIndex("by_deviceId", (q) => q.eq("deviceId", deviceId))
+    .unique();
+  if (!device) {
+    throw new ConvexError({ message: "Device not found", code: "NOT_FOUND" });
+  }
+  return device;
+}
+
+async function getFreshReading(ctx: MutationCtx, deviceId: string) {
+  const reading = await ctx.db
+    .query("sensorReadings")
+    .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", deviceId))
+    .order("desc")
+    .first();
+  if (!reading || Date.now() - Date.parse(reading.timestamp) > 10_000) {
+    throw new ConvexError({
+      message: "A fresh sensor reading is required before controlling the pump",
+      code: "STALE_SENSOR_DATA",
+    });
+  }
+  return reading;
+}
+
+function assertPumpStartAllowed(reading: {
+  ph: number;
+  turbidity: number;
+}) {
+  if (
+    classifyPh(reading.ph) === "critical" ||
+    classifyTurbidity(reading.turbidity) === "critical"
+  ) {
+    throw new ConvexError({
+      message:
+        "Pump start blocked by the safety interlock. Resolve critical pH or turbidity readings first.",
+      code: "SAFETY_INTERLOCK",
+    });
+  }
+}
+
+async function createControlCommand(
+  ctx: MutationCtx,
+  device: Doc<"devices">,
+  args: {
+    pumpOn: boolean;
+    mode: "auto" | "manual" | "emergency";
+    source: "operator" | "automatic" | "emergency";
+    requestedBy?: string;
+  },
+) {
+  if (device.lastCommandId) {
+    const previous = await ctx.db
+      .query("deviceCommands")
+      .withIndex("by_commandId", (q) =>
+        q.eq("commandId", device.lastCommandId!),
+      )
+      .unique();
+    if (previous?.status === "pending") {
+      await ctx.db.patch(previous._id, {
+        status: "superseded",
+        message: "A newer control command replaced this one.",
+      });
+    }
+  }
+
+  const commandId = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  await ctx.db.insert("deviceCommands", {
+    deviceId: device.deviceId,
+    commandId,
+    pumpOn: args.pumpOn,
+    mode: args.mode,
+    source: args.source,
+    requestedBy: args.requestedBy,
+    createdAt,
+    status: "pending",
+  });
+  await ctx.db.patch(device._id, {
+    controlMode: args.mode,
+    desiredPumpState: args.pumpOn,
+    lastCommandId: commandId,
+    controlUpdatedAt: createdAt,
+    lastControlMessage: undefined,
+  });
+  await ctx.scheduler.runAfter(
+    CONTROL_COMMAND_TTL_MS,
+    internal.devices.expireControlCommand,
+    { commandId },
+  );
+  return { commandId, createdAt, pumpOn: args.pumpOn, mode: args.mode };
+}
+
+async function autoPumpTarget(ctx: MutationCtx, deviceId: string) {
+  const reading = await getFreshReading(ctx, deviceId);
+  if (
+    classifyPh(reading.ph) === "critical" ||
+    classifyTurbidity(reading.turbidity) === "critical"
+  ) {
+    return { reading, mode: "emergency" as const, pumpOn: false };
+  }
+
+  const shouldRun =
+    reading.tds > THRESHOLDS.tds.critical.above ||
+    reading.turbidity > THRESHOLDS.turbidity.filtration.above;
+  return { reading, mode: "auto" as const, pumpOn: shouldRun };
+}
 
 // Helper to require admin
 async function requireAdmin(ctx: MutationCtx) {
@@ -48,6 +171,276 @@ export const listDevices = query({
       void apiKey;
       return publicDevice;
     });
+  },
+});
+
+// Public dashboard state; API keys are never returned from this query.
+export const getControlState = query({
+  args: { deviceId: v.string() },
+  handler: async (ctx, args) => {
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
+      .unique();
+    if (!device) return null;
+    const command = await ctx.db
+      .query("deviceCommands")
+      .withIndex("by_deviceId_createdAt", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
+      .order("desc")
+      .first();
+    return {
+      mode: device.controlMode ?? "auto",
+      desiredPumpState: device.desiredPumpState ?? false,
+      reportedPumpState:
+        device.reportedPumpState !== undefined &&
+        device.pumpReportedAt !== undefined &&
+        Date.now() - Date.parse(device.pumpReportedAt) <= 10_000
+          ? device.reportedPumpState
+          : null,
+      reportedAt: device.pumpReportedAt ?? null,
+      updatedAt: device.controlUpdatedAt ?? null,
+      message: device.lastControlMessage ?? null,
+      command: command
+        ? {
+            commandId: command.commandId,
+            pumpOn: command.pumpOn,
+            source: command.source,
+            createdAt: command.createdAt,
+            status: command.status,
+            message: command.message ?? null,
+          }
+        : null,
+    };
+  },
+});
+
+// Manual control is limited to authenticated operators and requires fresh data.
+export const setDeviceControlMode = mutation({
+  args: {
+    deviceId: v.string(),
+    mode: v.union(v.literal("auto"), v.literal("manual"), v.literal("emergency")),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireOperator(ctx);
+    const device = await findDevice(ctx, args.deviceId);
+    const currentMode = device.controlMode ?? "auto";
+
+    if (args.mode === "emergency") {
+      return await createControlCommand(ctx, device, {
+        pumpOn: false,
+        mode: "emergency",
+        source: "emergency",
+        requestedBy: user.email ?? user._id,
+      });
+    }
+    if (currentMode === "emergency") {
+      throw new ConvexError({
+        message: "Acknowledge the emergency after conditions are safe before changing mode.",
+        code: "EMERGENCY_LOCKED",
+      });
+    }
+
+    const reading = await getFreshReading(ctx, args.deviceId);
+    const pumpOn = device.desiredPumpState ?? false;
+    if (args.mode === "auto") {
+      const target = await autoPumpTarget(ctx, args.deviceId);
+      if (target.mode === "emergency") {
+        return await createControlCommand(ctx, device, {
+          pumpOn: false,
+          mode: "emergency",
+          source: "emergency",
+          requestedBy: user.email ?? user._id,
+        });
+      }
+      return await createControlCommand(ctx, device, {
+        pumpOn: target.pumpOn,
+        mode: "auto",
+        source: "operator",
+        requestedBy: user.email ?? user._id,
+      });
+    }
+
+    if (pumpOn) assertPumpStartAllowed(reading);
+    return await createControlCommand(ctx, device, {
+      pumpOn,
+      mode: "manual",
+      source: "operator",
+      requestedBy: user.email ?? user._id,
+    });
+  },
+});
+
+export const setDevicePump = mutation({
+  args: { deviceId: v.string(), pumpOn: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await requireOperator(ctx);
+    const device = await findDevice(ctx, args.deviceId);
+    if ((device.controlMode ?? "auto") !== "manual") {
+      throw new ConvexError({
+        message: "Switch the device to Manual mode before operating the pump.",
+        code: "MANUAL_MODE_REQUIRED",
+      });
+    }
+    if (args.pumpOn) {
+      const reading = await getFreshReading(ctx, args.deviceId);
+      assertPumpStartAllowed(reading);
+    }
+    return await createControlCommand(ctx, device, {
+      pumpOn: args.pumpOn,
+      mode: "manual",
+      source: "operator",
+      requestedBy: user.email ?? user._id,
+    });
+  },
+});
+
+export const acknowledgeDeviceEmergency = mutation({
+  args: { deviceId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await requireOperator(ctx);
+    const device = await findDevice(ctx, args.deviceId);
+    if ((device.controlMode ?? "auto") !== "emergency") {
+      throw new ConvexError({
+        message: "The device is not in emergency shutdown.",
+        code: "NOT_IN_EMERGENCY",
+      });
+    }
+    const target = await autoPumpTarget(ctx, args.deviceId);
+    if (target.mode === "emergency") {
+      throw new ConvexError({
+        message: "Emergency conditions are still present; the pump remains stopped.",
+        code: "SAFETY_INTERLOCK",
+      });
+    }
+    return await createControlCommand(ctx, device, {
+      pumpOn: target.pumpOn,
+      mode: "auto",
+      source: "operator",
+      requestedBy: user.email ?? user._id,
+    });
+  },
+});
+
+// Internal serial-bridge API helpers.
+export const getPendingControlCommand = internalQuery({
+  args: { deviceId: v.string() },
+  handler: async (ctx, args) => {
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
+      .unique();
+    if (!device?.lastCommandId) return null;
+    const command = await ctx.db
+      .query("deviceCommands")
+      .withIndex("by_commandId", (q) =>
+        q.eq("commandId", device.lastCommandId!),
+      )
+      .unique();
+    if (
+      !command ||
+      command.status !== "pending" ||
+      Date.now() - Date.parse(command.createdAt) > CONTROL_COMMAND_TTL_MS
+    ) {
+      return null;
+    }
+    return {
+      commandId: command.commandId,
+      pumpOn: command.pumpOn,
+      mode: command.mode,
+    };
+  },
+});
+
+export const acknowledgeControlCommand = internalMutation({
+  args: {
+    deviceId: v.string(),
+    commandId: v.string(),
+    ok: v.boolean(),
+    pumpOn: v.boolean(),
+    message: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const command = await ctx.db
+      .query("deviceCommands")
+      .withIndex("by_commandId", (q) => q.eq("commandId", args.commandId))
+      .unique();
+    if (!command || command.deviceId !== args.deviceId) return { accepted: false };
+    if (command.status !== "pending") {
+      return { accepted: command.status === "applied" };
+    }
+    if (Date.now() - Date.parse(command.createdAt) > CONTROL_COMMAND_TTL_MS) {
+      await ctx.db.patch(command._id, {
+        status: "expired",
+        message: "The acknowledgement arrived after the command expired.",
+      });
+      return { accepted: false };
+    }
+
+    const success = args.ok && args.pumpOn === command.pumpOn;
+    const message = success
+      ? undefined
+      : (args.message ?? "The controller rejected or did not apply the command.").slice(0, 240);
+    await ctx.db.patch(command._id, {
+      status: success ? "applied" : "failed",
+      reportedPumpState: args.pumpOn,
+      message,
+      acknowledgedAt: new Date().toISOString(),
+    });
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
+      .unique();
+    if (device?.lastCommandId === command.commandId) {
+      await ctx.db.patch(device._id, {
+        reportedPumpState: args.pumpOn,
+        pumpReportedAt: new Date().toISOString(),
+        lastControlMessage: message,
+      });
+    }
+    return { accepted: success };
+  },
+});
+
+export const reportPumpStatus = internalMutation({
+  args: { deviceId: v.string(), pumpOn: v.boolean() },
+  handler: async (ctx, args) => {
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
+      .unique();
+    if (!device) return;
+    await ctx.db.patch(device._id, {
+      reportedPumpState: args.pumpOn,
+      pumpReportedAt: new Date().toISOString(),
+    });
+  },
+});
+
+export const expireControlCommand = internalMutation({
+  args: { commandId: v.string() },
+  handler: async (ctx, args) => {
+    const command = await ctx.db
+      .query("deviceCommands")
+      .withIndex("by_commandId", (q) => q.eq("commandId", args.commandId))
+      .unique();
+    if (!command || command.status !== "pending") return;
+    await ctx.db.patch(command._id, {
+      status: "expired",
+      message: "No controller acknowledgement arrived; the physical output is unknown.",
+    });
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_deviceId", (q) => q.eq("deviceId", command.deviceId))
+      .unique();
+    if (device?.lastCommandId === command.commandId) {
+      await ctx.db.patch(device._id, {
+        reportedPumpState: undefined,
+        lastControlMessage:
+          "No controller acknowledgement arrived; the physical output is unknown.",
+      });
+    }
   },
 });
 
@@ -170,6 +563,38 @@ export const internalSaveReading = internalMutation({
       tds: args.tds,
       turbidity: args.turbidity,
     });
+
+    // Backend Auto is authoritative for physical hardware. With no flow sensor
+    // in the current schema, critical pH or turbidity fails closed and stops the
+    // pump; a connected operator must acknowledge only after readings recover.
+    if (device) {
+      const mode = device.controlMode ?? "auto";
+      const emergencyReading =
+        classifyPh(args.ph) === "critical" ||
+        classifyTurbidity(args.turbidity) === "critical";
+      const desiredPumpState = device.desiredPumpState ?? false;
+
+      if (emergencyReading) {
+        if (mode !== "emergency" || desiredPumpState) {
+          await createControlCommand(ctx, device, {
+            pumpOn: false,
+            mode: "emergency",
+            source: "emergency",
+          });
+        }
+      } else if (mode === "auto") {
+        const shouldRun =
+          args.tds > THRESHOLDS.tds.critical.above ||
+          args.turbidity > THRESHOLDS.turbidity.filtration.above;
+        if (shouldRun !== desiredPumpState) {
+          await createControlCommand(ctx, device, {
+            pumpOn: shouldRun,
+            mode: "auto",
+            source: "automatic",
+          });
+        }
+      }
+    }
 
     // Schedule offline check in 10 seconds
     await ctx.scheduler.runAfter(10_000, internal.devices.checkDeviceStale, {

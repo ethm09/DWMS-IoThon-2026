@@ -236,8 +236,8 @@ function DataSourceInner() {
                 <div className="text-xs">
                   <p className="font-bold text-yellow-500 tracking-wider">HARDWARE UNREACHABLE</p>
                   <p className="text-muted-foreground mt-0.5">
-                    No data in 30+ seconds. The system will display the last known values.
-                    Switch to Demo mode if you want simulated data while hardware is offline.
+                    No data in 30+ seconds. Hardware mode stays active and never silently switches to simulated readings.
+                    Switch to Demo mode manually if you want simulated data while hardware is offline.
                   </p>
                 </div>
               </motion.div>
@@ -351,10 +351,10 @@ function DataSourceInner() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
-              { name: "Arduino + Serial Bridge", desc: "USB serial → Python → HTTP POST", supported: true },
-              { name: "ESP32 / WiFi MCU", desc: "Direct HTTP POST from board", supported: true },
-              { name: "REST API / Webhook", desc: "Any device posting JSON to endpoint", supported: true },
-              { name: "Firebase / Supabase", desc: "External DB → webhook bridge", supported: true },
+              { name: "Arduino Uno + Serial Bridge", desc: "Firmware, Python telemetry bridge, and acknowledged relay commands are included", supported: true },
+              { name: "Authenticated HTTP endpoint", desc: "Accepts JSON sensor readings from a custom HTTP client", supported: true },
+              { name: "ESP32 / Wi-Fi MCU", desc: "Requires device-specific firmware; no ESP32 sketch is included", supported: false },
+              { name: "Firebase / Supabase", desc: "No connector is implemented", supported: false },
             ].map((proto) => (
               <div key={proto.name} className="rounded-lg border border-border p-3 flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full mt-1.5 shrink-0"
