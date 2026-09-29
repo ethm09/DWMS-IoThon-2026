@@ -1,9 +1,10 @@
 "use node";
 
-import OpenAI, {
-  type ChatCompletionMessageParam,
-  type ChatCompletionTool,
-} from "openai";
+import OpenAI from "openai";
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from "openai/resources/chat/completions";
 import { ConvexError, v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
