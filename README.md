@@ -50,7 +50,7 @@ Where hardware is not physically connected, the interface must clearly identify 
 
 ## Development
 
-This project uses Vite, React, TypeScript, Convex, and Auth0 authentication. Convex generates the `convex/_generated` bindings from the local schema and functions; those generated files are not included in this source package.
+This project uses Vite, React, TypeScript, Convex, and Auth0 authentication. Convex generates the `convex/_generated` bindings from the local schema and functions. The generated bindings are committed so production frontend builds do not need to start a Convex backend.
 
 Install dependencies, then run `pnpm exec convex dev` in one terminal to select or create a development deployment and generate the Convex bindings. Keep it running while you use the app. Set `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` for that deployment, then run `pnpm dev` in a second terminal. A production deployment is not needed for local development.
 
@@ -68,9 +68,9 @@ Set `OPENAI_API_KEY` as a server-side environment variable for the Convex deploy
 
 ### Deploy the dashboard with Vercel
 
-Import `ethm09/DWMS-IoThon-2026` into a Vercel project. `vercel.json` provides the single-page-app route fallback and runs the included Convex binding preparation before the Vite build. Add `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_AUTH0_DOMAIN`, and `VITE_AUTH0_CLIENT_ID` to the Vercel project environment settings. The Convex backend remains a separate deployment: set `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `DWMS_INITIAL_ADMIN_EMAIL`, and (optionally) `OPENAI_API_KEY` in Convex, then deploy the backend with `pnpm exec convex deploy` from an authenticated terminal. Configure the Vercel production origin in Auth0's allowed callback, logout, and web-origin lists.
+Import `ethm09/DWMS-IoThon-2026` into a Vercel project. `vercel.json` provides the single-page-app route fallback and builds the Vite frontend from the committed Convex bindings. Add `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_AUTH0_DOMAIN`, and `VITE_AUTH0_CLIENT_ID` to the Vercel project environment settings. The Convex backend remains a separate deployment: set `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `DWMS_INITIAL_ADMIN_EMAIL`, and (optionally) `OPENAI_API_KEY` in Convex, then deploy the backend with `pnpm exec convex deploy` from an authenticated terminal. Configure the Vercel production origin in Auth0's allowed callback, logout, and web-origin lists.
 
-Vercel deployment is not activated by this repository change; it requires a Vercel project and the public Auth0/Convex deployment values above.
+Vercel project settings and environment variables are managed outside this repository; no deployment secrets are stored here.
 
 ### Connect an Arduino Uno
 
@@ -81,3 +81,4 @@ The bridge polls the authenticated `/arduino/control/next` endpoint and acknowle
 Set `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` for the selected Convex deployment. The device setup page uses the Convex site URL for the Arduino HTTP endpoint.
 
 Never commit real environment variables, API keys, tokens, or deployment secrets.
+
