@@ -3,7 +3,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { useAuth } from "@/hooks/use-auth.ts";
-import type { SafetyLevel } from "@/lib/dwms-safety.ts";
+import type { OverallQuality } from "@/lib/dwms-safety.ts";
 
 /**
  * Bridges the local process-mode safety engine with the database-persisted
@@ -14,17 +14,15 @@ import type { SafetyLevel } from "@/lib/dwms-safety.ts";
  */
 export function useNotificationBridge() {
   const { user } = useAuth();
-  const { decision, quality, mode } = useProcessMode();
+  const { decision, quality, mode, dataMode } = useProcessMode();
   const createNotification = useMutation(api.notifications.create);
-  const lastLevel = useRef<SafetyLevel>("safe");
+  const lastLevel = useRef<OverallQuality>("safe");
   const lastEmergency = useRef(false);
 
   useEffect(() => {
-    // Skip if not authenticated
-    if (!user) return;
-
-    // Only fire notifications on transitions (not continuously)
-    if (quality === lastLevel.current && (mode === "emergency") === lastEmergency.current) {
+    if (!user || dataMode === "hardware") {
+      lastLevel.current = quality;
+      lastEmergency.current = mode === "emergency";
       return;
     }
 
@@ -45,6 +43,9 @@ export function useNotificationBridge() {
       return;
     }
 
+    // Only fire notifications on transitions (not continuously).
+    if (quality === prevLevel && (mode === "emergency") === prevEmergency) return;
+
     // Transition to critical
     if (quality === "critical" && prevLevel !== "critical") {
       createNotification({
@@ -58,7 +59,7 @@ export function useNotificationBridge() {
     }
 
     // Transition to warning
-    if (quality === "warning" && prevLevel === "safe") {
+    if (quality === "warning" && (prevLevel === "safe" || prevLevel === "unknown")) {
       createNotification({
         level: "warning",
         category: "threshold",
@@ -68,5 +69,5 @@ export function useNotificationBridge() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quality, mode, user]);
+  }, [quality, mode, user, dataMode]);
 }

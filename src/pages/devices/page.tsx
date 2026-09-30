@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ConvexError } from "convex/values";
 import {
   Cpu, Wifi, WifiOff, AlertTriangle, Plus, Trash2,
-  Terminal, Activity, Clock, Key, MapPin, Copy
+  Terminal, Activity, Clock, MapPin, Copy
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SignInButton } from "@/components/ui/signin.tsx";
 import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+import { classifyPh, classifyTds, classifyTurbidity } from "@/lib/dwms-safety.ts";
+import { useProcessMode } from "@/hooks/use-process-mode.ts";
 
 const STATUS_COLOR = {
   online: "#22c55e",
@@ -33,7 +35,7 @@ function DeviceCard({
   device,
   onDelete,
 }: {
-  device: Doc<"devices">;
+  device: Omit<Doc<"devices">, "apiKey">;
   onDelete: (id: string) => void;
 }) {
   const latestReading = useQuery(api.devices.getLatestReading, { deviceId: device.deviceId });
@@ -113,19 +115,6 @@ function DeviceCard({
         </div>
       )}
 
-      {/* API Key */}
-      <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-mono"
-        style={{ background: "oklch(0.1 0.02 145)", border: "1px solid oklch(0.2 0.04 145)" }}>
-        <Key className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-        <span className="text-muted-foreground truncate flex-1">{device.apiKey}</span>
-        <button
-          className="cursor-pointer text-muted-foreground hover:text-foreground"
-          onClick={() => { void navigator.clipboard.writeText(device.apiKey); toast.success("API key copied"); }}
-        >
-          <Copy className="w-3 h-3" />
-        </button>
-      </div>
-
       {/* Delete button */}
       <div className="flex justify-end">
         <Button size="sm" variant="destructive" className="h-8 px-3 text-xs gap-1 cursor-pointer" onClick={() => onDelete(device.deviceId)}>
@@ -140,23 +129,24 @@ function DeviceCard({
 function getWaterStatus(reading: Doc<"sensorReadings"> | null | undefined): { label: string; color: string } {
   if (!reading) return { label: "No Data", color: "#6b7280" };
 
-  const phCritical = reading.ph < 5.0 || reading.ph > 10.0;
-  const phWarning = reading.ph < 6.5 || reading.ph > 8.5;
-  const tdsCritical = reading.tds > 800;
-  const tdsWarning = reading.tds > 500;
-  const turbCritical = reading.turbidity > 50;
-  const turbWarning = reading.turbidity > 20;
+  const levels = [
+    classifyPh(reading.ph),
+    classifyTds(reading.tds),
+    classifyTurbidity(reading.turbidity),
+  ];
 
-  if (phCritical || tdsCritical || turbCritical) {
+  if (levels.includes("critical")) {
     return { label: "CRITICAL", color: "#ef4444" };
   }
-  if (phWarning || tdsWarning || turbWarning) {
+  if (levels.includes("warning")) {
     return { label: "WARNING", color: "#eab308" };
   }
   return { label: "NORMAL", color: "#22c55e" };
 }
 
-function RegisterDeviceDialog({ onRegistered }: { onRegistered: (apiKey: string) => void }) {
+type RegisteredDevice = { deviceId: string; apiKey: string };
+
+function RegisterDeviceDialog({ onRegistered }: { onRegistered: (device: RegisteredDevice) => void }) {
   const registerDevice = useMutation(api.devices.registerDevice);
   const [open, setOpen] = useState(false);
   const [deviceId, setDeviceId] = useState("");
@@ -168,9 +158,10 @@ function RegisterDeviceDialog({ onRegistered }: { onRegistered: (apiKey: string)
     e.preventDefault();
     setLoading(true);
     try {
-      const result = await registerDevice({ deviceId, name, location: location || undefined });
+      const apiKey = `ldwms_${crypto.randomUUID()}`;
+      const result = await registerDevice({ deviceId, name, apiKey, location: location || undefined });
       toast.success("Device registered successfully");
-      onRegistered(result.apiKey);
+      onRegistered({ deviceId, apiKey: result.apiKey });
       setOpen(false);
       setDeviceId(""); setName(""); setLocation("");
     } catch (err) {
@@ -223,71 +214,16 @@ function RegisterDeviceDialog({ onRegistered }: { onRegistered: (apiKey: string)
   );
 }
 
-function SerialBridgeModal({ apiKey, httpUrl }: { apiKey: string; httpUrl: string }) {
+function SerialBridgeModal({ deviceId, apiKey, httpUrl }: RegisteredDevice & { httpUrl: string }) {
   const [open, setOpen] = useState(false);
   const postUrl = `${httpUrl}/arduino/data`;
-  const code = `import serial
-import requests
-import json
-import time
-
-SERIAL_PORT = "COM3"
-BAUD_RATE = 9600
-
-HTTP_ACTIONS_URL = "${httpUrl}"
-DEVICE_ID = "arduino-01"
-API_KEY = "${apiKey}"
-
-POST_URL = HTTP_ACTIONS_URL.rstrip("/") + "/arduino/data"
-
-headers = {
-    "Content-Type": "application/json",
-    "X-API-Key": API_KEY,
-    "X-Device-ID": DEVICE_ID
-}
-
-print("Starting DWMS Bridge...")
-print("Sending to:", POST_URL)
-
-arduino = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=2)
-time.sleep(2)
-
-print("Arduino connected.")
-
-while True:
-    try:
-        line = arduino.readline().decode("utf-8", errors="ignore").strip()
-
-        if not line:
-            continue
-
-        if not line.startswith("{") or not line.endswith("}"):
-            print("Ignored:", line)
-            continue
-
-        data = json.loads(line)
-
-        payload = {
-            "ph": float(data["ph"]),
-            "tds": float(data["tds"]),
-            "turbidity": float(data["turbidity"])
-        }
-
-        response = requests.post(
-            POST_URL,
-            headers=headers,
-            json=payload,
-            timeout=5
-        )
-
-        print("Sent:", payload, "Response:", response.status_code)
-
-        time.sleep(1)
-
-    except Exception as e:
-        print("Error:", e)
-        time.sleep(2)
-`;
+  const quoteForPowerShell = (value: string) =>
+    `"${value.replace(/`/g, "``").replace(/\$/g, "`$").replace(/"/g, '`"')}"`;
+  const code = `$env:DWMS_HTTP_URL = ${quoteForPowerShell(httpUrl)}
+$env:DWMS_DEVICE_ID = ${quoteForPowerShell(deviceId)}
+$env:DWMS_API_KEY = ${quoteForPowerShell(apiKey)}
+$env:DWMS_SERIAL_PORT = "COM3"
+python .\\serial_bridge.py`;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -302,13 +238,20 @@ while True:
             PYTHON SERIAL BRIDGE
           </DialogTitle>
         </DialogHeader>
+        <a
+          href="/hardware/serial_bridge.py"
+          download="serial_bridge.py"
+          className="inline-flex w-fit items-center rounded-md border border-primary/40 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
+        >
+          Download the DWMS serial bridge
+        </a>
         <div className="relative">
           <pre className="text-xs font-mono rounded-lg p-4 overflow-auto max-h-96 leading-relaxed"
             style={{ background: "oklch(0.08 0.02 145)", color: "#a8d8b9", border: "1px solid oklch(0.2 0.04 145)" }}>
             {code}
           </pre>
           <button
-            onClick={() => { void navigator.clipboard.writeText(code); toast.success("Script copied"); }}
+            onClick={() => { void navigator.clipboard.writeText(code); toast.success("Setup snippet copied"); }}
             className="absolute top-2 right-2 p-1.5 rounded cursor-pointer text-muted-foreground hover:text-foreground"
             style={{ background: "oklch(0.15 0.03 145)" }}
           >
@@ -318,12 +261,12 @@ while True:
         <div className="space-y-2 pt-2">
           <p className="text-xs font-bold tracking-wider text-primary">SETUP INSTRUCTIONS</p>
           <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-            <li>Install Python 3.8+ on your computer</li>
-            <li>Run: <code className="text-primary font-mono">pip install pyserial requests</code></li>
-            <li>Connect your Arduino Uno via USB to <code className="text-primary font-mono">COM3</code> (edit SERIAL_PORT if different)</li>
-            <li>Replace <code className="text-primary font-mono">PUT_HTTP_ACTIONS_URL_HERE</code> and <code className="text-primary font-mono">PUT_API_KEY_HERE</code> with your values</li>
-            <li>Save the script as <code className="text-primary font-mono">bridge.py</code></li>
-            <li>Run: <code className="text-primary font-mono">python bridge.py</code></li>
+            <li>Download the bridge file and install Python 3.10+ on the computer connected to the Arduino.</li>
+            <li>Install dependencies with <code className="text-primary font-mono">python -m pip install pyserial requests</code>.</li>
+            <li>Upload the DWMS sketch to an Arduino Uno and connect it over USB.</li>
+            <li>Paste the PowerShell setup snippet above in a private terminal. Change COM3 if your board uses another port.</li>
+            <li>Keep the API key private. The snippet contains this device's credential.</li>
+            <li>The sketch deliberately reports no measurements and rejects pump starts until its exact sensor calibration and relay settings are verified.</li>
           </ol>
           <div className="rounded-lg p-3 mt-3 text-xs"
             style={{ background: "oklch(0.1 0.03 145)", border: "1px solid oklch(0.2 0.04 145)" }}>
@@ -332,13 +275,11 @@ while True:
           </div>
           <div className="rounded-lg p-3 mt-2 text-xs"
             style={{ background: "oklch(0.1 0.03 145)", border: "1px solid oklch(0.2 0.04 145)" }}>
-            <p className="font-bold tracking-wider text-primary mb-1">ARDUINO SKETCH FORMAT</p>
-            <code className="text-muted-foreground">
-              {'Serial.println("{\\"ph\\":7.20,\\"tds\\":310.50,\\"turbidity\\":12.40}");'}
-            </code>
+            <p className="font-bold tracking-wider text-primary mb-1">HARDWARE CONTROL</p>
+            <p className="text-muted-foreground">Relay commands expire after 20 seconds and are shown as unconfirmed unless the Arduino returns an acknowledgement. The included sketch keeps relay control disabled by default.</p>
           </div>
           <p className="text-xs text-muted-foreground pt-1">
-            The bridge reads JSON from the Arduino at 9600 baud and POSTs each reading to your DWMS cloud endpoint.
+            The bridge sends calibrated sensor data, polls for short-lived relay commands, and forwards the Arduino's command acknowledgements.
           </p>
         </div>
       </DialogContent>
@@ -347,14 +288,16 @@ while True:
 }
 
 function DeviceManagerInner() {
+  const { apiUrl } = useProcessMode();
   const devices = useQuery(api.devices.listDevices, {});
   const deleteDevice = useMutation(api.devices.deleteDevice);
-  const [lastApiKey, setLastApiKey] = useState<string | null>(null);
+  const [lastRegisteredDevice, setLastRegisteredDevice] = useState<RegisteredDevice | null>(null);
 
   // The HTTP actions URL format for Convex
-  const httpUrl = window.location.hostname === "localhost"
-    ? "https://your-deployment.convex.site"
-    : `https://${window.location.hostname.replace(".onhercules.app", "")}.convex.site`;
+  const defaultHttpUrl =
+    import.meta.env.VITE_CONVEX_SITE_URL?.trim() ||
+    "https://your-deployment.convex.site";
+  const httpUrl = apiUrl.trim().replace(/\/$/, "") || defaultHttpUrl;
 
   const handleDelete = async (deviceId: string) => {
     try {
@@ -380,10 +323,10 @@ function DeviceManagerInner() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {lastApiKey && (
-            <SerialBridgeModal apiKey={lastApiKey} httpUrl={httpUrl} />
+          {lastRegisteredDevice && (
+            <SerialBridgeModal {...lastRegisteredDevice} httpUrl={httpUrl} />
           )}
-          <RegisterDeviceDialog onRegistered={(key) => setLastApiKey(key)} />
+          <RegisterDeviceDialog onRegistered={setLastRegisteredDevice} />
         </div>
       </div>
 

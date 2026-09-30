@@ -339,7 +339,7 @@ function PreferencesPanel() {
             { key: "enableThreshold", label: "Threshold Alerts", desc: "When sensor values exceed safe limits", icon: SlidersHorizontal },
             { key: "enableDevice", label: "Device Alerts", desc: "Device connectivity and hardware issues", icon: Radio },
             { key: "enableSystem", label: "System Alerts", desc: "Mode changes, shutdowns, and system events", icon: Server },
-            { key: "enableMaintenance", label: "Maintenance Alerts", desc: "Calibration reminders and maintenance schedules", icon: Wrench },
+            { key: "enableMaintenance", label: "Maintenance Alerts", desc: "Manual maintenance notices; automatic reminders are not configured", icon: Wrench },
           ] as const).map((item) => (
             <div key={item.key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
               <div className="flex items-center gap-3">

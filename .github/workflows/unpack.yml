@@ -1,9 +1,7 @@
 name: Extract DWMS source
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,12 +14,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract project
+      - name: Extract project archive when present
+        id: extract
+        shell: bash
         run: |
-          unzip -o DWMS-IoThon-2026-GitHub-Ready.zip -d .
-          rm DWMS-IoThon-2026-GitHub-Ready.zip
+          archive="DWMS-IoThon-2026-GitHub-Ready.zip"
+          if [ ! -f "$archive" ]; then
+            echo "The project source is already extracted; no archive was found."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          unzip -o "$archive" -d .
+          rm "$archive"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Commit extracted project
+        if: steps.extract.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

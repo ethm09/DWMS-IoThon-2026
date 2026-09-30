@@ -1,46 +1,33 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api.js";
 import { motion } from "motion/react";
 import {
-  FileText, Download, Table, BarChart3, Clock, CheckCircle, Loader2,
-  Printer, Activity, Shield, Filter, AlertTriangle, Wrench, Brain,
+  FileText, Download, Table, BarChart3, Clock, Loader2,
+  Printer, Activity, Shield, Filter, AlertTriangle, Wrench,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useProcessMode, type DwmsEvent } from "@/hooks/use-process-mode.ts";
+import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { useUserRole } from "@/hooks/use-user-role.ts";
 import { useAuth } from "@/hooks/use-auth.ts";
 import {
-  classifyTds, classifyTurbidity, classifyPh, classifyFlow,
-  LEVEL_LABEL, type SafetyLevel,
+  classifyTds, classifyTurbidity, classifyPh, THRESHOLDS,
 } from "@/lib/dwms-safety.ts";
 
-type Reading = { time: string; tds: number; turbidity: number; ph: number; status: string };
+type Reading = { timestamp: string; tds: number; turbidity: number; ph: number; status: string };
 
 function getStatus(tds: number, turb: number, ph: number): string {
-  if (tds > 600 || turb > 4 || ph < 5.5 || ph > 9.5) return "CRITICAL";
-  if (tds > 300 || turb > 1 || ph < 6.5 || ph > 8.5) return "WARNING";
+  const levels = [classifyTds(tds), classifyTurbidity(turb), classifyPh(ph)];
+  if (levels.includes("critical")) return "CRITICAL";
+  if (levels.includes("warning")) return "WARNING";
   return "NORMAL";
 }
 
-function generateSeedData(): Reading[] {
-  const data: Reading[] = [];
-  let tds = 250, turb = 1.0, ph = 7.0;
-  const now = Date.now();
-  for (let i = 29; i >= 0; i--) {
-    tds = Math.max(50, Math.min(900, tds + (Math.random() - 0.5) * 40));
-    turb = Math.max(0, Math.min(10, turb + (Math.random() - 0.5) * 0.6));
-    ph = Math.max(4, Math.min(11, ph + (Math.random() - 0.5) * 0.2));
-    const d = new Date(now - i * 5000);
-    data.push({
-      time: d.toLocaleTimeString(),
-      tds: parseFloat(tds.toFixed(1)),
-      turbidity: parseFloat(turb.toFixed(2)),
-      ph: parseFloat(ph.toFixed(2)),
-      status: getStatus(tds, turb, ph),
-    });
-  }
-  return data;
+function formatTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? timestamp : date.toLocaleString();
 }
 
 function generateReportId(): string {
@@ -51,38 +38,82 @@ function generateReportId(): string {
 }
 
 export default function Reports() {
-  const [readings, setReadings] = useState<Reading[]>(generateSeedData);
   const [generating, setGenerating] = useState(false);
   const [exportType, setExportType] = useState<"pdf" | "csv">("pdf");
 
-  const { readings: liveReadings, eventLog, quality, decision, filterStatus, pumpStatus, logEvent } = useProcessMode();
+  const {
+    readings: localReadings,
+    dataMode,
+    selectedDeviceId,
+    lastUpdated,
+    eventLog,
+    logEvent,
+  } = useProcessMode();
+  const hardwareReadings = useQuery(
+    api.devices.getRecentReadings,
+    dataMode === "hardware" && selectedDeviceId
+      ? { deviceId: selectedDeviceId, limit: 100 }
+      : "skip",
+  );
   const { user } = useAuth();
   const { role } = useUserRole();
 
-  // Live updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setReadings((prev) => {
-        const last = prev[prev.length - 1];
-        const tds = Math.max(50, Math.min(900, last.tds + (Math.random() - 0.5) * 25));
-        const turbidity = Math.max(0, Math.min(10, last.turbidity + (Math.random() - 0.5) * 0.4));
-        const ph = Math.max(4, Math.min(11, last.ph + (Math.random() - 0.5) * 0.15));
-        const time = new Date().toLocaleTimeString();
-        return [...prev.slice(-29), { time, tds: parseFloat(tds.toFixed(1)), turbidity: parseFloat(turbidity.toFixed(2)), ph: parseFloat(ph.toFixed(2)), status: getStatus(tds, turbidity, ph) }];
-      });
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+  const isLoadingHardwareReadings =
+    dataMode === "hardware" && Boolean(selectedDeviceId) && hardwareReadings === undefined;
+  const demoTimestamp = Date.parse(lastUpdated) > 0 ? lastUpdated : new Date().toISOString();
+  const readings: Reading[] = dataMode === "hardware"
+    ? (hardwareReadings ?? []).slice().reverse().map((reading) => ({
+        timestamp: reading.timestamp,
+        tds: reading.tds,
+        turbidity: reading.turbidity,
+        ph: reading.ph,
+        status: getStatus(reading.tds, reading.turbidity, reading.ph),
+      }))
+    : localReadings.tds !== null && localReadings.turbidity !== null && localReadings.ph !== null
+      ? [{
+          timestamp: demoTimestamp,
+          tds: localReadings.tds,
+          turbidity: localReadings.turbidity,
+          ph: localReadings.ph,
+          status: getStatus(localReadings.tds, localReadings.turbidity, localReadings.ph),
+        }]
+      : [];
+  const currentReading = readings.at(-1) ?? null;
+  const reportSource = dataMode === "hardware"
+    ? selectedDeviceId ? `Hardware device ${selectedDeviceId}` : "Hardware mode — no device selected"
+    : "Demo simulation — one local snapshot";
 
-  const avg = (key: keyof Reading) => {
-    const vals = readings.map((r) => r[key] as number);
-    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  const avg = (key: "tds" | "turbidity" | "ph") => {
+    if (readings.length === 0) return null;
+    return readings.reduce((sum, reading) => sum + reading[key], 0) / readings.length;
+  };
+  const formatAverage = (key: "tds" | "turbidity" | "ph", decimals: number, unit = "") => {
+    const value = avg(key);
+    return value === null ? "—" : `${value.toFixed(decimals)}${unit}`;
   };
 
   const exportCSV = () => {
-    const header = "Time,TDS (ppm),Turbidity (NTU),pH,Status\n";
-    const rows = readings.map((r) => `${r.time},${r.tds},${r.turbidity},${r.ph},${r.status}`).join("\n");
-    const blob = new Blob([header + rows], { type: "text/csv" });
+    if (readings.length === 0 || isLoadingHardwareReadings) {
+      toast.error("No readings are available to export");
+      return;
+    }
+    const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+    const header = ["Timestamp", "TDS (ppm)", "Turbidity (NTU)", "pH", "Status"];
+    const rows = readings.map((reading) => [
+      reading.timestamp,
+      reading.tds,
+      reading.turbidity,
+      reading.ph,
+      reading.status,
+    ]);
+    const csv = [
+      ["Source", reportSource].map(escapeCsv).join(","),
+      `"Note","Prototype thresholds; readings are not a water-safety certification"`,
+      "",
+      header.map(escapeCsv).join(","),
+      ...rows.map((row) => row.map(escapeCsv).join(",")),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -93,6 +124,10 @@ export default function Reports() {
   };
 
   const exportPDF = async () => {
+    if (readings.length === 0 || isLoadingHardwareReadings) {
+      toast.error("No readings are available to export");
+      return;
+    }
     setGenerating(true);
     try {
       const { default: jsPDF } = await import("jspdf");
@@ -177,6 +212,8 @@ export default function Reports() {
       doc.setTextColor(...MUTED);
       doc.setFontSize(7);
       doc.text("Smart Water Treatment Monitoring & Control", margin + 5, 40);
+      doc.setFontSize(6);
+      doc.text(`Source: ${reportSource}`, margin + 5, 46);
 
       doc.setTextColor(...GREEN);
       doc.setFontSize(12);
@@ -192,13 +229,12 @@ export default function Reports() {
       y = addSectionHeader("CURRENT SYSTEM STATUS", y);
 
       const statusItems = [
-        { label: "Water Quality", value: LEVEL_LABEL[quality], color: quality === "safe" ? GREEN : quality === "warning" ? YELLOW : RED },
-        { label: "pH Level", value: `${(liveReadings.ph ?? 0).toFixed(2)}`, color: classifyPh(liveReadings.ph ?? 7) === "safe" ? GREEN : YELLOW },
-        { label: "TDS", value: `${(liveReadings.tds ?? 0).toFixed(0)} ppm`, color: classifyTds(liveReadings.tds ?? 0) === "safe" ? GREEN : YELLOW },
-        { label: "Turbidity", value: `${(liveReadings.turbidity ?? 0).toFixed(2)} NTU`, color: classifyTurbidity(liveReadings.turbidity ?? 0) === "safe" ? GREEN : YELLOW },
-        { label: "Flow Rate", value: `${(liveReadings.flowRate ?? 0).toFixed(2)} L/min`, color: classifyFlow(liveReadings.flowRate ?? 0) === "safe" ? GREEN : YELLOW },
-        { label: "Filter Active", value: filterStatus ? "YES" : "NO", color: filterStatus ? GREEN : MUTED },
-        { label: "Pump Status", value: pumpStatus ? "ON" : "OFF", color: pumpStatus ? GREEN : MUTED },
+        { label: "Latest quality", value: currentReading?.status ?? "NO DATA", color: currentReading?.status === "CRITICAL" ? RED : currentReading?.status === "WARNING" ? YELLOW : GREEN },
+        { label: "pH Level", value: currentReading ? currentReading.ph.toFixed(2) : "—", color: currentReading ? (classifyPh(currentReading.ph) === "safe" ? GREEN : classifyPh(currentReading.ph) === "warning" ? YELLOW : RED) : MUTED },
+        { label: "TDS", value: currentReading ? `${currentReading.tds.toFixed(0)} ppm` : "—", color: currentReading ? (classifyTds(currentReading.tds) === "safe" ? GREEN : classifyTds(currentReading.tds) === "warning" ? YELLOW : RED) : MUTED },
+        { label: "Turbidity", value: currentReading ? `${currentReading.turbidity.toFixed(2)} NTU` : "—", color: currentReading ? (classifyTurbidity(currentReading.turbidity) === "safe" ? GREEN : classifyTurbidity(currentReading.turbidity) === "warning" ? YELLOW : RED) : MUTED },
+        { label: "Data source", value: dataMode === "hardware" ? "HARDWARE" : "DEMO", color: dataMode === "hardware" ? GREEN : YELLOW },
+        { label: "Device", value: selectedDeviceId ? selectedDeviceId.slice(0, 16) : "—", color: selectedDeviceId ? WHITE : MUTED },
       ];
 
       statusItems.forEach((item, i) => {
@@ -218,22 +254,21 @@ export default function Reports() {
 
       y += Math.ceil(statusItems.length / 3) * 14 + 8;
 
-      // AI Assessment
-      y = addSectionHeader("ETHM AI ASSESSMENT", y);
+      // Rule assessment: this is the shared prototype threshold policy, not an AI prediction.
+      y = addSectionHeader("PROTOTYPE THRESHOLD ASSESSMENT", y);
       doc.setFontSize(8);
       doc.setTextColor(...WHITE);
-      doc.text(`Risk Level: ${decision.riskLevel.toUpperCase()}`, margin + 3, y + 1);
+      doc.text(`Latest reading status: ${currentReading?.status ?? "NO DATA"}`, margin + 3, y + 1);
       doc.setTextColor(...MUTED);
-      doc.text(decision.reason, margin + 3, y + 7, { maxWidth: pageWidth - margin * 2 - 6 });
-      doc.text(`Recommendation: ${decision.recommendation}`, margin + 3, y + 14, { maxWidth: pageWidth - margin * 2 - 6 });
-      y += 24;
+      doc.text("Built-in prototype thresholds only. This report is not a validated water-safety certification.", margin + 3, y + 7, { maxWidth: pageWidth - margin * 2 - 6 });
+      y += 16;
 
       // Summary stats
       y = addSectionHeader("REPORT SUMMARY STATISTICS", y);
       const summaryStats = [
-        { label: "Avg TDS", value: `${avg("tds").toFixed(1)} ppm` },
-        { label: "Avg Turbidity", value: `${avg("turbidity").toFixed(2)} NTU` },
-        { label: "Avg pH", value: avg("ph").toFixed(2) },
+        { label: "Avg TDS", value: formatAverage("tds", 1, " ppm") },
+        { label: "Avg Turbidity", value: formatAverage("turbidity", 2, " NTU") },
+        { label: "Avg pH", value: formatAverage("ph", 2) },
         { label: "Total Readings", value: `${readings.length}` },
         { label: "Critical Events", value: `${readings.filter((r) => r.status === "CRITICAL").length}` },
         { label: "Warning Events", value: `${readings.filter((r) => r.status === "WARNING").length}` },
@@ -296,7 +331,7 @@ export default function Reports() {
         head: [["#", "Time", "TDS (ppm)", "Turbidity (NTU)", "pH", "Status"]],
         body: readings.map((r, i) => [
           String(i + 1),
-          r.time,
+          formatTimestamp(r.timestamp),
           String(r.tds),
           String(r.turbidity),
           String(r.ph),
@@ -404,10 +439,9 @@ export default function Reports() {
         startY: y,
         head: [["Parameter", "Safe Min", "Safe Max", "Critical Low", "Critical High", "Unit"]],
         body: [
-          ["pH Level", "6.5", "8.5", "5.5", "10.0", "pH"],
-          ["TDS", "—", "500", "—", "1500", "ppm"],
-          ["Turbidity", "—", "5", "—", "50", "NTU"],
-          ["Flow Rate", "0.5", "2.0", "—", "3.0", "L/min"],
+          ["pH", String(THRESHOLDS.ph.safe.min), String(THRESHOLDS.ph.safe.max), String(THRESHOLDS.ph.critical.below), String(THRESHOLDS.ph.critical.above), "pH"],
+          ["TDS", "—", String(THRESHOLDS.tds.safe.max), "—", String(THRESHOLDS.tds.critical.above), "ppm"],
+          ["Turbidity", "—", String(THRESHOLDS.turbidity.safe.max), "—", String(THRESHOLDS.turbidity.critical.above), "NTU"],
         ],
         theme: "plain",
         styles: { fontSize: 8, cellPadding: 3, textColor: WHITE },
@@ -420,31 +454,9 @@ export default function Reports() {
       const thresholdTableEnd = (doc as unknown as Record<string, { finalY: number }>).lastAutoTable.finalY + 10;
 
       y = addSectionHeader("CALIBRATION STATUS", thresholdTableEnd);
-
-      autoTable(doc, {
-        startY: y,
-        head: [["Sensor", "Status", "Last Calibrated", "Next Due", "Method"]],
-        body: [
-          ["pH Sensor", "CALIBRATED", "Buffer solutions pH 4/7/10", "30 days", "3-point buffer"],
-          ["TDS Sensor", "DUE", "342 ppm NaCl standard", "30 days", "Single point NaCl"],
-          ["Turbidity Sensor", "CALIBRATED", "Distilled water baseline", "30 days", "Zero-point baseline"],
-          ["Flow Rate Sensor", "CALIBRATED", "Volumetric measurement", "30 days", "Known flow reference"],
-        ],
-        theme: "plain",
-        styles: { fontSize: 8, cellPadding: 3, textColor: WHITE },
-        headStyles: { fillColor: DARK_CARD, textColor: GREEN, fontStyle: "bold", fontSize: 7 },
-        alternateRowStyles: { fillColor: [18, 28, 38] as [number, number, number] },
-        bodyStyles: { fillColor: DARK_BG },
-        didParseCell(data) {
-          if (data.section === "body" && data.column.index === 1) {
-            const status = data.cell.raw as string;
-            if (status === "CALIBRATED") data.cell.styles.textColor = GREEN;
-            else if (status === "DUE") data.cell.styles.textColor = YELLOW;
-            else data.cell.styles.textColor = RED;
-          }
-        },
-        margin: { left: margin, right: margin, bottom: 25 },
-      });
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+      doc.text("Calibration records are not stored by the current application. No calibration date or status is available.", margin + 3, y + 1, { maxWidth: pageWidth - margin * 2 - 6 });
 
       addFooter();
 
@@ -487,7 +499,7 @@ export default function Reports() {
             <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Report Generator</h2>
           </div>
           <p className="text-xs text-muted-foreground tracking-wider mt-0.5">
-            Comprehensive water quality reports with PDF export
+            Export the selected device history or one clearly labeled demo snapshot
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -508,7 +520,7 @@ export default function Reports() {
           </div>
           <Button
             onClick={handleExport}
-            disabled={generating}
+            disabled={generating || isLoadingHardwareReadings || readings.length === 0}
             className="font-bold tracking-widest cursor-pointer text-xs"
             style={{ background: "oklch(0.6 0.17 145)", color: "oklch(0.1 0.02 145)" }}
           >
@@ -518,6 +530,12 @@ export default function Reports() {
             }
           </Button>
         </div>
+      </div>
+
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[10px] text-muted-foreground">
+        <span className="font-bold text-amber-400">{reportSource}</span>
+        <span className="mx-2">·</span>
+        Reports use the shared prototype thresholds. Calibration history, flow readings, and verified water-safety certification are not available here.
       </div>
 
       {/* Report contents preview */}
@@ -530,13 +548,12 @@ export default function Reports() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { icon: Activity, label: "Live Readings", desc: "pH, TDS, turbidity, flow" },
+              { icon: Activity, label: "Saved Readings", desc: "pH, TDS, turbidity from selected source" },
               { icon: AlertTriangle, label: "Alerts History", desc: "Recent warnings & emergencies" },
-              { icon: Brain, label: "AI Assessment", desc: "Ethm AI recommendations" },
-              { icon: Filter, label: "Filter Status", desc: "Filtration history" },
-              { icon: Wrench, label: "Calibration", desc: "Sensor calibration status" },
-              { icon: Shield, label: "Thresholds", desc: "Current safety limits" },
-              { icon: Table, label: "Data Table", desc: "All sensor readings" },
+              { icon: Shield, label: "Threshold Assessment", desc: "Shared prototype rule thresholds" },
+              { icon: Wrench, label: "Calibration", desc: "Not recorded by the current app" },
+              { icon: Filter, label: "Thresholds", desc: "Built-in software limits" },
+              { icon: Table, label: "Data Table", desc: "Last 100 device readings or demo snapshot" },
               { icon: FileText, label: "Activity Log", desc: "Operator actions audit" },
             ].map((item) => (
               <div key={item.label} className="rounded-lg border border-border/50 p-2.5 flex items-start gap-2">
@@ -551,7 +568,7 @@ export default function Reports() {
           <div className="mt-3 rounded-lg bg-muted/20 p-2.5 flex items-center gap-2">
             <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <span className="text-[10px] text-muted-foreground">
-              Every page includes: Report ID, page numbers, printed by name, role, and timestamp
+              PDF includes: report ID, page numbers, printed by name, role, timestamp, and source
             </span>
           </div>
         </CardContent>
@@ -560,9 +577,9 @@ export default function Reports() {
       {/* Summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Avg TDS", value: `${avg("tds").toFixed(1)} ppm`, color: "#22c55e" },
-          { label: "Avg Turbidity", value: `${avg("turbidity").toFixed(2)} NTU`, color: "#eab308" },
-          { label: "Avg pH", value: avg("ph").toFixed(2), color: "#22c55e" },
+          { label: dataMode === "demo" ? "Snapshot TDS" : "Avg TDS", value: formatAverage("tds", 1, " ppm"), color: "#22c55e" },
+          { label: dataMode === "demo" ? "Snapshot Turbidity" : "Avg Turbidity", value: formatAverage("turbidity", 2, " NTU"), color: "#eab308" },
+          { label: dataMode === "demo" ? "Snapshot pH" : "Avg pH", value: formatAverage("ph", 2), color: "#22c55e" },
           { label: "Total Readings", value: `${readings.length}`, color: "#a855f7" },
         ].map((s) => (
           <Card key={s.label}>
@@ -634,10 +651,10 @@ export default function Reports() {
                   return (
                     <tr key={i} className="border-b border-border/30 hover:bg-accent/20 transition-colors">
                       <td className="py-1.5 px-2 text-muted-foreground">{readings.length - i}</td>
-                      <td className="py-1.5 px-2 text-muted-foreground">{r.time}</td>
-                      <td className="py-1.5 px-2" style={{ color: r.tds > 600 ? "#ef4444" : r.tds > 300 ? "#eab308" : "#22c55e" }}>{r.tds}</td>
-                      <td className="py-1.5 px-2" style={{ color: r.turbidity > 4 ? "#ef4444" : r.turbidity > 1 ? "#eab308" : "#22c55e" }}>{r.turbidity}</td>
-                      <td className="py-1.5 px-2" style={{ color: r.ph < 5.5 || r.ph > 9.5 ? "#ef4444" : r.ph < 6.5 || r.ph > 8.5 ? "#eab308" : "#22c55e" }}>{r.ph}</td>
+                      <td className="py-1.5 px-2 text-muted-foreground">{formatTimestamp(r.timestamp)}</td>
+                      <td className="py-1.5 px-2" style={{ color: classifyTds(r.tds) === "critical" ? "#ef4444" : classifyTds(r.tds) === "warning" ? "#eab308" : "#22c55e" }}>{r.tds}</td>
+                      <td className="py-1.5 px-2" style={{ color: classifyTurbidity(r.turbidity) === "critical" ? "#ef4444" : classifyTurbidity(r.turbidity) === "warning" ? "#eab308" : "#22c55e" }}>{r.turbidity}</td>
+                      <td className="py-1.5 px-2" style={{ color: classifyPh(r.ph) === "critical" ? "#ef4444" : classifyPh(r.ph) === "warning" ? "#eab308" : "#22c55e" }}>{r.ph}</td>
                       <td className="py-1.5 px-2">
                         <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-widest" style={{ color: statusColor[r.status], background: `${statusColor[r.status]}20`, border: `1px solid ${statusColor[r.status]}44` }}>
                           {r.status}
@@ -646,6 +663,17 @@ export default function Reports() {
                     </tr>
                   );
                 })}
+                {readings.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-6 text-center text-muted-foreground">
+                      {isLoadingHardwareReadings
+                        ? "Loading saved device readings…"
+                        : dataMode === "hardware" && !selectedDeviceId
+                          ? "Select a hardware device to load its saved readings."
+                          : "No readings are available for this source yet."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -654,9 +682,8 @@ export default function Reports() {
 
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
         <Clock className="w-3 h-3" />
-        <span>Table shows last 20 readings. Export includes all {readings.length} readings.</span>
-        <CheckCircle className="w-3 h-3 text-green-500 ml-auto" />
-        <span>Live data — updates every 2 seconds</span>
+        <span>{dataMode === "hardware" ? `Showing ${readings.length} of the last 100 saved readings; table displays up to 20.` : "Demo mode shows one simulated snapshot, not historical data."}</span>
+        <span className="ml-auto">{isLoadingHardwareReadings ? "Loading device history…" : reportSource}</span>
       </div>
     </div>
   );

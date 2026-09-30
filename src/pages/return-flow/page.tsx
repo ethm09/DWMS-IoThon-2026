@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { RotateCcw, ArrowRight, CheckCircle, AlertTriangle, Droplets, Activity, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -109,22 +109,22 @@ function AnimatedPipe({
 
 const FLOW_CONFIG: Record<FlowState, { label: string; sublabel: string; color: string; icon: React.ReactNode; bg: string }> = {
   normal: {
-    label: "NORMAL FLOW",
-    sublabel: "Clean water flowing to output",
+    label: "SIMULATED NORMAL FLOW",
+    sublabel: "Generated example state — not a water-quality result",
     color: "#22c55e",
     icon: <CheckCircle className="w-5 h-5" />,
     bg: "#22c55e12",
   },
   returning: {
-    label: "RETURN FLOW ACTIVE",
-    sublabel: "Water redirected back to filtration unit",
+    label: "SIMULATED RETURN STATE",
+    sublabel: "Illustrative route — no return valve is connected",
     color: "#ef4444",
     icon: <RotateCcw className="w-5 h-5" />,
     bg: "#ef444412",
   },
   under_treatment: {
-    label: "UNDER TREATMENT",
-    sublabel: "Marginal quality — additional processing in progress",
+    label: "SIMULATED TREATMENT STATE",
+    sublabel: "Illustrative process state from generated values",
     color: "#eab308",
     icon: <Activity className="w-5 h-5" />,
     bg: "#eab30812",
@@ -138,8 +138,9 @@ export default function ReturnFlowControl() {
   const [returnCycles, setReturnCycles] = useState(0);
   const [efficiency, setEfficiency] = useState(100);
   const [events, setEvents] = useState<ReturnEvent[]>([]);
-  const [eventId, setEventId] = useState(0);
-  const [prevState, setPrevState] = useState<FlowState>("normal");
+  const previousFlowState = useRef<FlowState>("normal");
+  const eventId = useRef(0);
+  const returnCycleCount = useRef(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -155,35 +156,37 @@ export default function ReturnFlowControl() {
 
   // Track return events
   useEffect(() => {
-    if (flowState === "returning" && prevState !== "returning") {
-      const newCycles = returnCycles + 1;
-      setReturnCycles(newCycles);
-      setEfficiency((e) => Math.max(60, e - 3 + Math.random() * 6));
+    const previousState = previousFlowState.current;
+    if (flowState === "returning" && previousState !== "returning") {
+      returnCycleCount.current += 1;
+      setReturnCycles(returnCycleCount.current);
+      setEfficiency((e) => Math.max(60, e - 3));
+      eventId.current += 1;
+      const nextEventId = eventId.current;
+      const nextCycleNumber = returnCycleCount.current;
       const reasonMap: Record<string, string> = {
         high_tds: `TDS exceeded threshold (${tds.toFixed(0)} ppm > 500 ppm)`,
         high_turbidity: `Turbidity critical (${turbidity.toFixed(1)} NTU > 20 NTU)`,
         ph_imbalance: `pH out of safe range (${ph.toFixed(2)})`,
       };
-      const id = eventId + 1;
-      setEventId(id);
       setEvents((prev) => [
         {
-          id,
+          id: nextEventId,
           timestamp: new Date().toLocaleTimeString(),
           reason: reasonMap[returnReason ?? "high_tds"] ?? "Quality threshold exceeded",
           tds: Number(tds.toFixed(0)),
           turbidity: Number(turbidity.toFixed(2)),
           ph: Number(ph.toFixed(2)),
-          cycleNumber: newCycles,
+          cycleNumber: nextCycleNumber,
         },
         ...prev.slice(0, 9),
       ]);
     }
-    if (flowState === "normal" && prevState === "returning") {
+    if (flowState === "normal" && previousState === "returning") {
       setEfficiency((e) => Math.min(100, e + 2));
     }
-    setPrevState(flowState);
-  }, [flowState]);
+    previousFlowState.current = flowState;
+  }, [flowState, returnReason, tds, turbidity, ph]);
 
   const config = FLOW_CONFIG[flowState];
   const isReturning = flowState === "returning";
@@ -199,10 +202,14 @@ export default function ReturnFlowControl() {
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Return Flow Control</h2>
+        <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Return Flow Simulation</h2>
         <p className="text-xs text-muted-foreground tracking-wider">
-          Closed-loop recirculation system — water is returned to filtration if quality standards are not met
+          Illustrative routing model driven by generated local sensor values
         </p>
+      </div>
+
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[10px] text-muted-foreground">
+        <span className="font-bold text-amber-400">SIMULATION ONLY.</span> This page generates its own readings and event history. The current hardware design has no return valve or flow sensor, and this screen does not control the filter relay or verify water quality.
       </div>
 
       {/* Status Banner */}
@@ -250,18 +257,18 @@ export default function ReturnFlowControl() {
             {/* Main forward flow row */}
             <div className="flex items-center justify-center gap-2 mb-4">
               {/* Tank */}
-              <FlowNode label="WATER TANK" sublabel="Source" color="#22c55e" active={true} icon={<Droplets className="w-6 h-6" />} />
+              <FlowNode label="TANK MODEL" sublabel="Illustrative source" color="#22c55e" active={true} icon={<Droplets className="w-6 h-6" />} />
               <AnimatedPipe active={true} color="#22c55e" width={70} />
               {/* Filter */}
-              <FlowNode label="FILTER UNIT" sublabel={isReturning ? "Re-processing" : "Active"} color="#8b5cf6" active={true} icon={
+              <FlowNode label="FILTER MODEL" sublabel={isReturning ? "Simulated re-process" : "Illustrative"} color="#8b5cf6" active={true} icon={
                 <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 4h18l-7 8v6l-4-2V12L3 4z" /></svg>
               } pulse={isReturning} />
               <AnimatedPipe active={true} color="#eab308" width={70} />
               {/* Sensors */}
-              <FlowNode label="SENSORS" sublabel="Monitoring" color="#eab308" active={true} icon={<Activity className="w-6 h-6" />} pulse={true} />
+              <FlowNode label="SENSOR MODEL" sublabel="Generated values" color="#eab308" active={true} icon={<Activity className="w-6 h-6" />} pulse={true} />
               <AnimatedPipe active={true} color={isNormal ? "#22c55e" : "#ef444488"} width={70} />
               {/* Pump */}
-              <FlowNode label="PUMP" sublabel="Running" color="#22c55e" active={true} icon={
+              <FlowNode label="PUMP MODEL" sublabel="Simulated" color="#22c55e" active={true} icon={
                 <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 3" /></svg>
               } spin={true} />
 
@@ -287,7 +294,7 @@ export default function ReturnFlowControl() {
                 </motion.div>
                 <div className="text-center">
                   <div className="text-[10px] font-bold tracking-widest" style={{ color: isNormal ? "#22c55e" : "#4b5563" }}>OUTPUT</div>
-                  <div className="text-[9px] text-muted-foreground">{isNormal ? "Clean Water" : "Blocked"}</div>
+                  <div className="text-[9px] text-muted-foreground">{isNormal ? "Model output" : "Model paused"}</div>
                 </div>
               </motion.div>
             </div>
@@ -314,7 +321,7 @@ export default function ReturnFlowControl() {
           <div className="flex md:hidden flex-col items-center gap-3">
             {[
               { label: "WATER TANK", sub: "Source", color: "#22c55e", icon: <Droplets className="w-5 h-5" /> },
-              { label: "FILTER UNIT", sub: isReturning ? "Re-processing" : "Active", color: "#8b5cf6", icon: <RefreshCw className="w-5 h-5" /> },
+              { label: "FILTER MODEL", sub: isReturning ? "Simulated re-process" : "Illustrative", color: "#8b5cf6", icon: <RefreshCw className="w-5 h-5" /> },
               { label: "SENSORS", sub: "Monitoring", color: "#eab308", icon: <Activity className="w-5 h-5" /> },
               { label: "PUMP", sub: "Running", color: "#22c55e", icon: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 3" /></svg> },
             ].map((node, i) => (
@@ -346,7 +353,7 @@ export default function ReturnFlowControl() {
                   {isNormal ? "OUTPUT" : "RETURNING"}
                 </div>
                 <div className="text-[9px] text-muted-foreground">
-                  {isNormal ? "Clean water delivered" : "Back to filter unit"}
+                  {isNormal ? "Illustrative model output" : "Illustrative return route"}
                 </div>
               </div>
             </motion.div>
@@ -354,12 +361,12 @@ export default function ReturnFlowControl() {
         </CardContent>
       </Card>
 
-      {/* Live Sensor Data & Return Reason */}
+      {/* Generated Sensor Data & Return Reason */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Sensor values */}
         <Card>
           <CardContent className="pt-5 pb-4 space-y-3">
-            <div className="text-[10px] font-bold tracking-widest text-muted-foreground">LIVE SENSOR READINGS</div>
+            <div className="text-[10px] font-bold tracking-widest text-muted-foreground">GENERATED SENSOR VALUES · SIMULATION</div>
             {[
               { label: "TDS", value: tds.toFixed(0), unit: "ppm", threshold: 500, bad: tds > 500, warn: tds > 300 },
               { label: "Turbidity", value: turbidity.toFixed(2), unit: "NTU", threshold: 20, bad: turbidity > 20, warn: turbidity > 5 },
@@ -427,14 +434,14 @@ export default function ReturnFlowControl() {
                 <div className="text-2xl font-bold font-mono" style={{ color: efficiency >= 90 ? "#22c55e" : efficiency >= 75 ? "#eab308" : "#ef4444" }}>
                   {efficiency.toFixed(0)}%
                 </div>
-                <div className="text-[9px] tracking-widest text-muted-foreground mt-1">EFFICIENCY</div>
+                <div className="text-[9px] tracking-widest text-muted-foreground mt-1">ILLUSTRATIVE EFFICIENCY</div>
                 <div className="text-[9px] text-muted-foreground">System performance</div>
               </div>
             </div>
 
             {/* Efficiency bar */}
             <div>
-              <div className="text-[9px] tracking-widest text-muted-foreground mb-1.5">SYSTEM EFFICIENCY INDICATOR</div>
+              <div className="text-[9px] tracking-widest text-muted-foreground mb-1.5">SIMULATION EFFICIENCY EXAMPLE</div>
               <div className="h-3 rounded-full bg-muted/30 overflow-hidden">
                 <motion.div
                   className="h-full rounded-full"
@@ -511,10 +518,8 @@ export default function ReturnFlowControl() {
       <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
         <div className="text-[10px] font-bold tracking-widest text-primary mb-1">ENGINEERING PRINCIPLE</div>
         <p className="text-xs text-muted-foreground tracking-wide leading-relaxed">
-          This system implements a{" "}
-          <span className="text-primary font-semibold">closed-loop return flow mechanism</span> — water is
-          only released to output once it meets all quality standards. This mirrors real industrial
-          closed-loop treatment systems used in defense, municipal, and industrial water management.
+          Return routing is shown here as a{" "}
+          <span className="text-primary font-semibold">software simulation only</span>. The physical prototype currently has no return valve or return-flow sensor; add and validate those components before representing this route as an installed function.
         </p>
       </div>
     </div>

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { useAction } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { Authenticated } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
+import type { Id } from "@/convex/_generated/dataModel.js";
 import { Brain, X, Send, Sparkles } from "lucide-react";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { riskLabel } from "@/lib/dwms-safety.ts";
@@ -11,7 +12,7 @@ import { cn } from "@/lib/utils.ts";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const WELCOME =
-  "Hello, I'm Ethm AI, your intelligent safety and control assistant for DWMS. I monitor water quality, system behavior, and operational risks in real time.";
+  "I can explain the readings available to DWMS and its prototype threshold rules. AI-generated responses can be wrong; they are not a safety certification or a control command. Verify conditions with approved instruments and site procedures.";
 
 const SUGGESTED = [
   "What is DWMS?",
@@ -25,48 +26,41 @@ const SUGGESTED = [
 function EthmAssistantInner() {
   const {
     assistantOpen, setAssistantOpen,
-    readings, mode, pumpStatus, manualOverride, emergencyShutdown,
-    dataMode, hardwareStatus, decision, quality,
+    mode, quality,
   } = useProcessMode();
 
   const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: WELCOME }]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
-  const chat = useAction(api.chatAction.chat);
+  const [activeRunId, setActiveRunId] = useState<Id<"agentRuns"> | null>(null);
+  const createRun = useMutation(api.agent.createRun);
+  const runAgent = useAction(api.chatAction.run);
+  const confirmPumpAction = useAction(api.chatAction.confirmPumpAction);
+  const cancelPendingAction = useMutation(api.agent.cancelPendingAction);
+  const activeRun = useQuery(
+    api.agent.getRun,
+    activeRunId ? { runId: activeRunId } : "skip",
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, pending]);
 
-  const buildContext = useCallback(() => {
-    return [
-      `System mode: ${mode.toUpperCase()}`,
-      `Pump: ${emergencyShutdown ? "LOCKED" : pumpStatus ? "ON" : "OFF"}`,
-      `Manual override: ${manualOverride ? "ACTIVE" : "INACTIVE"}`,
-      `Emergency shutdown: ${emergencyShutdown ? "ACTIVE" : "INACTIVE"}`,
-      `Data source: ${dataMode === "demo" ? "Demo Data" : "Real Hardware"} (${hardwareStatus})`,
-      `pH: ${readings.ph ?? "—"}`,
-      `TDS: ${readings.tds ?? "—"} ppm`,
-      `Turbidity: ${readings.turbidity ?? "—"} NTU`,
-      `Flow rate: ${readings.flowRate ?? "—"} L/min`,
-      `Water quality: ${quality.toUpperCase()}`,
-      `Latest assessment: ${decision.reason} Recommendation: ${decision.recommendation}`,
-    ].join("\n");
-  }, [mode, pumpStatus, manualOverride, emergencyShutdown, dataMode, hardwareStatus, readings, quality, decision]);
-
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || pending) return;
+      if (!trimmed || pending || activeRun?.pendingAction) return;
       const next: Msg[] = [...messages, { role: "user", content: trimmed }];
       setMessages(next);
       setInput("");
       setPending(true);
       try {
-        const res = await chat({
+        const runId = await createRun({ objective: trimmed });
+        setActiveRunId(runId);
+        const res = await runAgent({
+          runId,
           messages: next.filter((m) => m.content !== WELCOME),
-          context: buildContext(),
         });
         setMessages((prev) => [...prev, { role: "assistant", content: res.text }]);
       } catch {
@@ -75,8 +69,34 @@ function EthmAssistantInner() {
         setPending(false);
       }
     },
-    [messages, pending, chat, buildContext]
+    [messages, pending, activeRun?.pendingAction, createRun, runAgent]
   );
+
+  const confirmProposal = useCallback(async () => {
+    if (!activeRunId || !activeRun?.pendingAction || pending) return;
+    setPending(true);
+    try {
+      const result = await confirmPumpAction({ runId: activeRunId });
+      setMessages((prev) => [...prev, { role: "assistant", content: result.text }]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "DWMS could not confirm the proposal. Check the current device state; no successful action is claimed." }]);
+    } finally {
+      setPending(false);
+    }
+  }, [activeRunId, activeRun?.pendingAction, pending, confirmPumpAction]);
+
+  const dismissProposal = useCallback(async () => {
+    if (!activeRunId || !activeRun?.pendingAction || pending) return;
+    setPending(true);
+    try {
+      await cancelPendingAction({ runId: activeRunId });
+      setMessages((prev) => [...prev, { role: "assistant", content: "Proposal dismissed. No device command was created." }]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "The proposal could not be dismissed. No hardware action is claimed." }]);
+    } finally {
+      setPending(false);
+    }
+  }, [activeRunId, activeRun?.pendingAction, pending, cancelPendingAction]);
 
   return (
     <>
@@ -117,11 +137,11 @@ function EthmAssistantInner() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-sm tracking-wide" style={{ color: "#22c55e" }}>Ethm AI</div>
-                <div className="text-[10px] text-muted-foreground truncate">Intelligent Safety & Control Assistant</div>
+                <div className="text-[10px] text-muted-foreground truncate">Explanatory assistant · not a safety controller</div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <motion.div className="w-1.5 h-1.5 rounded-full bg-green-400" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
-                <span className="text-[9px] font-bold tracking-widest text-green-400">ONLINE</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                <span className="text-[9px] font-bold tracking-widest text-muted-foreground">ON DEMAND</span>
               </div>
               <button onClick={() => setAssistantOpen(false)} className="p-1 rounded hover:bg-white/10 cursor-pointer text-muted-foreground hover:text-foreground ml-1">
                 <X className="w-4 h-4" />
@@ -142,6 +162,24 @@ function EthmAssistantInner() {
                   </div>
                 </div>
               ))}
+              {activeRun?.pendingAction && (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs space-y-2">
+                  <div className="font-semibold text-amber-300">Pump command requires your confirmation</div>
+                  <p>
+                    Ethm proposes pump {activeRun.pendingAction.pumpOn ? "ON" : "OFF"} for device {activeRun.pendingAction.deviceId}.
+                  </p>
+                  <p className="text-muted-foreground">Reason: {activeRun.pendingAction.reason}</p>
+                  <p className="text-muted-foreground">Confirming sends a request; DWMS rechecks its interlocks and waits for controller acknowledgement.</p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => void confirmProposal()} disabled={pending} className="rounded-md bg-amber-500 px-3 py-1.5 font-medium text-black disabled:opacity-50">
+                      Confirm command
+                    </button>
+                    <button type="button" onClick={() => void dismissProposal()} disabled={pending} className="rounded-md border border-border px-3 py-1.5 disabled:opacity-50">
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
               {pending && (
                 <div className="flex justify-start">
                   <div className="rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1" style={{ background: "oklch(0.16 0.02 145)", border: "1px solid oklch(0.24 0.03 145)" }}>
@@ -172,7 +210,7 @@ function EthmAssistantInner() {
             {/* Live risk strip */}
             <div className="px-3 py-1.5 border-t flex items-center gap-2 text-[9px] font-mono tracking-wider shrink-0" style={{ borderColor: "#22c55e22", background: "oklch(0.1 0.015 145)" }}>
               <span className="text-muted-foreground">RISK:</span>
-              <span style={{ color: quality === "critical" ? "#ef4444" : quality === "warning" ? "#eab308" : "#22c55e" }}>
+              <span style={{ color: quality === "critical" ? "#ef4444" : quality === "warning" ? "#eab308" : quality === "unknown" ? "#6b7280" : "#22c55e" }}>
                 {riskLabel(quality)}
               </span>
               <span className="text-muted-foreground ml-auto">MODE: {mode.toUpperCase()}</span>
@@ -187,7 +225,8 @@ function EthmAssistantInner() {
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask Ethm AI…"
+                placeholder={activeRun?.pendingAction ? "Confirm or dismiss the pump proposal first" : "Ask Ethm AI…"}
+                disabled={pending || Boolean(activeRun?.pendingAction)}
                 className="flex-1 bg-transparent border rounded-full px-3 py-2 text-xs outline-none focus:border-emerald-400 transition-colors"
                 style={{ borderColor: "oklch(0.24 0.03 145)" }}
               />

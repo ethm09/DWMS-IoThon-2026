@@ -7,3 +7,10 @@ onlyBuiltDependencies:
   - esbuild
 
 minimumReleaseAge: 4320
+
+allowBuilds:
+  "@swc/core": true
+  "@tailwindcss/oxide": true
+  esbuild: true
+  browser-tabs-lock: false
+  core-js: false

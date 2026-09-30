@@ -4,7 +4,7 @@
   "description": "Live Defense Water Monitoring System - real-time water quality monitoring and control",
   "start_url": "/",
   "scope": "/",
-  "id": "https://dwms.onhercules.app",
+  "id": "/",
   "display": "standalone",
   "display_override": [
     "standalone",

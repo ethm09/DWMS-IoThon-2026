@@ -229,13 +229,14 @@ export default function DigitalTwin() {
   const [temp, setTemp] = useState(22.5);
   const [flow, setFlow] = useState(78);
   const [pressure, setPressure] = useState(3.8);
-  const [pumpOn, setPumpOn] = useState(true);
+  const [simulationRunning, setSimulationRunning] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
-  // Simulate live data
+  // Generate illustrative model values while the local simulation is running.
   useEffect(() => {
+    if (!simulationRunning) return;
     const id = setInterval(() => {
       setTds(v => Math.max(50, Math.min(800, v + (Math.random() - 0.46) * 28)));
       setTurbidity(v => Math.max(0, Math.min(35, v + (Math.random() - 0.46) * 2)));
@@ -246,37 +247,37 @@ export default function DigitalTwin() {
       setTick(t => t + 1);
     }, 1800);
     return () => clearInterval(id);
-  }, []);
+  }, [simulationRunning]);
 
-  const isReturning = pumpOn && (tds > 500 || turbidity > 20 || ph < 6.5 || ph > 8.5);
+  const isReturning = simulationRunning && (tds > 500 || turbidity > 20 || ph < 6.5 || ph > 8.5);
   const tankStatus = componentStatus(turbidity, "turbidity");
-  const filterStatus: ComponentStatus = !pumpOn ? "offline" : componentStatus(tds, "tds");
-  const sensorStatus: ComponentStatus = !pumpOn ? "offline" : "normal";
-  const pumpStatus: ComponentStatus = !pumpOn ? "offline" : componentStatus(flow, "flow");
-  const outputStatus: ComponentStatus = !pumpOn ? "offline" : isReturning ? "danger" : componentStatus(tds, "tds");
+  const filterStatus: ComponentStatus = !simulationRunning ? "offline" : componentStatus(tds, "tds");
+  const sensorStatus: ComponentStatus = !simulationRunning ? "offline" : "normal";
+  const pumpStatus: ComponentStatus = !simulationRunning ? "offline" : componentStatus(flow, "flow");
+  const outputStatus: ComponentStatus = !simulationRunning ? "offline" : isReturning ? "danger" : componentStatus(tds, "tds");
   const tempStatus = componentStatus(temp, "temp");
 
   // Node definitions (SVG coords in 800x400 viewBox)
   const nodes: Array<{ id: string; cx: number; cy: number; label: string; sublabel: string; status: ComponentStatus; value: string; unit: string; icon: React.ReactNode; pulse: boolean; spin: boolean }> = [
     { id: "reservoir", cx: 80, cy: 120, label: "RESERVOIR", sublabel: "Raw Source", status: tankStatus, value: turbidity.toFixed(2), unit: "NTU", icon: <Droplets size={20} />, pulse: false, spin: false },
-    { id: "intake", cx: 200, cy: 120, label: "INTAKE PUMP", sublabel: pumpOn ? "Running" : "Stopped", status: pumpStatus, value: flow.toFixed(0), unit: "L/min", icon: <Zap size={20} />, pulse: false, spin: pumpOn },
-    { id: "filter1", cx: 340, cy: 80, label: "PRE-FILTER", sublabel: "Stage 1", status: filterStatus, value: tds.toFixed(0), unit: "ppm", icon: <Activity size={20} />, pulse: pumpOn, spin: false },
-    { id: "filter2", cx: 340, cy: 200, label: "POST-FILTER", sublabel: "Stage 2", status: filterStatus, value: turbidity.toFixed(2), unit: "NTU", icon: <Activity size={20} />, pulse: pumpOn, spin: false },
-    { id: "sensor", cx: 490, cy: 140, label: "SENSOR ARRAY", sublabel: "Monitoring", status: sensorStatus, value: ph.toFixed(2), unit: "pH", icon: <Thermometer size={20} />, pulse: pumpOn, spin: false },
-    { id: "pump", cx: 620, cy: 140, label: "MAIN PUMP", sublabel: pumpOn ? "Active" : "Offline", status: pumpStatus, value: pressure.toFixed(1), unit: "bar", icon: <Zap size={20} />, pulse: false, spin: pumpOn },
-    { id: "output", cx: 740, cy: 140, label: "OUTPUT", sublabel: isReturning ? "Blocked" : "Delivering", status: outputStatus, value: isReturning ? "RETURN" : "CLEAN", unit: "", icon: <Droplets size={20} />, pulse: isReturning, spin: false },
-    { id: "return", cx: 490, cy: 320, label: "RETURN LINE", sublabel: isReturning ? "Active" : "Standby", status: isReturning ? "danger" as ComponentStatus : "offline" as ComponentStatus, value: isReturning ? "ON" : "OFF", unit: "", icon: <RotateCcw size={20} />, pulse: isReturning, spin: false },
+    { id: "intake", cx: 200, cy: 120, label: "INTAKE PUMP MODEL", sublabel: simulationRunning ? "Simulating" : "Paused", status: pumpStatus, value: flow.toFixed(0), unit: "L/min", icon: <Zap size={20} />, pulse: false, spin: simulationRunning },
+    { id: "filter1", cx: 340, cy: 80, label: "PRE-FILTER MODEL", sublabel: "Illustrative Stage 1", status: filterStatus, value: tds.toFixed(0), unit: "ppm", icon: <Activity size={20} />, pulse: simulationRunning, spin: false },
+    { id: "filter2", cx: 340, cy: 200, label: "POST-FILTER MODEL", sublabel: "Illustrative Stage 2", status: filterStatus, value: turbidity.toFixed(2), unit: "NTU", icon: <Activity size={20} />, pulse: simulationRunning, spin: false },
+    { id: "sensor", cx: 490, cy: 140, label: "SENSOR MODEL", sublabel: "Simulated", status: sensorStatus, value: ph.toFixed(2), unit: "pH", icon: <Thermometer size={20} />, pulse: simulationRunning, spin: false },
+    { id: "pump", cx: 620, cy: 140, label: "PUMP MODEL", sublabel: simulationRunning ? "Simulating" : "Paused", status: pumpStatus, value: pressure.toFixed(1), unit: "bar", icon: <Zap size={20} />, pulse: false, spin: simulationRunning },
+    { id: "output", cx: 740, cy: 140, label: "MODEL OUTPUT", sublabel: isReturning ? "Illustrative return" : "Illustrative output", status: outputStatus, value: isReturning ? "RETURN" : "MODEL", unit: "", icon: <Droplets size={20} />, pulse: isReturning, spin: false },
+    { id: "return", cx: 490, cy: 320, label: "RETURN LINE MODEL", sublabel: isReturning ? "Simulated" : "Standby", status: isReturning ? "danger" as ComponentStatus : "offline" as ComponentStatus, value: isReturning ? "ON" : "OFF", unit: "", icon: <RotateCcw size={20} />, pulse: isReturning, spin: false },
   ];
 
   // Flow pipes
   const pipes = [
     { id: "r-i", x1: 108, y1: 120, x2: 172, y2: 120, active: true, isReturn: false, color: tankStatus === "danger" ? "#ef4444" : "#22c55e" },
-    { id: "i-f1", x1: 228, y1: 110, x2: 312, y2: 88, active: pumpOn, isReturn: false, color: "#8b5cf6" },
-    { id: "i-f2", x1: 228, y1: 130, x2: 312, y2: 192, active: pumpOn, isReturn: false, color: "#8b5cf6" },
-    { id: "f1-s", x1: 368, y1: 88, x2: 462, y2: 130, active: pumpOn, isReturn: false, color: "#8b5cf6" },
-    { id: "f2-s", x1: 368, y1: 200, x2: 462, y2: 150, active: pumpOn, isReturn: false, color: "#8b5cf6" },
-    { id: "s-p", x1: 518, y1: 140, x2: 592, y2: 140, active: pumpOn, isReturn: false, color: "#eab308" },
-    { id: "p-o", x1: 648, y1: 140, x2: 712, y2: 140, active: pumpOn, isReturn: false, color: isReturning ? "#ef444466" : "#22c55e" },
+    { id: "i-f1", x1: 228, y1: 110, x2: 312, y2: 88, active: simulationRunning, isReturn: false, color: "#8b5cf6" },
+    { id: "i-f2", x1: 228, y1: 130, x2: 312, y2: 192, active: simulationRunning, isReturn: false, color: "#8b5cf6" },
+    { id: "f1-s", x1: 368, y1: 88, x2: 462, y2: 130, active: simulationRunning, isReturn: false, color: "#8b5cf6" },
+    { id: "f2-s", x1: 368, y1: 200, x2: 462, y2: 150, active: simulationRunning, isReturn: false, color: "#8b5cf6" },
+    { id: "s-p", x1: 518, y1: 140, x2: 592, y2: 140, active: simulationRunning, isReturn: false, color: "#eab308" },
+    { id: "p-o", x1: 648, y1: 140, x2: 712, y2: 140, active: simulationRunning, isReturn: false, color: isReturning ? "#ef444466" : "#22c55e" },
     // Return line (dashed, bottom)
     { id: "ret-pump", x1: 620, y1: 168, x2: 620, y2: 290, active: isReturning, isReturn: true, color: "#ef4444" },
     { id: "ret-horiz", x1: 620, y1: 290, x2: 340, y2: 290, active: isReturning, isReturn: true, color: "#ef4444" },
@@ -297,7 +298,7 @@ export default function DigitalTwin() {
     ],
     intake: [
       { label: "Flow Rate", val: `${flow.toFixed(0)} L/min`, color: STATUS_COLOR[componentStatus(flow, "flow")] },
-      { label: "Pump State", val: pumpOn ? "RUNNING" : "STOPPED", color: pumpOn ? "#22c55e" : "#ef4444" },
+      { label: "Simulated Pump State", val: simulationRunning ? "RUNNING" : "STOPPED", color: simulationRunning ? "#22c55e" : "#ef4444" },
     ],
     filter1: [
       { label: "TDS In", val: `${(tds * 1.4).toFixed(0)} ppm`, color: "#eab308" },
@@ -318,10 +319,10 @@ export default function DigitalTwin() {
     pump: [
       { label: "Pressure", val: `${pressure.toFixed(1)} bar`, color: STATUS_COLOR[componentStatus(pressure, "pressure")] },
       { label: "Flow Out", val: `${flow.toFixed(0)} L/min`, color: STATUS_COLOR[componentStatus(flow, "flow")] },
-      { label: "State", val: pumpOn ? "RUNNING" : "OFFLINE", color: pumpOn ? "#22c55e" : "#ef4444" },
+      { label: "Simulated State", val: simulationRunning ? "RUNNING" : "PAUSED", color: simulationRunning ? "#22c55e" : "#ef4444" },
     ],
     output: [
-      { label: "Quality", val: isReturning ? "FAIL — RETURNING" : tds < 300 ? "CLEAN" : "MARGINAL", color: isReturning ? "#ef4444" : tds < 300 ? "#22c55e" : "#eab308" },
+      { label: "Illustrative model only", val: isReturning ? "RETURN MODEL" : tds < 300 ? "LOW TDS MODEL" : "CHECK MODEL", color: isReturning ? "#ef4444" : tds < 300 ? "#22c55e" : "#eab308" },
       { label: "TDS", val: `${tds.toFixed(0)} ppm`, color: STATUS_COLOR[componentStatus(tds, "tds")] },
       { label: "pH", val: ph.toFixed(2), color: STATUS_COLOR[componentStatus(ph, "ph")] },
     ],
@@ -336,9 +337,9 @@ export default function DigitalTwin() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Digital Twin</h2>
+          <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Digital Twin Simulation</h2>
           <p className="text-xs text-muted-foreground tracking-wider">
-            Live 2D replica of the physical treatment plant — click any component for details
+            Illustrative model with generated values — click a component for details
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -353,15 +354,15 @@ export default function DigitalTwin() {
           </Button>
           <Button
             size="sm"
-            onClick={() => setPumpOn(v => !v)}
+            onClick={() => setSimulationRunning(v => !v)}
             className="text-[10px] font-bold tracking-widest cursor-pointer"
             style={{
-              background: pumpOn ? "#ef444415" : "#22c55e15",
-              color: pumpOn ? "#ef4444" : "#22c55e",
-              border: `1px solid ${pumpOn ? "#ef4444" : "#22c55e"}`,
+              background: simulationRunning ? "#ef444415" : "#22c55e15",
+              color: simulationRunning ? "#ef4444" : "#22c55e",
+              border: `1px solid ${simulationRunning ? "#ef4444" : "#22c55e"}`,
             }}
           >
-            {pumpOn ? "STOP SYSTEM" : "START SYSTEM"}
+            {simulationRunning ? "PAUSE SIMULATION" : "RESUME SIMULATION"}
           </Button>
         </div>
       </div>
@@ -370,32 +371,36 @@ export default function DigitalTwin() {
       <motion.div
         className="rounded-lg border px-4 py-2.5 flex items-center gap-3"
         animate={{
-          borderColor: !pumpOn ? "#4b5563" : isReturning ? "#ef4444" : "#22c55e",
-          background: !pumpOn ? "#1f293733" : isReturning ? "#ef444410" : "#22c55e10",
+          borderColor: !simulationRunning ? "#4b5563" : isReturning ? "#ef4444" : "#22c55e",
+          background: !simulationRunning ? "#1f293733" : isReturning ? "#ef444410" : "#22c55e10",
         }}
         transition={{ duration: 0.4 }}
       >
         <motion.div
           className="w-2.5 h-2.5 rounded-full shrink-0"
           animate={{
-            backgroundColor: !pumpOn ? "#4b5563" : isReturning ? "#ef4444" : "#22c55e",
-            boxShadow: !pumpOn ? "none" : `0 0 8px ${isReturning ? "#ef4444" : "#22c55e"}`,
-            opacity: pumpOn ? [1, 0.4, 1] : 1,
+            backgroundColor: !simulationRunning ? "#4b5563" : isReturning ? "#ef4444" : "#22c55e",
+            boxShadow: !simulationRunning ? "none" : `0 0 8px ${isReturning ? "#ef4444" : "#22c55e"}`,
+            opacity: simulationRunning ? [1, 0.4, 1] : 1,
           }}
           transition={{ opacity: { duration: 1, repeat: Infinity } }}
         />
         <span className="text-xs font-bold tracking-widest"
-          style={{ color: !pumpOn ? "#4b5563" : isReturning ? "#ef4444" : "#22c55e" }}>
-          {!pumpOn
-            ? "SYSTEM OFFLINE — ALL COMPONENTS IDLE"
+          style={{ color: !simulationRunning ? "#4b5563" : isReturning ? "#ef4444" : "#22c55e" }}>
+          {!simulationRunning
+            ? "SIMULATION PAUSED — NO HARDWARE STATE IS AVAILABLE"
             : isReturning
-              ? "⚠ RETURN FLOW ACTIVE — QUALITY THRESHOLD EXCEEDED"
-              : "ALL SYSTEMS NOMINAL — CLEAN OUTPUT DELIVERING"}
+              ? "ILLUSTRATIVE RETURN MODEL — NOT A REAL VALVE OR FLOW PATH"
+              : "SIMULATED VALUES — NOT A WATER QUALITY CERTIFICATION"}
         </span>
         <div className="ml-auto text-[9px] font-mono text-muted-foreground hidden sm:block">
-          TICK #{tick} · {new Date().toLocaleTimeString()}
+          SIM TICK #{tick} · {new Date().toLocaleTimeString()}
         </div>
       </motion.div>
+
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[10px] text-muted-foreground">
+        <span className="font-bold text-amber-400">SIMULATION ONLY.</span> All sensor values, temperature, flow, pressure, pump state, filter stages, efficiencies, return path, and output labels below are generated illustrations. This page does not read sensors, certify water quality, or control hardware.
+      </div>
 
       {/* Twin SVG diagram */}
       <Card className="overflow-hidden">

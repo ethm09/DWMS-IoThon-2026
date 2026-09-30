@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import HardwareControlPanel from "@/components/hardware-control-panel.tsx";
 import { useProcessMode, type Readings } from "@/hooks/use-process-mode.ts";
 import {
   classifyTds, classifyTurbidity, classifyPh,
@@ -309,6 +310,8 @@ export default function FiltrationComparison() {
           </div>
         </div>
       </div>
+
+      <HardwareControlPanel />
 
       {/* Capture Controls */}
       <Card>

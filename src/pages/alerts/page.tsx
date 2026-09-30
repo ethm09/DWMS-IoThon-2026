@@ -1,20 +1,27 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api.js";
+import type { Id } from "@/convex/_generated/dataModel.d.ts";
 import { motion, AnimatePresence } from "motion/react";
-import { AlertTriangle, AlertCircle, CheckCircle, Info, Bell, BellOff, Trash2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, AlertCircle, CheckCircle, Info, Bell, Trash2, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth.ts";
+import { useProcessMode } from "@/hooks/use-process-mode.ts";
+import { classifyPh, classifyTds, classifyTurbidity, THRESHOLDS } from "@/lib/dwms-safety.ts";
 
 type AlertLevel = "critical" | "warning" | "info" | "ok";
 
 type Alert = {
-  id: number;
+  id: string;
   level: AlertLevel;
   title: string;
   message: string;
   time: string;
   parameter?: string;
   value?: string;
-  dismissed: boolean;
+  notificationId?: Id<"notifications">;
 };
 
 const LEVEL_CONFIG: Record<AlertLevel, { color: string; bg: string; border: string; iconClass: string }> = {
@@ -31,108 +38,176 @@ const LEVEL_ICONS: Record<AlertLevel, React.FC<{ className?: string }>> = {
   ok: CheckCircle,
 };
 
-function generateAlerts(tds: number, turbidity: number, ph: number, idBase: number): Omit<Alert, "id" | "dismissed">[] {
-  const now = new Date();
-  const timeStr = `${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}:${now.getSeconds().toString().padStart(2,"0")}`;
-  const alerts: Omit<Alert, "id" | "dismissed">[] = [];
-
-  if (tds > 600) {
-    alerts.push({ level: "critical", title: "CRITICAL TDS LEVEL", message: "Total Dissolved Solids exceed safe limit. Flushing system recommended immediately.", time: timeStr, parameter: "TDS", value: `${tds.toFixed(0)} ppm` });
-  } else if (tds > 300) {
-    alerts.push({ level: "warning", title: "ELEVATED TDS DETECTED", message: "TDS approaching unsafe range. Monitor closely and prepare treatment protocol.", time: timeStr, parameter: "TDS", value: `${tds.toFixed(0)} ppm` });
+function buildSnapshotAlerts(
+  tds: number,
+  turbidity: number,
+  ph: number,
+  timestamp: string,
+): Alert[] {
+  const time = new Date(timestamp).toLocaleString();
+  const parameters = [
+    { id: "tds", name: "TDS", text: `${tds.toFixed(0)} ppm`, level: classifyTds(tds) },
+    { id: "turbidity", name: "Turbidity", text: `${turbidity.toFixed(2)} NTU`, level: classifyTurbidity(turbidity) },
+    { id: "ph", name: "pH", text: ph.toFixed(2), level: classifyPh(ph) },
+  ];
+  const flagged = parameters.filter((parameter) => parameter.level !== "safe");
+  if (flagged.length === 0) {
+    return [{
+      id: "demo-current-ok",
+      level: "ok",
+      title: "NO CURRENT THRESHOLD ALERTS",
+      message: "This demo snapshot falls inside the shared prototype thresholds; it is not a water-safety certification.",
+      time,
+    }];
   }
-
-  if (turbidity > 4) {
-    alerts.push({ level: "critical", title: "WATER UNSAFE — TREATMENT ACTIVATED", message: "High turbidity detected. Water quality unsafe. Filtration system has been automatically engaged.", time: timeStr, parameter: "Turbidity", value: `${turbidity.toFixed(2)} NTU` });
-  } else if (turbidity > 1) {
-    alerts.push({ level: "warning", title: "TURBIDITY WARNING", message: "Suspended particles detected above threshold. Increased filtration recommended.", time: timeStr, parameter: "Turbidity", value: `${turbidity.toFixed(2)} NTU` });
-  }
-
-  if (ph < 5.5 || ph > 9.5) {
-    alerts.push({ level: "critical", title: "CRITICAL pH IMBALANCE", message: "pH outside safe range. Chemical adjustment required immediately to prevent equipment damage.", time: timeStr, parameter: "pH", value: ph.toFixed(2) });
-  } else if (ph < 6.5 || ph > 8.5) {
-    alerts.push({ level: "warning", title: "pH OUT OF OPTIMAL RANGE", message: "pH level deviating from target. Chemical dosing adjustment advised.", time: timeStr, parameter: "pH", value: ph.toFixed(2) });
-  }
-
-  if (alerts.length === 0) {
-    alerts.push({ level: "ok", title: "ALL PARAMETERS NORMAL", message: "Water quality within safe limits. System operating normally.", time: timeStr });
-  }
-
-  return alerts;
+  return flagged.map((parameter) => ({
+    id: `demo-${parameter.id}-${parameter.level}`,
+    level: parameter.level === "critical" ? "critical" : "warning",
+    title: `${parameter.name.toUpperCase()} ${parameter.level.toUpperCase()} THRESHOLD`,
+    message: `${parameter.name} is outside the prototype safe band. Verify the reading and follow validated site procedures; this notice does not prescribe treatment.`,
+    time,
+    parameter: parameter.name,
+    value: parameter.text,
+  }));
 }
 
-let globalId = 100;
-
 export default function Alerts() {
-  const [tds, setTds] = useState(245);
-  const [turbidity, setTurbidity] = useState(0.8);
-  const [ph, setPh] = useState(7.2);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [muted, setMuted] = useState(false);
   const [filter, setFilter] = useState<AlertLevel | "all">("all");
-  const mountRef = useRef(false);
+  const [dismissedDemoIds, setDismissedDemoIds] = useState<string[]>([]);
+  const { isAuthenticated } = useAuth();
+  const { dataMode, selectedDeviceId, readings: demoReadings, lastUpdated } = useProcessMode();
+  const notifications = useQuery(
+    api.notifications.list,
+    dataMode === "hardware" && isAuthenticated ? { limit: 50 } : "skip",
+  );
+  const latestHardwareReading = useQuery(
+    api.devices.getLatestReading,
+    dataMode === "hardware" && isAuthenticated && selectedDeviceId
+      ? { deviceId: selectedDeviceId }
+      : "skip",
+  );
+  const dismissNotification = useMutation(api.notifications.dismiss);
+  const dismissAllNotifications = useMutation(api.notifications.dismissAll);
 
-  // Simulate sensor data
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTds((v) => Math.max(50, Math.min(900, v + (Math.random() - 0.5) * 30)));
-      setTurbidity((v) => Math.max(0, Math.min(10, v + (Math.random() - 0.5) * 0.5)));
-      setPh((v) => Math.max(4, Math.min(11, v + (Math.random() - 0.5) * 0.15)));
-    }, 1500);
-    return () => clearInterval(interval);
-  }, []);
+  const isLoadingHardwareReading =
+    dataMode === "hardware" && isAuthenticated && Boolean(selectedDeviceId) && latestHardwareReading === undefined;
+  const isLoadingHardwareNotifications =
+    dataMode === "hardware" && isAuthenticated && notifications === undefined;
+  const currentValues = dataMode === "hardware"
+    ? latestHardwareReading ?? null
+    : demoReadings.ph !== null && demoReadings.tds !== null && demoReadings.turbidity !== null
+      ? { ph: demoReadings.ph, tds: demoReadings.tds, turbidity: demoReadings.turbidity }
+      : null;
+  const hasSensorData = currentValues !== null;
+  const currentQuality: AlertLevel = !currentValues
+    ? "info"
+    : [classifyPh(currentValues.ph), classifyTds(currentValues.tds), classifyTurbidity(currentValues.turbidity)].includes("critical")
+      ? "critical"
+      : [classifyPh(currentValues.ph), classifyTds(currentValues.tds), classifyTurbidity(currentValues.turbidity)].includes("warning")
+        ? "warning"
+        : "ok";
+  const demoAlerts = currentValues && dataMode === "demo"
+    ? buildSnapshotAlerts(currentValues.tds, currentValues.turbidity, currentValues.ph, lastUpdated)
+    : [];
+  const storedAlerts: Alert[] = (notifications ?? []).map((notification) => ({
+    id: notification._id,
+    notificationId: notification._id,
+    level: notification.level,
+    title: notification.title,
+    message: notification.message,
+    time: new Date(notification.createdAt).toLocaleString(),
+    parameter: notification.parameter,
+    value: notification.value,
+  }));
+  const alerts = dataMode === "hardware" ? storedAlerts : demoAlerts;
+  const visible = alerts.filter((alert) =>
+    (dataMode === "hardware" || !dismissedDemoIds.includes(alert.id)) &&
+    (filter === "all" || alert.level === filter),
+  );
+  const count = (level: AlertLevel) => alerts.filter((alert) =>
+    (dataMode === "hardware" || !dismissedDemoIds.includes(alert.id)) && alert.level === level,
+  ).length;
+  const counts = { critical: count("critical"), warning: count("warning"), info: count("info"), ok: count("ok") };
+  const statusMessage = dataMode === "hardware"
+    ? !isAuthenticated
+      ? "SIGN IN TO VIEW SAVED DEVICE ALERTS"
+      : !selectedDeviceId
+        ? "SELECT A DEVICE TO VIEW ITS CURRENT SENSOR STATUS"
+        : isLoadingHardwareReading
+          ? "LOADING DEVICE SENSOR STATUS…"
+          : !hasSensorData
+            ? "NO SAVED SENSOR READING AVAILABLE"
+            : currentQuality === "critical"
+              ? "CURRENT DEVICE READING EXCEEDS A CRITICAL PROTOTYPE THRESHOLD"
+              : currentQuality === "warning"
+                ? "CURRENT DEVICE READING IS OUTSIDE A PROTOTYPE SAFE BAND"
+                : "CURRENT DEVICE READING IS WITHIN PROTOTYPE SAFE BANDS"
+    : !hasSensorData
+      ? "NO DEMO SENSOR SNAPSHOT AVAILABLE"
+      : currentQuality === "critical"
+        ? "DEMO SNAPSHOT EXCEEDS A CRITICAL PROTOTYPE THRESHOLD"
+        : currentQuality === "warning"
+          ? "DEMO SNAPSHOT IS OUTSIDE A PROTOTYPE SAFE BAND"
+          : "DEMO SNAPSHOT IS WITHIN PROTOTYPE SAFE BANDS";
+  const systemLevel = currentQuality;
+  const sysConfig = LEVEL_CONFIG[systemLevel];
 
-  // Generate alerts when sensors change
-  useEffect(() => {
-    if (!mountRef.current) {
-      mountRef.current = true;
-      // Seed initial alerts
-      const initial = generateAlerts(tds, turbidity, ph, 0).map((a) => ({ ...a, id: globalId++, dismissed: false }));
-      setAlerts(initial);
+  const dismiss = async (alert: Alert) => {
+    if (alert.notificationId) {
+      try {
+        await dismissNotification({ notificationId: alert.notificationId });
+      } catch {
+        toast.error("Could not dismiss this saved notification");
+      }
       return;
     }
-    const newOnes = generateAlerts(tds, turbidity, ph, globalId).map((a) => ({ ...a, id: globalId++, dismissed: false }));
-    // Only add if level changed or critical/warning
-    const latest = newOnes[0];
-    if (latest && latest.level !== "ok") {
-      setAlerts((prev) => [latest, ...prev.slice(0, 49)]);
+    setDismissedDemoIds((previous) => [...new Set([...previous, alert.id])]);
+  };
+
+  const dismissAll = async () => {
+    if (dataMode === "hardware") {
+      try {
+        const dismissedCount = await dismissAllNotifications({});
+        toast.success(`${dismissedCount} saved notifications dismissed`);
+      } catch {
+        toast.error("Could not dismiss saved notifications");
+      }
+      return;
     }
-  }, [Math.round(tds / 50), Math.round(turbidity * 2), Math.round(ph * 2)]);
-
-  const dismiss = (id: number) => setAlerts((prev) => prev.map((a) => a.id === id ? { ...a, dismissed: true } : a));
-  const clearAll = () => setAlerts([]);
-
-  const visible = alerts.filter((a) => !a.dismissed && (filter === "all" || a.level === filter));
-  const counts = { critical: alerts.filter((a) => !a.dismissed && a.level === "critical").length, warning: alerts.filter((a) => !a.dismissed && a.level === "warning").length, info: alerts.filter((a) => !a.dismissed && a.level === "info").length, ok: alerts.filter((a) => !a.dismissed && a.level === "ok").length };
-
-  const systemLevel: AlertLevel = counts.critical > 0 ? "critical" : counts.warning > 0 ? "warning" : "ok";
-  const sysConfig = LEVEL_CONFIG[systemLevel];
+    setDismissedDemoIds(alerts.map((alert) => alert.id));
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Smart Alerts System</h2>
-          <p className="text-xs text-muted-foreground tracking-wider">Real-time anomaly detection and automated warnings</p>
+          <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Sensor Alerts</h2>
+          <p className="text-xs text-muted-foreground tracking-wider">
+            {dataMode === "hardware" ? "Saved device notifications and latest sensor status" : "Current demo snapshot alerts"}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => setMuted((v) => !v)}
+            onClick={() => void dismissAll()}
+            disabled={alerts.length === 0 || (dataMode === "hardware" && isLoadingHardwareNotifications)}
             className="cursor-pointer text-xs font-bold tracking-widest"
             style={{ background: "transparent", border: "1px solid oklch(0.25 0.04 145)", color: "oklch(0.55 0.04 145)" }}
           >
-            {muted ? <BellOff className="w-3.5 h-3.5 mr-1" /> : <Bell className="w-3.5 h-3.5 mr-1" />}
-            {muted ? "UNMUTE" : "MUTE"}
-          </Button>
-          <Button
-            onClick={clearAll}
-            className="cursor-pointer text-xs font-bold tracking-widest"
-            style={{ background: "transparent", border: "1px solid oklch(0.25 0.04 145)", color: "oklch(0.55 0.04 145)" }}
-          >
-            <Trash2 className="w-3.5 h-3.5 mr-1" /> CLEAR
+            <Trash2 className="w-3.5 h-3.5 mr-1" /> DISMISS ALL
           </Button>
         </div>
+      </div>
+
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[10px] text-muted-foreground">
+        <span className="font-bold text-amber-400">
+          {dataMode === "hardware" ? `HARDWARE · ${selectedDeviceId || "NO DEVICE SELECTED"}` : "DEMO SIMULATION"}
+        </span>
+        <span className="mx-2">·</span>
+        {dataMode === "hardware"
+          ? "The feed shows saved Convex notifications. Current status uses pH, TDS, and turbidity readings only."
+          : "The feed shows only the current local snapshot, not a stored alert history."}
+        {" "}Thresholds are prototype rules, not a safety certification or treatment instruction.
       </div>
 
       {/* System status banner */}
@@ -152,10 +227,10 @@ export default function Alerts() {
         </motion.div>
         <div className="flex-1">
           <motion.div className="font-bold tracking-widest" animate={{ color: sysConfig.color }}>
-            {systemLevel === "ok" ? "SYSTEM HEALTHY — ALL PARAMETERS SAFE" : systemLevel === "warning" ? "SYSTEM WARNING — PARAMETERS APPROACHING LIMITS" : "SYSTEM CRITICAL — IMMEDIATE ACTION REQUIRED"}
+            {statusMessage}
           </motion.div>
           <div className="text-xs text-muted-foreground mt-1 font-mono">
-            TDS: {tds.toFixed(0)} ppm &nbsp;|&nbsp; Turbidity: {turbidity.toFixed(2)} NTU &nbsp;|&nbsp; pH: {ph.toFixed(2)}
+            TDS: {currentValues?.tds.toFixed(0) ?? "—"} ppm &nbsp;|&nbsp; Turbidity: {currentValues?.turbidity.toFixed(2) ?? "—"} NTU &nbsp;|&nbsp; pH: {currentValues?.ph.toFixed(2) ?? "—"}
           </div>
         </div>
         {systemLevel !== "ok" && (
@@ -169,7 +244,7 @@ export default function Alerts() {
 
       {/* Count badges */}
       <div className="flex flex-wrap gap-2">
-        {([["all", "ALL", "#6b7280"], ["critical", "CRITICAL", "#ef4444"], ["warning", "WARNING", "#eab308"], ["ok", "NORMAL", "#22c55e"]] as const).map(([key, label, color]) => (
+        {([["all", "ALL", "#6b7280"], ["critical", "CRITICAL", "#ef4444"], ["warning", "WARNING", "#eab308"], ["info", "INFO", "#06b6d4"], ["ok", "NO ALERT", "#22c55e"]] as const).map(([key, label, color]) => (
           <button
             key={key}
             onClick={() => setFilter(key)}
@@ -207,7 +282,11 @@ export default function Alerts() {
             <AnimatePresence initial={false}>
               {visible.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground text-sm tracking-wider">
-                  No alerts to display
+                  {isLoadingHardwareNotifications
+                    ? "Loading saved notifications…"
+                    : dataMode === "hardware" && !isAuthenticated
+                      ? "Sign in to view saved device notifications."
+                      : "No notifications to display for this source."}
                 </div>
               )}
               {visible.map((alert) => {
@@ -240,7 +319,7 @@ export default function Alerts() {
                       <div className="text-[9px] font-mono text-muted-foreground/60 mt-1">{alert.time}</div>
                     </div>
                     <button
-                      onClick={() => dismiss(alert.id)}
+                      onClick={() => void dismiss(alert)}
                       className="text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-pointer shrink-0 mt-0.5"
                     >
                       ✕
@@ -256,14 +335,14 @@ export default function Alerts() {
       {/* Quick reference thresholds */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold tracking-widest text-primary">SAFETY THRESHOLDS REFERENCE</CardTitle>
+          <CardTitle className="text-sm font-bold tracking-widest text-primary">PROTOTYPE SOFTWARE THRESHOLDS</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { param: "TDS", unit: "ppm", ranges: [{ label: "Safe", range: "< 300", color: "#22c55e" }, { label: "Warning", range: "300 – 600", color: "#eab308" }, { label: "Critical", range: "> 600", color: "#ef4444" }], current: tds.toFixed(0) },
-              { param: "Turbidity", unit: "NTU", ranges: [{ label: "Safe", range: "< 1.0", color: "#22c55e" }, { label: "Warning", range: "1.0 – 4.0", color: "#eab308" }, { label: "Critical", range: "> 4.0", color: "#ef4444" }], current: turbidity.toFixed(2) },
-              { param: "pH", unit: "", ranges: [{ label: "Safe", range: "6.5 – 8.5", color: "#22c55e" }, { label: "Warning", range: "5.5 – 9.5", color: "#eab308" }, { label: "Critical", range: "< 5.5 or > 9.5", color: "#ef4444" }], current: ph.toFixed(2) },
+              { param: "TDS", unit: "ppm", ranges: [{ label: "Prototype safe", range: `< ${THRESHOLDS.tds.safe.max}`, color: "#22c55e" }, { label: "Warning", range: `${THRESHOLDS.tds.warning.min}–${THRESHOLDS.tds.critical.above}`, color: "#eab308" }, { label: "Critical", range: `> ${THRESHOLDS.tds.critical.above}`, color: "#ef4444" }], current: currentValues?.tds.toFixed(0) ?? "—" },
+              { param: "Turbidity", unit: "NTU", ranges: [{ label: "Prototype safe", range: `< ${THRESHOLDS.turbidity.safe.max}`, color: "#22c55e" }, { label: "Warning", range: `${THRESHOLDS.turbidity.warning.min}–${THRESHOLDS.turbidity.critical.above}`, color: "#eab308" }, { label: "Critical", range: `> ${THRESHOLDS.turbidity.critical.above}`, color: "#ef4444" }], current: currentValues?.turbidity.toFixed(2) ?? "—" },
+              { param: "pH", unit: "", ranges: [{ label: "Prototype safe", range: `${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}`, color: "#22c55e" }, { label: "Warning", range: "5.5–6.5 or 8.5–10", color: "#eab308" }, { label: "Critical", range: `< ${THRESHOLDS.ph.critical.below} or > ${THRESHOLDS.ph.critical.above}`, color: "#ef4444" }], current: currentValues?.ph.toFixed(2) ?? "—" },
             ].map((p) => (
               <div key={p.param} className="space-y-1.5">
                 <div className="text-[10px] font-bold tracking-widest text-foreground">{p.param} {p.unit && `(${p.unit})`} — <span className="text-primary font-mono">{p.current}{p.unit ? ` ${p.unit}` : ""}</span></div>

@@ -1,30 +1,16 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api.js";
+import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 type HistPoint = { time: string; tds: number; turbidity: number; ph: number };
 
-function generateHistory(count: number): HistPoint[] {
-  const data: HistPoint[] = [];
-  let tds = 250, turb = 1.0, ph = 7.0;
-  const now = Date.now();
-  for (let i = count; i >= 0; i--) {
-    tds = Math.max(50, Math.min(900, tds + (Math.random() - 0.5) * 30));
-    turb = Math.max(0, Math.min(10, turb + (Math.random() - 0.5) * 0.5));
-    ph = Math.max(4, Math.min(11, ph + (Math.random() - 0.5) * 0.2));
-    const d = new Date(now - i * 60000);
-    data.push({
-      time: `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`,
-      tds: parseFloat(tds.toFixed(1)),
-      turbidity: parseFloat(turb.toFixed(2)),
-      ph: parseFloat(ph.toFixed(2)),
-    });
-  }
-  return data;
+function formatTime(timestamp: string): string {
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? timestamp : date.toLocaleTimeString();
 }
-
-const HOUR_DATA = generateHistory(60);
 const tooltipStyle = {
   contentStyle: { background: "oklch(0.14 0.02 145)", border: "1px solid oklch(0.25 0.04 145)", borderRadius: 6 },
   labelStyle: { color: "oklch(0.92 0.02 145)", fontSize: 10 },
@@ -32,46 +18,68 @@ const tooltipStyle = {
 };
 
 export default function Analytics() {
-  const [liveData, setLiveData] = useState<HistPoint[]>(HOUR_DATA.slice(-20));
+  const { readings: demoReadings, dataMode, selectedDeviceId, lastUpdated } = useProcessMode();
+  const hardwareReadings = useQuery(
+    api.devices.getRecentReadings,
+    dataMode === "hardware" && selectedDeviceId
+      ? { deviceId: selectedDeviceId, limit: 100 }
+      : "skip",
+  );
+  const isLoadingHardwareReadings =
+    dataMode === "hardware" && Boolean(selectedDeviceId) && hardwareReadings === undefined;
+  const liveData: HistPoint[] = dataMode === "hardware"
+    ? (hardwareReadings ?? []).slice().reverse().map((reading) => ({
+        time: formatTime(reading.timestamp),
+        tds: reading.tds,
+        turbidity: reading.turbidity,
+        ph: reading.ph,
+      }))
+    : demoReadings.tds !== null && demoReadings.turbidity !== null && demoReadings.ph !== null
+      ? [{
+          time: formatTime(Date.parse(lastUpdated) > 0 ? lastUpdated : new Date().toISOString()),
+          tds: demoReadings.tds,
+          turbidity: demoReadings.turbidity,
+          ph: demoReadings.ph,
+        }]
+      : [];
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveData((prev) => {
-        const last = prev[prev.length - 1];
-        const now = new Date();
-        const newPoint: HistPoint = {
-          time: `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`,
-          tds: parseFloat(Math.max(50, Math.min(900, last.tds + (Math.random() - 0.5) * 20)).toFixed(1)),
-          turbidity: parseFloat(Math.max(0, Math.min(10, last.turbidity + (Math.random() - 0.5) * 0.3)).toFixed(2)),
-          ph: parseFloat(Math.max(4, Math.min(11, last.ph + (Math.random() - 0.5) * 0.1)).toFixed(2)),
-        };
-        return [...prev.slice(-29), newPoint];
-      });
-    }, 1500);
-    return () => clearInterval(interval);
-  }, []);
-
-  const last = liveData[liveData.length - 1];
-  const prev = liveData[liveData.length - 5] ?? last;
+  const last = liveData.at(-1);
+  const previous = liveData.length > 1 ? liveData[Math.max(0, liveData.length - 5)] : last;
+  const average = (key: "tds" | "turbidity" | "ph", decimals: number, unit = "") => {
+    if (liveData.length === 0) return "—";
+    const value = liveData.reduce((sum, point) => sum + point[key], 0) / liveData.length;
+    return `${value.toFixed(decimals)}${unit}`;
+  };
+  const peakTds = liveData.length > 0 ? Math.max(...liveData.map((point) => point.tds)) : null;
 
   const stats = [
-    { label: "Avg TDS (1h)", value: `${(HOUR_DATA.reduce((s, d) => s + d.tds, 0) / HOUR_DATA.length).toFixed(0)} ppm`, color: "#22c55e" },
-    { label: "Peak TDS", value: `${Math.max(...HOUR_DATA.map((d) => d.tds)).toFixed(0)} ppm`, color: "#22c55e" },
-    { label: "Avg Turbidity", value: `${(HOUR_DATA.reduce((s, d) => s + d.turbidity, 0) / HOUR_DATA.length).toFixed(2)} NTU`, color: "#eab308" },
-    { label: "Avg pH", value: `${(HOUR_DATA.reduce((s, d) => s + d.ph, 0) / HOUR_DATA.length).toFixed(2)}`, color: "#22c55e" },
+    { label: dataMode === "demo" ? "TDS snapshot" : "Avg TDS (saved)", value: average("tds", 0, " ppm"), color: "#22c55e" },
+    { label: "Peak TDS (saved)", value: peakTds === null ? "—" : `${peakTds.toFixed(0)} ppm`, color: "#22c55e" },
+    { label: dataMode === "demo" ? "Turbidity snapshot" : "Avg Turbidity (saved)", value: average("turbidity", 2, " NTU"), color: "#eab308" },
+    { label: dataMode === "demo" ? "pH snapshot" : "Avg pH (saved)", value: average("ph", 2), color: "#22c55e" },
   ];
 
-  const trends = [
-    { label: "TDS", current: last.tds, previous: prev.tds, unit: "ppm", color: "#22c55e" },
-    { label: "Turbidity", current: last.turbidity, previous: prev.turbidity, unit: "NTU", color: "#eab308" },
-    { label: "pH", current: last.ph, previous: prev.ph, unit: "", color: "#22c55e" },
-  ];
+  const trends = last && previous ? [
+    { label: "TDS", current: last.tds, previous: previous.tds, unit: "ppm", color: "#22c55e" },
+    { label: "Turbidity", current: last.turbidity, previous: previous.turbidity, unit: "NTU", color: "#eab308" },
+    { label: "pH", current: last.ph, previous: previous.ph, unit: "", color: "#22c55e" },
+  ] : [];
 
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div>
         <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Analytics</h2>
-        <p className="text-xs text-muted-foreground tracking-wider">Historical sensor data analysis</p>
+        <p className="text-xs text-muted-foreground tracking-wider">Analysis of saved sensor readings for the selected source</p>
+      </div>
+
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[10px] text-muted-foreground">
+        <span className="font-bold text-amber-400">
+          {dataMode === "hardware" ? `HARDWARE · ${selectedDeviceId || "NO DEVICE SELECTED"}` : "DEMO SIMULATION · ONE SNAPSHOT"}
+        </span>
+        <span className="mx-2">·</span>
+        {dataMode === "hardware"
+          ? "Charts use up to 100 persisted pH, TDS, and turbidity readings; no flow, pressure, or temperature history is stored."
+          : "Demo mode has no historical record. Charts show a single local simulated snapshot."}
       </div>
 
       {/* Stats */}
@@ -109,10 +117,14 @@ export default function Analytics() {
       {/* Live area chart */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold tracking-widest text-primary">LIVE TREND (LAST 30 READINGS)</CardTitle>
+          <CardTitle className="text-sm font-bold tracking-widest text-primary">TDS AND pH — SAVED READINGS</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={200}>
+          {liveData.length === 0 ? (
+            <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">
+              {isLoadingHardwareReadings ? "Loading device history…" : "No readings are available for this source yet."}
+            </div>
+          ) : <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={liveData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
               <defs>
                 <linearGradient id="tdsGrad" x1="0" y1="0" x2="0" y2="1">
@@ -132,25 +144,29 @@ export default function Analytics() {
               <Area type="monotone" dataKey="tds" stroke="#22c55e" fill="url(#tdsGrad)" strokeWidth={2} dot={false} name="TDS (ppm)" />
               <Area type="monotone" dataKey="ph" stroke="#22c55e" fill="url(#phGrad)" strokeWidth={2} dot={false} name="pH" />
             </AreaChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer>}
         </CardContent>
       </Card>
 
-      {/* 1-hour bar chart */}
+      {/* Saved turbidity history */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold tracking-widest text-primary">TURBIDITY — LAST 60 MIN</CardTitle>
+          <CardTitle className="text-sm font-bold tracking-widest text-primary">TURBIDITY — SAVED READINGS</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={HOUR_DATA.filter((_, i) => i % 5 === 0)} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+          {liveData.length === 0 ? (
+            <div className="h-[180px] flex items-center justify-center text-xs text-muted-foreground">
+              {isLoadingHardwareReadings ? "Loading device history…" : "No readings are available for this source yet."}
+            </div>
+          ) : <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={liveData.filter((_, i) => i % Math.max(1, Math.ceil(liveData.length / 12)) === 0)} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.25 0.04 145)" />
               <XAxis dataKey="time" tick={{ fontSize: 9, fill: "oklch(0.55 0.04 145)" }} />
               <YAxis tick={{ fontSize: 9, fill: "oklch(0.55 0.04 145)" }} />
               <Tooltip {...tooltipStyle} />
               <Bar dataKey="turbidity" fill="#eab308" name="Turbidity (NTU)" radius={[3, 3, 0, 0]} />
             </BarChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer>}
         </CardContent>
       </Card>
     </div>
