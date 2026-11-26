@@ -58,7 +58,7 @@ def workbook():
   ('Scope','One supervised non-potable reuse buffer-tank pilot. No customer commitment or booked revenue.'),
  ]:intro.append(row)
  inputs=w.create_sheet('Inputs');inputs.append(['Input','Value','Unit / basis'])
- for row in [('USD to SAR',3.75,'SAMA reference; source SAMA'),('Freight/contingency',0.15,'Budget percentage; not landed-cost quote'),('Annual staffing budget',180000,'SAR assumption, not payroll actual'),('Annual cloud/hosting budget',3600,'SAR assumption; metered costs must be measured'),('One-off engineering budget',30000,'SAR assumption; certification/plant excluded')]:inputs.append(row)
+ for row in [('USD to SAR',3.75,'SAMA reference; source SAMA'),('Freight/contingency',0.15,'Budget percentage; not landed-cost quote'),('Annual staffing budget',180000,'SAR assumption, not payroll actual'),('Annual cloud/hosting budget',3600,'SAR assumption; metered costs must be measured'),('One-off engineering budget',30000,'SAR assumption; certification/plant excluded'),('Variable cloud reserve per station-month',150,'SAR assumption; sample rate, storage, calls and retention need measurement')]:inputs.append(row)
  bom=w.create_sheet('Prototype BOM');bom.append(['Component','Qty','Catalog USD','Estimated SAR/unit','SAR/unit used','SAR extended','Basis / limitation'])
  for i,(label,qty,usd,sar,basis) in enumerate(BOM,2):
   bom.append([label,qty,usd,sar,f'=IF(C{i}="",D{i},C{i}*Inputs!B2)',f'=B{i}*E{i}',basis])
@@ -81,7 +81,7 @@ def workbook():
  ['Total revenue','=SUM(B10:B11)','=SUM(C10:C11)','=SUM(D10:D11)','No revenue earned or committed'],
  ['Build cost',f'=B2*B6*\'Prototype BOM\'!F{totalrow}',f'=C2*C6*\'Prototype BOM\'!F{totalrow}',f'=D2*D6*\'Prototype BOM\'!F{totalrow}','Planning BOM times sensitivity multiplier'],
  ['Commissioning cost','=B2*B7','=C2*C7','=D2*D7','Estimate'],
- ['Service reserve','=B9*B8','=C9*C8','=D9*D8','Estimate'],
+ ['Service + variable cloud reserve','=B9*(B8+Inputs!B7)','=C9*(C8+Inputs!B7)','=D9*(D8+Inputs!B7)','Service assumptions plus per-station cloud reserve; not a vendor quote'],
  ['Staff + cloud + one-off engineering','=SUM(Inputs!B4:B6)','=SUM(Inputs!B4:B6)','=SUM(Inputs!B4:B6)','Explicit fixed budget; not full statutory accounts'],
  ['Total modeled cost','=SUM(B13:B16)','=SUM(C13:C16)','=SUM(D13:D16)','Exclusions remain material'],
  ['Modeled cash contribution','=B12-B17','=C12-C17','=D12-D17','Before tax, finance, collections and excluded costs; not profit or ROI'],
@@ -152,6 +152,7 @@ def document(cache,args):
  h('Technical feasibility')
  p('Preserve the recovered architecture: sensors → Arduino Uno → USB/Python gateway → device-authenticated HTTPS → existing Convex storage/subscriptions → authenticated dashboard. Uno has no assumed native internet. Repository firmware is a disabled scaffold, not recovered historic calibrated firmware. Preserve the owner’s running firmware before any upload.')
  p('Software handles finite/range validation, command expiry, freshness, shared-fleet roles, per-user private history, deterministic emergency/recovery and separate browser Demo state. Remaining technical gates: authorized Auth0 callback correction and real login rehearsal; successful Ethm provider completion; physical conversion/calibration, disconnect diagnostics and output qualification.')
+ p('At the configured one-second sampling cadence, 30 days would produce 2,592,000 records per continuously connected node (arithmetic, not achieved throughput). Storage/index/HTTP/query costs and a retention policy must be measured before a pilot; a free-tier entitlement or a 200-row UI history window is not a retention or capacity guarantee.')
  h('Operational feasibility')
  p('Assign a site utilities engineer, sampling/calibration owner and qualified electrical reviewer. Agree data retention and fault escalation before installation. Begin with reference sampling and observation; use the plant’s existing approved operating procedures. Do not rely on the three parameters for microbiological safety, regulatory compliance or proof of dissolved-solids removal.')
  page();h('Saudi opportunity and customer selection')
@@ -175,9 +176,10 @@ def document(cache,args):
  for row in range(2,len(BOM)+2):rows.append((b.cell(row,1).value,f'{b.cell(row,6).value:,.2f}',b.cell(row,7).value))
  table(['Planning item','SAR','Basis / limitation'],rows)
  total=b.cell(len(BOM)+4,6).value
+ p('The catalog SEN0244 example spans 0–1000 ppm and does not cover the software TDS response threshold above 1500 ppm. It is not qualified for that response rule. Identify the installed probe and obtain a fit-for-range quote before any hardware or treatment claim.')
  p(f'Planning total including 15% freight/contingency allocation: SAR {total:,.2f}. This is an estimate, not a manufacturing quote. Pump/filtration plant, process piping, civil works, certification, VAT and customs are excluded and may materially change feasibility. Exact models, duty cycle, relay polarity and load ratings remain unknown.')
  h('Deployment and recurring cost')
- p('Commissioning budget: SAR900–1,200/station by scenario, excluding plant works. Service reserve: SAR80–150/station/month for maintenance planning, not observed service cost. Annual cloud/hosting allowance SAR3,600 and staffing allowance SAR180,000 are assumptions. Convex currently lists a Free/Starter tier and Professional USD25/developer/month plus usage [CONVEX]; telemetry calls/storage/egress and optional AI need measured budgeting. One-off engineering allowance SAR30,000 excludes certification and plant redesign.')
+ p('Commissioning budget: SAR900–1,200/station by scenario, excluding plant works. Service reserve: SAR80–150/station/month for maintenance planning, not observed service cost. Annual base cloud/hosting allowance SAR3,600, variable cloud reserve SAR150 per station-month and staffing allowance SAR180,000 are assumptions. Convex currently lists a Free/Starter tier and Professional USD25/developer/month plus usage [CONVEX]; telemetry calls/storage/egress and optional AI need measured budgeting. One-off engineering allowance SAR30,000 excludes certification and plant redesign.')
  page();h('Revenue model and pricing hypotheses')
  p('Proposed model: paid site assessment/installation, hardware integration package, monthly station monitoring/support and separately scoped maintenance. Test the customer’s procurement preference before selecting subscription, service contract or integrator licensing. No booked revenue or willingness-to-pay evidence exists. Optional AI must have a quota ceiling and separate approval.')
  p('The editable DWMS-Financial-Model.xlsx contains input, BOM, scenario and source sheets. All numbers below are illustrative year-one sensitivity cases, not a sales forecast, profit statement, ROI or customer saving. They assume immediate collection, no churn, and all stations commissioned at the beginning of the stated billable period; real cash needs can be worse.')

@@ -1,7 +1,7 @@
 {
   "checked_at_utc": "2026-11-26T22:43:20.354391+00:00",
   "deployment": "canny-mosquito-637",
-  "backend_source_commit": "release source follows",
+  "backend_source_commit": "b167a1ec7c8ba36058e1afb6177a3a5d34cfca78",
   "anonymous_access_checks": [
     {
       "operation": "devices:listDevices",

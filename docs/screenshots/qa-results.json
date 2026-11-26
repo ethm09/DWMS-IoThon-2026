@@ -1,6 +1,6 @@
 {
   "url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site",
-  "checked_at_utc": "2026-11-26T21:31:44.586230+00:00",
+  "checked_at_utc": "2026-11-26T22:45:27.216635+00:00",
   "scope": "Signed-out browser UI and local simulation only; no Auth0 login, physical sensor validation, relay actuation, treatment result or load test.",
   "results": [
     {
@@ -37,7 +37,12 @@
         "no browser runtime errors or observed device/mutation writes"
       ],
       "screenshots": [
-        "dashboard-mobile.png"
+        "alerts-warning-390.png",
+        "critical-stop-390.png",
+        "dashboard-390.png",
+        "dashboard-mobile.png",
+        "live-signed-out-390.png",
+        "landing-390.png"
       ],
       "page_errors": [],
       "observed_backend_writes": []
@@ -75,7 +80,9 @@
         "/demo/about: no horizontal overflow",
         "no browser runtime errors or observed device/mutation writes"
       ],
-      "screenshots": [],
+      "screenshots": [
+        "dashboard-430.png"
+      ],
       "page_errors": [],
       "observed_backend_writes": []
     },
@@ -112,7 +119,9 @@
         "/demo/about: no horizontal overflow",
         "no browser runtime errors or observed device/mutation writes"
       ],
-      "screenshots": [],
+      "screenshots": [
+        "dashboard-768.png"
+      ],
       "page_errors": [],
       "observed_backend_writes": []
     },
@@ -149,7 +158,9 @@
         "/demo/about: no horizontal overflow",
         "no browser runtime errors or observed device/mutation writes"
       ],
-      "screenshots": [],
+      "screenshots": [
+        "dashboard-1024.png"
+      ],
       "page_errors": [],
       "observed_backend_writes": []
     },
@@ -188,13 +199,17 @@
         "no browser runtime errors or observed device/mutation writes"
       ],
       "screenshots": [
-        "dashboard-desktop.png"
+        "alerts-warning-1440.png",
+        "critical-stop-1440.png",
+        "dashboard-1440.png",
+        "dashboard-desktop.png",
+        "live-signed-out-1440.png",
+        "landing-1440.png"
       ],
       "page_errors": [],
       "observed_backend_writes": []
     }
   ],
-  "source_commit": "62d673231621eb231ef430f6971c75aeb93d5dfc",
-  "sites_version": 6,
-  "retained_capture_scope": "Final desktop/mobile aliases retained; other test captures remain execution artifacts."
+  "site_version": 7,
+  "application_source_commit": "b167a1ec7c8ba36058e1afb6177a3a5d34cfca78"
 }

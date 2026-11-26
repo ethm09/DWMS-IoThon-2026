@@ -1,0 +1,83 @@
+{
+  "checked_at_utc": "2026-11-26T22:48:36.300819+00:00",
+  "application_and_backend_source": "b167a1ec7c8ba36058e1afb6177a3a5d34cfca78",
+  "public_site_version": 7,
+  "demo_url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo",
+  "live_url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/live",
+  "ci": {
+    "status": "success",
+    "run_url": "https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45906623386",
+    "uno_artifact_id": 15157413862
+  },
+  "executed_checks": {
+    "node_tests": 47,
+    "python_tests": 20,
+    "isolated_backend_checkpoints": 10,
+    "production_anonymous_denials": 7,
+    "host_controller_harness": "passed, I/O fakes",
+    "arduino_uno": "compiled with both safety gates zero",
+    "lint": "passed",
+    "build": "passed, existing large-chunk warning"
+  },
+  "browser": [
+    {
+      "width": 390,
+      "checks": 28,
+      "status": "passed"
+    },
+    {
+      "width": 430,
+      "checks": 28,
+      "status": "passed"
+    },
+    {
+      "width": 768,
+      "checks": 28,
+      "status": "passed"
+    },
+    {
+      "width": 1024,
+      "checks": 28,
+      "status": "passed"
+    },
+    {
+      "width": 1440,
+      "checks": 29,
+      "status": "passed"
+    }
+  ],
+  "video": {
+    "scope": "Loopback-only preview of edited visual master, actual Chromium decode/playback; not narrated or physical footage.",
+    "result": {
+      "width": 1920,
+      "height": 1080,
+      "duration": 96,
+      "currentTime": 1.691646,
+      "readyState": 4,
+      "error": null
+    }
+  },
+  "recording_original_sha256": "1cec6afdaa4ab585192358730fa19196cc5fa80c58c54d479b7851937379200a",
+  "finance": {
+    "currency": "SAR",
+    "basis": "Illustrative editable assumptions, catalog examples, no actual invoices/revenue",
+    "formula_errors": 0,
+    "scenario_arithmetic_reconciled": true
+  },
+  "blocked": {
+    "auth0": "403 callback mismatch; authorized tenant administration unavailable; no blind device flow repeated",
+    "ethm": "real model diagnostic returned credit_balance_exhausted; no successful AI answer",
+    "narration": "authorized AI voice service not connected; no voice MP3 or narrated final",
+    "portal": "HTTP 200 sign-in wall; exact limits, deadline and judging criteria unverified",
+    "hardware": "unavailable, original calibrated sketch not found; relay disabled and flow demo-only"
+  },
+  "readiness": {
+    "software": "verified within stated software scope",
+    "public_demo": "published and simulation verified",
+    "authentication_live": "blocked",
+    "ethm": "blocked",
+    "hardware": "software compile/protocol only; physical commissioning pending",
+    "competition_submission": "hold for account/media/portal gates and owner approval",
+    "commercial_pilot": "not commissioned; customer, specifications, quotes and acceptance pending"
+  }
+}
