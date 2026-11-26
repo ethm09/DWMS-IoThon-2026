@@ -119,7 +119,7 @@ export default function WaterProcessSchematic({ demo, connected, pumpOn, emergen
       <path d={waterPath} fill="none" stroke={emergency ? "#B6C9D5" : CYAN} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
       {demo && pumpOn && !emergency && <path d={waterPath} className="dwms-process-flow" fill="none" stroke="white" strokeWidth="2" strokeDasharray="4 13" strokeLinecap="round" />}
       <path d={telemetryPath} fill="none" stroke={telemetryColor} strokeWidth="1.5" strokeDasharray="4 4" strokeLinejoin="round" markerEnd={`url(#${diagramId}-arrow)`} />
-      {!mobile && <><text x="527" y="49" fill={MUTED} fontSize="11">USB bridge / authenticated HTTPS</text><text x="419" y="129" fill={MUTED} fontSize="10">relay</text><text x="715" y="211" fill={MUTED} fontSize="10">conceptual outlet</text></>}
+      {!mobile && <><text x="527" y="49" fill={MUTED} fontSize="11">USB bridge / authenticated HTTPS</text><text x="715" y="211" fill={MUTED} fontSize="10">conceptual outlet</text></>}
       {NODES.map((node) => {
         const position = positions[node];
         const active = selected === node;

@@ -25,7 +25,7 @@ export function LiveAccessState({
   const message = pending
     ? "Checking access. No device values are loaded."
     : !isConfigured
-      ? "Live monitoring is not configured on this deployment. No device values are loaded."
+      ? "Live sign-in is temporarily unavailable. No device values are loaded."
       : !isAuthenticated
         ? "Sign in to inspect device records. No device values are loaded."
         : !user
@@ -60,19 +60,20 @@ export function LiveAccessState({
           </dl>
         </CardContent>
       </Card>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {["pH", "TDS", "Turbidity"].map((label) => (
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {["pH", "TDS", "Turbidity", "Flow"].map((label) => (
           <Card key={label}>
             <CardContent className="space-y-2 py-5">
               <p className="text-sm text-muted-foreground">{label}</p>
               <p className="font-mono text-3xl">—</p>
-              <p className="text-sm text-muted-foreground">Unknown</p>
+              <p className="text-sm text-muted-foreground">{label === "Flow" ? "Interface unverified" : "Unknown"}</p>
             </CardContent>
           </Card>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-4">
         {!isAuthenticated && isConfigured && <SignInButton />}
+        {isAuthenticated && !user && !pending && <Link to="/auth/callback" className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline">Complete account setup</Link>}
         <Link
           to="/demo"
           onClick={() => setDataMode("demo")}

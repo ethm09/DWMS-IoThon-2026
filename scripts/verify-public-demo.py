@@ -134,6 +134,11 @@ def verify_viewport(browser, options, width):
         expect(page.locator("main")).to_contain_text("8.0")
         checks.append("device readings match the warning scenario")
 
+        navigate("/demo/assistant")
+        expect(page.locator("main")).to_contain_text("650")
+        expect(page.locator("main")).to_contain_text("No AI model or production records")
+        checks.append("Ethm demo context uses scenario values without a model or live records")
+
         navigate("/demo/sites")
         expect(page.locator("main")).to_contain_text("Warning")
         expect(page.locator("main")).to_contain_text("Auto · pump OFF")
@@ -144,6 +149,9 @@ def verify_viewport(browser, options, width):
         scenario("response").click()
         expect(page.get_by_role("button", name="Pump response. PUMP ON", exact=True)).to_be_visible()
         checks.append("response scenario requests simulated pump ON")
+        page.get_by_role("button", name="Arduino controller. Select for component details", exact=True).press("Enter")
+        expect(page.locator("summary").filter(has_text="Arduino controller")).to_be_visible()
+        checks.append("interactive engineering schematic responds to keyboard input")
 
         scenario("critical").click()
         expect(page.get_by_text("Emergency stop latched · pump OFF", exact=True)).to_be_visible()
@@ -196,6 +204,10 @@ def verify_viewport(browser, options, width):
         no_overflow("landing page")
         if width in (390, 1440):
             capture("landing", full_page=True)
+        for route in ("/demo/rules", "/demo/about"):
+            page.goto(options.url + route, wait_until="domcontentloaded")
+            expect(page.locator("main h1")).to_be_visible()
+            no_overflow(route)
         assert not errors, f"Browser runtime errors: {errors}"
         assert not backend_writes, f"Demo emitted backend mutation/ingestion traffic: {backend_writes}"
         checks.append("no browser runtime errors or observed device/mutation writes")

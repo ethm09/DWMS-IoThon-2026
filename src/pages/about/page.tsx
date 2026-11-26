@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { WorkspaceLink as Link } from "@/components/workspace-link";
 export default function About() {
   return <div className="p-4 md:p-6 space-y-4 max-w-3xl">
     <h1 className="text-xl font-bold">DWMS · IoThon 2026</h1>
