@@ -1,4 +1,4 @@
-const CACHE_NAME = "dwms-v4";
+const CACHE_NAME = "dwms-v5";
 const urlsToCache = ["/", "/brand/mark.svg"];
 
 // Install event - cache core assets

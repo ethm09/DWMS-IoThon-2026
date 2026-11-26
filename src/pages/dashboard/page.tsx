@@ -99,8 +99,7 @@ function DemoControlPanel() {
 }
 
 function AssistantPanel({ demo = false }: { demo?: boolean }) {
-  if (demo) return <details className="rounded-lg border border-border bg-card px-4 py-3 text-xs text-muted-foreground"><summary className="cursor-pointer">Ethm <span className="ml-1 text-xs">· offline</span></summary><p className="mt-2 leading-relaxed">Optional explanations need authenticated device data and a configured AI service. Deterministic monitoring rules work independently.</p></details>;
-  return <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3 text-xs"><span className="text-muted-foreground">Ethm · explanations</span><Link className="text-primary hover:underline" to="/ai-decision">Open assistant →</Link></div>;
+  return <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm"><span className="text-muted-foreground">Ethm · {demo ? "scenario context" : "AI explanations"}</span><Link className="inline-flex min-h-10 items-center text-primary hover:underline" to="/ai-decision">{demo ? "Open context" : "Open assistant"}</Link></div>;
 }
 
 function DemoDashboard() {

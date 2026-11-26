@@ -35,7 +35,8 @@ export const verifyConnection = internalAction({
       return { available: text === "DWMS_CONNECTIVITY_OK", model, reason: text === "DWMS_CONNECTIVITY_OK" ? "completion_received" : "unexpected_response" };
     } catch (error) {
       const status = error instanceof OpenAI.APIError ? error.status : undefined;
-      return { available: false, model, reason: status === 401 ? "provider_authentication_failed" : status === 429 ? "provider_quota_or_rate_limit" : "provider_request_failed" };
+      const quotaExhausted = error instanceof OpenAI.APIError && error.code === "insufficient_quota";
+      return { available: false, model, reason: quotaExhausted ? "provider_quota_exhausted" : status === 401 ? "provider_authentication_failed" : status === 429 ? "provider_rate_limit" : "provider_request_failed" };
     }
   },
 });
