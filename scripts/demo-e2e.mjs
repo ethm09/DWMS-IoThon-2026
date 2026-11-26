@@ -34,6 +34,8 @@ env.NO_COLOR = "1";
 let backend;
 let publicClient;
 let operatorClient;
+let administratorClient;
+let viewerClient;
 let logs = "";
 let config;
 let cloudUrl;
@@ -257,11 +259,34 @@ try {
     tokenIdentifier: "https://dwms-e2e.invalid|synthetic-operator",
     name: "SIMULATED TEST OPERATOR",
   };
+  const administratorIdentity = {
+    ...identity,
+    subject: "synthetic-administrator",
+    tokenIdentifier: "https://dwms-e2e.invalid|synthetic-administrator",
+    name: "SIMULATED TEST ADMINISTRATOR",
+  };
+  const viewerIdentity = {
+    ...identity,
+    subject: "synthetic-viewer",
+    tokenIdentifier: "https://dwms-e2e.invalid|synthetic-viewer",
+    name: "SIMULATED TEST VIEWER",
+  };
   await importFixture("users", [
     {
       tokenIdentifier: identity.tokenIdentifier,
       name: identity.name,
       role: "operator",
+    },
+    {
+      tokenIdentifier: administratorIdentity.tokenIdentifier,
+      name: administratorIdentity.name,
+      role: "admin",
+    },
+    {
+      tokenIdentifier: viewerIdentity.tokenIdentifier,
+      name: viewerIdentity.name,
+      role: "viewer",
+      fleetAccess: false,
     },
   ]);
   await importFixture(
@@ -276,6 +301,10 @@ try {
   );
   operatorClient = new ConvexClient(cloudUrl, { logger: false });
   operatorClient.setAdminAuth(config.adminKey, identity);
+  administratorClient = new ConvexClient(cloudUrl, { logger: false });
+  administratorClient.setAdminAuth(config.adminKey, administratorIdentity);
+  viewerClient = new ConvexClient(cloudUrl, { logger: false });
+  viewerClient.setAdminAuth(config.adminKey, viewerIdentity);
   const observations = [];
   const unsubscribe = operatorClient.onUpdate(
     api.devices.getLatestReading,
@@ -302,6 +331,66 @@ try {
       /UNAUTHENTICATED|not authenticated|not logged in|sign in/i,
     );
   }
+  const fleetReads = [
+    [api.devices.listDevices, {}],
+    [api.devices.getLatestReading, { deviceId }],
+    [api.devices.getRecentReadings, { deviceId, limit: 200 }],
+    [api.devices.getControlState, { deviceId }],
+  ];
+  async function assertViewerCannotControl() {
+    for (const [fn, args] of [
+      [api.devices.setDevicePump, { deviceId, pumpOn: false }],
+      [api.devices.setDeviceControlMode, { deviceId, mode: "emergency" }],
+      [api.devices.acknowledgeDeviceEmergency, { deviceId }],
+    ]) {
+      await assert.rejects(
+        viewerClient.mutation(fn, args),
+        /FORBIDDEN|Operator access required/i,
+      );
+    }
+  }
+  for (const [fn, args] of fleetReads) {
+    await assert.rejects(
+      viewerClient.query(fn, args),
+      /FORBIDDEN|administrator must approve/i,
+    );
+  }
+  await assertViewerCannotControl();
+  const users = await administratorClient.query(api.users.listAllUsers, {});
+  const syntheticViewer = users.find(
+    (user) => user.tokenIdentifier === viewerIdentity.tokenIdentifier,
+  );
+  assert.ok(syntheticViewer?._id);
+  // Approval changes are restricted to this disposable loopback deployment.
+  await guardLocalWrites();
+  for (const deniedClient of [viewerClient, operatorClient]) {
+    await assert.rejects(
+      deniedClient.mutation(api.users.updateUserFleetAccess, {
+        userId: syntheticViewer._id,
+        fleetAccess: true,
+      }),
+      /FORBIDDEN|Admin access required/i,
+    );
+  }
+  await administratorClient.mutation(api.users.updateUserFleetAccess, {
+    userId: syntheticViewer._id,
+    fleetAccess: true,
+  });
+  for (const [fn, args] of fleetReads) await viewerClient.query(fn, args);
+  const viewerRegistry = await viewerClient.query(api.devices.listDevices, {});
+  assert.equal(viewerRegistry[0].apiKey, undefined);
+  await assertViewerCannotControl();
+  await administratorClient.mutation(api.users.updateUserFleetAccess, {
+    userId: syntheticViewer._id,
+    fleetAccess: false,
+  });
+  for (const [fn, args] of fleetReads) {
+    await assert.rejects(
+      viewerClient.query(fn, args),
+      /FORBIDDEN|administrator must approve/i,
+    );
+  }
+  await assertViewerCannotControl();
   await post(
     "/arduino/data",
     { ph: 7.2, tds: 300, turbidity: 2 },
@@ -329,7 +418,7 @@ try {
     null,
   );
   passed(
-    "real HTTP rejects malformed/missing/boolean readings and wrong credentials; guest live-data reads and control rejected",
+    "real HTTP rejects invalid data/credentials; guest reads denied; administrator grants/revokes viewer reads while viewer controls stay denied",
   );
 
   async function sample(reading) {
@@ -510,6 +599,8 @@ try {
 } finally {
   await publicClient?.close();
   await operatorClient?.close();
+  await administratorClient?.close();
+  await viewerClient?.close();
   if (backend?.pid && backend.exitCode === null) {
     try {
       process.kill(-backend.pid, "SIGINT");

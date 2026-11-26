@@ -2,7 +2,7 @@
 
 **DWMS · Water Intelligence — Monitor. Detect. Respond.**
 
-DWMS gives an operator one view of three water-quality readings, data age, threshold alerts and traceable response. Its competition strength is a focused, reproducible monitoring-to-response prototype. Evidence belongs in [VALIDATION.md](VALIDATION.md), English form content in [the submission draft](../deliverables/IoThon-Submission.md), and video shots in [the storyboard](../deliverables/Demo-Video-Storyboard.md).
+DWMS combines **Live**, **Demo**, **Hardware** and **Ethm** around three water-quality readings, data age, alerts and traceable response. Its strength is a focused, reproducible workflow; Ethm explains evidence without controlling outputs. Evidence belongs in [VALIDATION.md](VALIDATION.md), English content in [the submission draft](../deliverables/IoThon-Submission.md), and shots in [the storyboard](../deliverables/Demo-Video-Storyboard.md).
 
 ## First proposed pilot
 
@@ -26,7 +26,7 @@ Sources checked 2026-11-26. This is a category comparison, not hands-on product 
 3. Rule-based response, latched stop and explicit recovered acknowledgement.
 4. Visible stale/unknown state, command expiry/ACK and local communication lease.
 5. Registered sites and independent device history; physical fleet capacity unproven.
-6. Reproducible bridge/backend/controller software path; calibrated physical integration remains gated. Flow is demo-only.
+6. Reproducible bridge/backend/controller software path; recover and audit the owner-reported earlier prototype before claiming current physical results. Flow is demo-only.
 
 ## Feasibility and pitch outline
 

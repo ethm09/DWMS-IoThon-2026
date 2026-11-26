@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
-import { Link, useLocation } from "react-router-dom";
+import { useQuery } from "convex/react";
+import { useLocation } from "react-router-dom";
+import { WorkspaceLink as Link } from "@/components/workspace-link";
+import LiveAccessState from "@/components/live-access-state";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { AlertTriangle, ArrowRight, Cloud, Cpu, Droplets, FlaskConical, Gauge, Power, RotateCcw, Waves } from "lucide-react";
+import { AlertTriangle, Droplets, FlaskConical, Gauge, Power, RotateCcw, Waves } from "lucide-react";
 import { api } from "@/convex/_generated/api.js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import WaterProcessSchematic from "@/components/water-process-schematic";
 import HardwareControlPanel from "@/components/hardware-control-panel.tsx";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { useDemo } from "@/hooks/use-demo";
@@ -79,27 +82,6 @@ function Trends({ history, demo = false }: { history: HistoryPoint[]; demo?: boo
   </Card>;
 }
 
-const SYSTEM_NODES = [
-  { label: "Water source", icon: Waves, description: "A sample from a network, reservoir or treated-water reuse point. Site-specific sampling and sensor calibration are required." },
-  { label: "Sensors", icon: FlaskConical, description: "pH, TDS and turbidity probes feed the controller. Flow is an example value in the simulation; the included hardware has no flow sensor." },
-  { label: "Controller", icon: Cpu, description: "Arduino Uno reads calibrated sensor channels and enforces a local stop interlock. USB serial and a Python HTTPS bridge carry telemetry and commands to Convex." },
-  { label: "Response system", icon: Power, description: "A relay requests the configured pump or filtration response. Critical readings latch a stop. Software acknowledgement does not prove physical pump motion or treatment effectiveness." },
-  { label: "Cloud platform", icon: Cloud, description: "Convex validates and records per-device readings, applies deterministic rules and updates this dashboard. AI explanations remain outside the safety loop." },
-];
-function SystemView({ demo, connected, pumpOn, emergency }: { demo: boolean; connected: boolean; pumpOn: boolean | null; emergency: boolean }) {
-  const [selected, setSelected] = useState(3);
-  return <Card id="process" className="gap-3 scroll-mt-24 shadow-none">
-    <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 px-4 pb-0"><CardTitle className="text-sm">Live system visualization</CardTitle><span className="text-xs text-muted-foreground">{demo ? "Interactive schematic" : connected ? "Recent telemetry" : "Awaiting telemetry"}</span></CardHeader>
-    <CardContent className="px-4 pb-4">
-      <div className="grid min-w-0 grid-cols-3 gap-2 sm:grid-cols-5">
-        {SYSTEM_NODES.map((node, index) => <button key={node.label} type="button" aria-pressed={selected === index} onClick={() => setSelected(index)} className={`relative flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center transition-colors ${selected === index ? "border-primary/40 bg-primary/8 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/30"}`}><node.icon className={`h-6 w-6 ${index === 3 && pumpOn ? "animate-pulse text-primary" : ""}`} /><span className="text-xs font-medium leading-tight">{node.label}</span>{index === 3 && <span className={`max-w-full text-xs font-semibold leading-tight ${emergency ? "text-red-600" : "text-primary"}`}>{emergency ? "STOP LATCHED" : pumpOn === null ? "UNKNOWN" : pumpOn ? "PUMP ON" : "PUMP OFF"}</span>}{index < SYSTEM_NODES.length - 1 && <ArrowRight className="absolute -right-2 z-10 hidden h-3 w-3 bg-card text-muted-foreground sm:block" />}</button>)}
-      </div>
-      <details className="mt-3 rounded-lg bg-muted/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground"><summary className="cursor-pointer font-medium text-foreground">About {SYSTEM_NODES[selected].label.toLowerCase()}</summary><p className="mt-2">{SYSTEM_NODES[selected].description}</p></details>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs"><span className="text-muted-foreground">Telemetry: sensors → Arduino → USB bridge → Convex</span><span className="text-muted-foreground">{demo ? "Example response · no hardware actions" : "Relay state is controller reported"}</span></div>
-    </CardContent>
-  </Card>;
-}
-
 function DemoControlPanel() {
   const { state, acknowledgeRecovery, setResponseMode, setManualPump, triggerEmergency } = useDemo();
   const { response, readings } = state;
@@ -131,7 +113,7 @@ function DemoDashboard() {
     <div role="status" className={`flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5 ${STATUS[severity].className}`}><div className="flex min-w-0 items-center gap-2">{severity === "safe" ? <Droplets className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}<p className="text-sm font-semibold">{state.response.emergencyLatched ? "Emergency stop latched · pump OFF" : quality === "safe" ? "Parameters within prototype limits" : quality === "warning" ? "Warning · investigate readings" : "Critical · immediate response required"}</p></div><Link className="text-xs font-medium underline underline-offset-2" to="/alerts">{activeAlerts.length} active alerts</Link></div>
     <SensorReadings reading={state.readings} freshness="fresh" history={state.history} demo />
     <div className="rounded-lg border border-border bg-card p-3"><div className="mb-2 flex items-center justify-between"><p className="text-xs font-medium">Demo scenario</p><button type="button" onClick={resetDemo} className="flex min-h-8 items-center gap-1 text-xs text-muted-foreground hover:text-primary"><RotateCcw className="h-3 w-3" />Reset demo</button></div><div className="grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="Demo scenarios">{(Object.keys(DEMO_SCENARIOS) as DemoScenario[]).map((key) => <Button key={key} className="h-10 min-w-0 px-1 text-xs" size="sm" variant={state.scenario === key ? "default" : "outline"} onClick={() => applyScenario(key)} aria-pressed={state.scenario === key}>{DEMO_SCENARIOS[key].label}</Button>)}</div></div>
-    <div className="grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_280px]"><div className="min-w-0 space-y-3"><SystemView demo connected pumpOn={state.response.pumpOn} emergency={state.response.emergencyLatched} /><Trends history={state.history} demo /></div><div className="min-w-0 space-y-3"><DemoControlPanel /><Card className="gap-3 shadow-none"><CardHeader className="px-4 pb-0"><CardTitle className="text-sm">Recent activity</CardTitle></CardHeader><CardContent className="space-y-3 px-4 pb-4">{state.events.slice(0, 2).map((event) => <div key={event.id} className="border-l-2 border-primary/20 pl-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{event.type}</p><time className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{event.message}</p></div>)}</CardContent></Card><AssistantPanel demo /></div></div>
+    <div className="grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_280px]"><div className="min-w-0 space-y-3"><WaterProcessSchematic demo connected pumpOn={state.response.pumpOn} emergency={state.response.emergencyLatched} reading={state.readings} history={state.history} mode={state.response.mode} /><Trends history={state.history} demo /></div><div className="min-w-0 space-y-3"><DemoControlPanel /><Card className="gap-3 shadow-none"><CardHeader className="px-4 pb-0"><CardTitle className="text-sm">Recent activity</CardTitle></CardHeader><CardContent className="space-y-3 px-4 pb-4">{state.events.slice(0, 2).map((event) => <div key={event.id} className="border-l-2 border-primary/20 pl-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{event.type}</p><time className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{event.message}</p></div>)}</CardContent></Card><AssistantPanel demo /></div></div>
   </div>;
 }
 
@@ -156,23 +138,18 @@ function HardwareDashboard() {
     <div role="status" className={`flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-3 ${STATUS[quality].className}`}><div><p className="text-sm font-semibold">{quality === "safe" ? "Water parameters within prototype limits" : quality === "unknown" ? "Unknown · check device connection" : quality === "warning" ? "Warning · investigate readings" : "Critical · respond now"}</p><p className="mt-0.5 text-xs opacity-80">{decision?.reason ?? "Restore telemetry and verify sensors before starting equipment."}</p></div><span className="text-xs">{currentFreshness.toUpperCase()}{age !== null && Number.isFinite(age) ? ` · ${age}s since receipt` : ""}</span></div>
     <SensorReadings reading={latest} freshness={currentFreshness} history={history} />
     {currentFreshness !== "fresh" && latest && <p className="text-xs text-muted-foreground">Displayed values are historical. Current quality is unknown.</p>}
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"><div className="min-w-0 space-y-4"><SystemView demo={false} connected={currentFreshness === "fresh"} pumpOn={currentFreshness === "fresh" ? control?.reportedPumpState ?? null : null} emergency={control?.mode === "emergency"} /><Trends history={history} /></div><div className="space-y-4"><HardwareControlPanel /><AssistantPanel /></div></div>
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"><div className="min-w-0 space-y-4"><WaterProcessSchematic demo={false} connected={currentFreshness === "fresh"} pumpOn={currentFreshness === "fresh" ? control?.reportedPumpState ?? null : null} emergency={control?.mode === "emergency"} reading={latest} history={history} mode={control?.mode} /><Trends history={history} /></div><div className="space-y-4"><HardwareControlPanel /><AssistantPanel /></div></div>
   </div>;
 }
 
 export default function Dashboard() {
-  const { dataMode, setDataMode } = useProcessMode();
+  const { dataMode } = useProcessMode();
   const { hash } = useLocation();
-  const { isAuthenticated, isLoading } = useConvexAuth();
-  const hardwareView = isAuthenticated && dataMode === "hardware";
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated && dataMode === "hardware") setDataMode("demo");
-  }, [isLoading, isAuthenticated, dataMode, setDataMode]);
   useEffect(() => {
     if (hash === "#process") document.getElementById("process")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [hash, dataMode]);
   return <div className="mx-auto min-w-0 max-w-7xl space-y-4 p-3 sm:p-4 lg:p-6">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-semibold tracking-tight">Water quality overview</h1><p className="mt-1 text-xs text-muted-foreground">Readings, alerts and operational response across your water system.</p></div>{isAuthenticated && <div className="inline-flex rounded-lg border border-border bg-card p-1" aria-label="Data mode"><Button size="sm" variant={!hardwareView ? "default" : "ghost"} onClick={() => setDataMode("demo")} aria-pressed={!hardwareView}>Local demo</Button>{isAuthenticated && <Button size="sm" variant={hardwareView ? "default" : "ghost"} onClick={() => setDataMode("hardware")} aria-pressed={hardwareView}>Device data</Button>}</div>}</div>
-    {hardwareView ? <HardwareDashboard /> : <DemoDashboard />}
+    <div><h1 className="text-xl font-semibold tracking-tight">Water quality overview</h1><p className="mt-1 text-xs text-muted-foreground">Readings, alerts and operational response across your water system.</p></div>
+    {dataMode === "hardware" ? <LiveAccessState title="Live monitoring"><HardwareDashboard /></LiveAccessState> : <DemoDashboard />}
   </div>;
 }

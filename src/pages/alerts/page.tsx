@@ -1,5 +1,6 @@
+import { LiveAccessState } from "@/components/live-access-state";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { WorkspaceLink as Link } from "@/components/workspace-link";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { AlertTriangle, Bell } from "lucide-react";
 import { toast } from "sonner";
@@ -19,14 +20,22 @@ import {
 
 type AlertLevel = "critical" | "warning" | "info";
 const colors = {
-  critical: "text-red-400",
-  warning: "text-amber-400",
-  info: "text-cyan-400",
+  critical: "text-red-700",
+  warning: "text-amber-700",
+  info: "text-cyan-700",
 };
 
 function DeviceAlerts() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { selectedDeviceId } = useProcessMode();
+  const { selectedDeviceId, setSelectedDeviceId } = useProcessMode();
+  const devices = useQuery(api.devices.listDevices, {});
+  useEffect(() => {
+    if (
+      devices?.length &&
+      !devices.some((device) => device.deviceId === selectedDeviceId)
+    )
+      setSelectedDeviceId(devices[0].deviceId);
+  }, [devices, selectedDeviceId, setSelectedDeviceId]);
   const [filter, setFilter] = useState<AlertLevel | "all">("all");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -47,7 +56,12 @@ function DeviceAlerts() {
   const dismissAllNotifications = useMutation(api.notifications.dismissAll);
   const timestamp = reading ? Date.parse(reading.timestamp) : NaN;
   const age = now - timestamp;
-  const fresh = Number.isFinite(age) && age >= 0 && age <= 10_000;
+  const fresh =
+    Number.isFinite(age) &&
+    age >= 0 &&
+    age <= 10_000 &&
+    devices?.find((device) => device.deviceId === selectedDeviceId)?.status ===
+      "online";
   const levels =
     reading && fresh
       ? [
@@ -100,11 +114,11 @@ function DeviceAlerts() {
       <p className="text-sm text-muted-foreground">
         The{" "}
         <Link to="/dashboard" className="text-primary underline">
-          dashboard demo
+          monitoring
         </Link>{" "}
-        is local and does not create saved alerts. This feed contains your
-        account's notifications across devices; each event retains its original
-        time and message.
+        shows the selected device. This feed contains your account's
+        notifications across devices; each event retains its original time and
+        message.
       </p>
       {isLoading ? (
         <p>Loading session…</p>
@@ -133,7 +147,7 @@ function DeviceAlerts() {
                       ? colors.critical
                       : levels.includes("warning")
                         ? colors.warning
-                        : "text-green-400"
+                        : "text-emerald-700"
                 }
               >
                 {status}
@@ -355,9 +369,11 @@ function DemoAlerts() {
 export default function Alerts() {
   const { dataMode } = useProcessMode();
   const { isAuthenticated } = useConvexAuth();
-  return dataMode === "hardware" && isAuthenticated ? (
-    <DeviceAlerts />
-  ) : (
+  return dataMode === "demo" ? (
     <DemoAlerts />
+  ) : (
+    <LiveAccessState title="Live alerts">
+      <DeviceAlerts />
+    </LiveAccessState>
   );
 }

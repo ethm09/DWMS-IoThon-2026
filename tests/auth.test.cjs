@@ -106,6 +106,7 @@ test("registration rejects guests and never makes the first unconfigured account
     const f = fixture(identity("first", "First@Example.com"));
     await f.invoke("updateCurrentUser");
     assert.equal(f.rows[0].role, "viewer");
+    assert.equal(f.rows[0].fleetAccess, false);
     assert.equal(f.rows[0].email, "first@example.com");
   });
 });
@@ -262,5 +263,46 @@ test("legacy assistant proposal and claim handlers cannot write hardware or revi
       userId: "user",
     }),
     hasCode("READ_ONLY_ASSISTANT"),
+  );
+});
+
+test("fleet read approval requires administrator action and can be revoked without changing viewer role", async () => {
+  const rows = [
+    { _id: "admin", tokenIdentifier: "admin", role: "admin" },
+    { _id: "operator", tokenIdentifier: "operator", role: "operator" },
+    { _id: "viewer", tokenIdentifier: "viewer", role: "viewer" },
+  ];
+  for (const role of ["viewer", "operator"]) {
+    await assert.rejects(
+      fixture(identity(role), rows).invoke("updateUserFleetAccess", {
+        userId: "viewer",
+        fleetAccess: true,
+      }),
+      hasCode("FORBIDDEN"),
+    );
+  }
+  const f = fixture(identity("admin"), rows);
+  await f.invoke("updateUserFleetAccess", {
+    userId: "viewer",
+    fleetAccess: true,
+  });
+  assert.equal(users.hasFleetAccess(f.rows[2]), true);
+  assert.equal(f.rows[2].role, "viewer");
+  await f.invoke("updateUserFleetAccess", {
+    userId: "viewer",
+    fleetAccess: false,
+  });
+  assert.equal(users.hasFleetAccess(f.rows[2]), false);
+  assert.equal(users.hasFleetAccess({ role: "viewer" }), false);
+  assert.equal(
+    users.hasFleetAccess({ role: "operator", fleetAccess: false }),
+    true,
+  );
+  await assert.rejects(
+    f.invoke("updateUserFleetAccess", {
+      userId: "operator",
+      fleetAccess: false,
+    }),
+    hasCode("BAD_REQUEST"),
   );
 });

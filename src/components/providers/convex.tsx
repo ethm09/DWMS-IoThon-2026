@@ -1,7 +1,7 @@
 import { ConvexProviderWithAuth0 } from "convex/react-auth0";
 import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import { useMemo } from "react";
-import { auth0Configured } from "@/lib/auth-config.ts";
+import { useAuth } from "@/hooks/use-auth";
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL?.trim() || "http://localhost:3000";
 const convex = new ConvexReactClient(convexUrl);
@@ -18,7 +18,8 @@ function useUnauthenticatedAuth() {
 }
 
 export function ConvexProvider({ children }: { children: React.ReactNode }) {
-  if (auth0Configured) {
+  const { isConfigured } = useAuth();
+  if (isConfigured) {
     return (
       <ConvexProviderWithAuth0 client={convex}>
         {children}

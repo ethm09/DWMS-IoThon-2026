@@ -1,3 +1,4 @@
+import { LiveAccessState } from "@/components/live-access-state";
 import { useEffect, useState } from "react";
 import {
   Authenticated,
@@ -6,12 +7,13 @@ import {
   useQuery,
   useConvexAuth,
 } from "convex/react";
-import { Link } from "react-router-dom";
+import { WorkspaceLink as Link } from "@/components/workspace-link";
 import {
   CartesianGrid,
   Line,
   LineChart,
   ResponsiveContainer,
+  ReferenceLine,
   Tooltip,
   XAxis,
   YAxis,
@@ -30,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { THRESHOLDS } from "@/lib/dwms-safety";
 const METRICS = {
   ph: { label: "pH", unit: "pH", color: "#8D62AE" },
   tds: { label: "TDS", unit: "ppm", color: "#168A70" },
@@ -42,12 +45,17 @@ function HistoryInner() {
   const { selectedDeviceId, setSelectedDeviceId } = useProcessMode();
   const devices = useQuery(api.devices.listDevices, {});
   const [metric, setMetric] = useState<Metric>("ph");
+  const [range, setRange] = useState("all");
   const [now, setNow] = useState(Date.now);
   const deviceId = devices?.some(
     (device) => device.deviceId === selectedDeviceId,
   )
     ? selectedDeviceId
     : devices?.[0]?.deviceId;
+  useEffect(() => {
+    if (deviceId && deviceId !== selectedDeviceId)
+      setSelectedDeviceId(deviceId);
+  }, [deviceId, selectedDeviceId, setSelectedDeviceId]);
   const readings = useQuery(
     api.devices.getRecentReadings,
     deviceId ? { deviceId, limit: 200 } : "skip",
@@ -58,18 +66,34 @@ function HistoryInner() {
   }, []);
 
   const config = METRICS[metric];
-  const history =
-    readings
-      ?.slice()
-      .reverse()
-      .map((reading) => ({
-        ...reading,
-        receivedAt: Date.parse(reading.timestamp),
-      })) ?? [];
+  const normalLimit =
+    metric === "ph"
+      ? THRESHOLDS.ph.safe.max
+      : metric === "tds"
+        ? THRESHOLDS.tds.safe.max
+        : THRESHOLDS.turbidity.safe.max;
+  const visibleReadings = (readings ?? []).filter(
+    (reading) =>
+      range === "all" ||
+      (now - Date.parse(reading.timestamp) >= 0 &&
+        now - Date.parse(reading.timestamp) <= Number(range)),
+  );
+  const history = visibleReadings
+    .slice()
+    .reverse()
+    .map((reading) => ({
+      ...reading,
+      receivedAt: Date.parse(reading.timestamp),
+    }));
   const latest = readings?.[0];
   const age = latest ? now - Date.parse(latest.timestamp) : null;
   const fresh =
-    age !== null && Number.isFinite(age) && age >= 0 && age <= 10_000;
+    age !== null &&
+    Number.isFinite(age) &&
+    age >= 0 &&
+    age <= 10_000 &&
+    devices?.find((device) => device.deviceId === deviceId)?.status ===
+      "online";
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
@@ -104,6 +128,19 @@ function HistoryInner() {
                     {device.name} · {device.location || device.deviceId}
                   </option>
                 ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm">
+              Time window
+              <select
+                className={selectClass}
+                value={range}
+                onChange={(event) => setRange(event.target.value)}
+              >
+                <option value="all">All 200 recent</option>
+                <option value="60000">Last minute</option>
+                <option value="300000">Last 5 minutes</option>
+                <option value="3600000">Last hour</option>
               </select>
             </label>
             <label className="grid gap-1 text-sm">
@@ -149,6 +186,11 @@ function HistoryInner() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {history.length === 0 && (
+                    <p className="py-4 text-sm text-muted-foreground">
+                      No samples in this time window.
+                    </p>
+                  )}
                   <ResponsiveContainer width="100%" height={280}>
                     <LineChart
                       data={history}
@@ -166,7 +208,15 @@ function HistoryInner() {
                         minTickGap={50}
                       />
                       <YAxis
-                        domain={metric === "ph" ? [0, 14] : [0, "auto"]}
+                        domain={
+                          metric === "ph"
+                            ? [0, 14]
+                            : [
+                                0,
+                                (maximum: number) =>
+                                  Math.max(maximum * 1.1, normalLimit * 1.2),
+                              ]
+                        }
                         tick={{ fontSize: 11 }}
                         width={55}
                       />
@@ -178,6 +228,18 @@ function HistoryInner() {
                           `${value} ${config.unit}`,
                           config.label,
                         ]}
+                      />
+                      {metric === "ph" && (
+                        <ReferenceLine
+                          y={THRESHOLDS.ph.safe.min}
+                          stroke="#AC750B"
+                          strokeDasharray="4 4"
+                        />
+                      )}
+                      <ReferenceLine
+                        y={normalLimit}
+                        stroke="#AC750B"
+                        strokeDasharray="4 4"
                       />
                       <Line
                         type="linear"
@@ -193,7 +255,7 @@ function HistoryInner() {
                   <p className="mt-2 text-xs text-muted-foreground">
                     Horizontal axis: server receipt time. Lines connect received
                     samples and do not establish continuous measurement between
-                    them.
+                    them. Dashed lines show the configured normal band.
                   </p>
                 </CardContent>
               </Card>
@@ -214,7 +276,7 @@ function HistoryInner() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {readings.slice(0, 20).map((reading) => (
+                      {visibleReadings.slice(0, 20).map((reading) => (
                         <TableRow key={reading._id}>
                           <TableCell>
                             <time dateTime={reading.timestamp}>
@@ -253,6 +315,14 @@ function DemoHistory() {
     flowRate: { label: "Flow", unit: "L/min", color: "#087EA4" },
   };
   const config = metrics[metric];
+  const normalLimit =
+    metric === "ph"
+      ? THRESHOLDS.ph.safe.max
+      : metric === "tds"
+        ? THRESHOLDS.tds.safe.max
+        : metric === "turbidity"
+          ? THRESHOLDS.turbidity.safe.max
+          : THRESHOLDS.flowRate.safe.max;
   const history = state.history.map((reading) => ({
     ...reading,
     at: Date.parse(reading.timestamp),
@@ -312,7 +382,15 @@ function DemoHistory() {
                 minTickGap={50}
               />
               <YAxis
-                domain={metric === "ph" ? [0, 14] : [0, "auto"]}
+                domain={
+                  metric === "ph"
+                    ? [0, 14]
+                    : [
+                        0,
+                        (maximum: number) =>
+                          Math.max(maximum * 1.1, normalLimit * 1.2),
+                      ]
+                }
                 tick={{ fontSize: 12 }}
                 width={50}
               />
@@ -321,6 +399,18 @@ function DemoHistory() {
                   new Date(Number(value)).toLocaleTimeString()
                 }
                 formatter={(value) => [`${value} ${config.unit}`, config.label]}
+              />
+              {metric === "ph" && (
+                <ReferenceLine
+                  y={THRESHOLDS.ph.safe.min}
+                  stroke="#AC750B"
+                  strokeDasharray="4 4"
+                />
+              )}
+              <ReferenceLine
+                y={normalLimit}
+                stroke="#AC750B"
+                strokeDasharray="4 4"
               />
               <Line
                 type="linear"
@@ -336,6 +426,7 @@ function DemoHistory() {
             {history.length} scenario{" "}
             {history.length === 1 ? "sample" : "samples"}. Samples are added
             when you apply a scenario; lines connect those example values.
+            Dashed lines show the configured normal band.
           </p>
         </CardContent>
       </Card>
@@ -387,9 +478,11 @@ function DemoHistory() {
 export default function HistoricalData() {
   const { dataMode } = useProcessMode();
   const { isAuthenticated } = useConvexAuth();
-  return dataMode === "hardware" && isAuthenticated ? (
-    <HistoryInner />
-  ) : (
+  return dataMode === "demo" ? (
     <DemoHistory />
+  ) : (
+    <LiveAccessState title="Live trends">
+      <HistoryInner />
+    </LiveAccessState>
   );
 }

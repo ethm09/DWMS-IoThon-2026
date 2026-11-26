@@ -1,5 +1,7 @@
 # Competition demo runbook
 
+Present all four components honestly: **Live** is the authenticated cloud path, **Demo** is shared synthetic browser state, **Hardware** includes a reported earlier prototype awaiting recovery, and **Ethm** explains authenticated evidence without actuation. Live/Ethm provider gates and audited physical results remain distinct from the public Demo.
+
 | Demonstration | What it proves | What remains simulated |
 |---|---|---|
 | Local dashboard | Readable readings/status/trend and repeatable rule response | All readings and output state; no backend writes |
@@ -36,7 +38,7 @@ Record the runner result in the [readiness checklist](VALIDATION.md). Do not des
 
 ## 3. Physical end-to-end demonstration — gated
 
-Prerequisites: completed calibration/electrical gates in [VALIDATION.md](VALIDATION.md), configured Auth0/Convex, a registered physical node, bridge, isolated load and independent references. The checked-in conversion placeholder currently blocks real sensing.
+Prerequisites: recovery and commissioning through [HARDWARE.md](HARDWARE.md), configured Auth0/Convex, a registered physical node, bridge, isolated load and references. The owner reports earlier physical operation, but that setup is unavailable; the checked-in disabled template is not its recovered firmware or a new physical validation result.
 
 1. Choose **Device data** and the physical node. Show its ID/location, three live values and receipt age; compare measurements to independent references.
 2. Introduce an approved warning/response condition. Show live monitoring, saved alert, command pending → ACK/applied or failed, and independently observed output.

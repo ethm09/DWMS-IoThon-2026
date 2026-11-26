@@ -23,4 +23,5 @@ function auth0Hostname(value: string | undefined): string {
 
 export const auth0Domain = auth0Hostname(import.meta.env.VITE_AUTH0_DOMAIN);
 export const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID?.trim() ?? "";
-export const auth0Configured = Boolean(auth0Domain && auth0ClientId);
+// Open only after the existing backend and Auth0 allowed URLs are verified.
+export const auth0Configured = Boolean(auth0Domain && auth0ClientId && import.meta.env.VITE_DWMS_LIVE_ENABLED === "true");

@@ -1,3 +1,4 @@
+import { LiveAccessState } from "@/components/live-access-state";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
@@ -36,7 +37,7 @@ import {
   classifyTds,
   classifyTurbidity,
 } from "@/lib/dwms-safety.ts";
-import { Link } from "react-router-dom";
+import { WorkspaceLink as Link } from "@/components/workspace-link";
 import { useDemo } from "@/hooks/use-demo.ts";
 import { DEMO_DEVICE } from "@/lib/demo-state.ts";
 import { useUserRole } from "@/hooks/use-user-role.ts";
@@ -66,15 +67,31 @@ function DeviceCard({
   const latestReading = useQuery(api.devices.getLatestReading, {
     deviceId: device.deviceId,
   });
-  const color = STATUS_COLOR[device.status];
 
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 2000);
     return () => clearInterval(interval);
   }, []);
+  const age = device.lastSeen ? now - Date.parse(device.lastSeen) : NaN;
+  const status =
+    device.status === "error"
+      ? "error"
+      : Number.isFinite(age) &&
+          age >= 0 &&
+          age <= 10_000 &&
+          device.status === "online"
+        ? "online"
+        : "offline";
+  const color = STATUS_COLOR[status];
   // Current status must age even when no new telemetry arrives.
-  const waterStatus = getWaterStatus(latestReading, now);
+  const waterStatus =
+    status === "online"
+      ? getWaterStatus(latestReading, now)
+      : {
+          label: latestReading ? "UNKNOWN · offline" : "No data",
+          color: "#6b7280",
+        };
 
   return (
     <motion.div
@@ -109,8 +126,8 @@ function DeviceCard({
             border: `1px solid ${color}40`,
           }}
         >
-          {STATUS_ICON[device.status]}
-          {device.status.toUpperCase()}
+          {STATUS_ICON[status]}
+          {status.toUpperCase()}
         </div>
       </div>
 
@@ -125,7 +142,7 @@ function DeviceCard({
         {device.lastSeen && (
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Last seen: {new Date(device.lastSeen).toLocaleTimeString()}
+            Last valid receipt: {new Date(device.lastSeen).toLocaleString()}
           </span>
         )}
       </div>
@@ -150,12 +167,12 @@ function DeviceCard({
               <div
                 key={r.label}
                 className="rounded-lg p-2 text-center"
-                style={{ background: "oklch(0.12 0.03 145)" }}
+                style={{ background: "var(--muted)" }}
               >
                 <p className="text-xs text-muted-foreground">{r.label}</p>
                 <p
                   className="font-mono text-sm font-bold"
-                  style={{ color: "#00f5d4" }}
+                  style={{ color: "var(--primary)" }}
                 >
                   {r.value}
                   <span className="text-xs opacity-60 ml-0.5">{r.unit}</span>
@@ -277,7 +294,7 @@ function RegisterDeviceDialog({
         <DialogHeader>
           <DialogTitle
             className="tracking-widest font-bold text-sm"
-            style={{ color: "#00f5d4" }}
+            style={{ color: "var(--primary)" }}
           >
             REGISTER ARDUINO SENSOR
           </DialogTitle>
@@ -359,7 +376,7 @@ python .\\serial_bridge.py`;
         <DialogHeader>
           <DialogTitle
             className="tracking-widest font-bold text-sm"
-            style={{ color: "#00f5d4" }}
+            style={{ color: "var(--primary)" }}
           >
             PYTHON SERIAL BRIDGE
           </DialogTitle>
@@ -487,7 +504,21 @@ function DeviceManagerInner() {
     }
   };
 
-  const online = devices?.filter((d) => d.status === "online").length ?? 0;
+  const [registryNow, setRegistryNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setRegistryNow(Date.now()), 2000);
+    return () => clearInterval(timer);
+  }, []);
+  const online =
+    devices?.filter((device) => {
+      const age = registryNow - Date.parse(device.lastSeen ?? "");
+      return (
+        device.status === "online" &&
+        Number.isFinite(age) &&
+        age >= 0 &&
+        age <= 10_000
+      );
+    }).length ?? 0;
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -496,7 +527,7 @@ function DeviceManagerInner() {
         <div>
           <h1
             className="text-2xl font-bold tracking-widest"
-            style={{ color: "#00f5d4" }}
+            style={{ color: "var(--primary)" }}
           >
             ARDUINO SENSORS
           </h1>
@@ -521,12 +552,12 @@ function DeviceManagerInner() {
           {
             label: "TOTAL DEVICES",
             value: devices?.length ?? 0,
-            color: "#00f5d4",
+            color: "var(--primary)",
           },
           { label: "ONLINE", value: online, color: "#22c55e" },
           {
             label: "OFFLINE",
-            value: devices?.filter((d) => d.status === "offline").length ?? 0,
+            value: (devices?.length ?? 0) - online,
             color: "#6b7280",
           },
         ].map((s) => (
@@ -548,7 +579,7 @@ function DeviceManagerInner() {
       <Card className="p-5 space-y-3">
         <div
           className="text-xs font-bold tracking-widest flex items-center gap-2"
-          style={{ color: "#00f5d4" }}
+          style={{ color: "var(--primary)" }}
         >
           <Activity className="w-4 h-4" /> HTTP ENDPOINT
         </div>
@@ -618,7 +649,7 @@ function DeviceManagerInner() {
                 <div
                   key={i}
                   className="h-48 rounded-xl animate-pulse"
-                  style={{ background: "oklch(0.12 0.03 145)" }}
+                  style={{ background: "var(--muted)" }}
                 />
               ))}
             </div>
@@ -746,9 +777,11 @@ function DemoDevice() {
 export default function DeviceManager() {
   const { dataMode } = useProcessMode();
   const { isAuthenticated } = useConvexAuth();
-  return dataMode === "hardware" && isAuthenticated ? (
-    <DeviceManagerInner />
-  ) : (
+  return dataMode === "demo" ? (
     <DemoDevice />
+  ) : (
+    <LiveAccessState title="Live devices">
+      <DeviceManagerInner />
+    </LiveAccessState>
   );
 }

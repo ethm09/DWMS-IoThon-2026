@@ -1,3 +1,4 @@
+import { LiveAccessState } from "@/components/live-access-state";
 import { useEffect, useState } from "react";
 import {
   Authenticated,
@@ -6,7 +7,7 @@ import {
   useQuery,
   useConvexAuth,
 } from "convex/react";
-import { Link } from "react-router-dom";
+import { WorkspaceLink as Link } from "@/components/workspace-link";
 import { api } from "@/convex/_generated/api.js";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { useDemo } from "@/hooks/use-demo.ts";
@@ -104,7 +105,7 @@ function SitesInner() {
                       <TableCell>
                         <span
                           className={
-                            fresh ? "text-green-500" : "text-amber-500"
+                            fresh ? "text-emerald-700" : "text-amber-800"
                           }
                         >
                           {label}
@@ -218,9 +219,11 @@ function DemoSites() {
 export default function RemoteMonitoring() {
   const { dataMode } = useProcessMode();
   const { isAuthenticated } = useConvexAuth();
-  return dataMode === "hardware" && isAuthenticated ? (
-    <SitesInner />
-  ) : (
+  return dataMode === "demo" ? (
     <DemoSites />
+  ) : (
+    <LiveAccessState title="Live sites">
+      <SitesInner />
+    </LiveAccessState>
   );
 }

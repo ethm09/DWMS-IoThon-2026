@@ -15,7 +15,7 @@ Use DWMS as the project name. Its existing formal expansion remains “Defense W
 
 ## Short description
 
-DWMS connects pH, TDS and turbidity monitoring with early threshold warnings, deterministic response rules and traceable device commands. It helps an operator see what changed, how fresh the data is, and whether a controller acknowledged the requested action.
+DWMS connects pH, TDS and turbidity monitoring with threshold warnings, deterministic response and traceable device commands. Live monitoring, a shared Demo, the Hardware path and Ethm explanations help an operator see what changed, how fresh the data is, and what action was acknowledged.
 
 ## Problem and first user
 
@@ -25,7 +25,7 @@ Our proposed first user is an industrial utilities engineer responsible for a tr
 
 DWMS retains its existing React/TypeScript dashboard and Convex backend. The intended physical path is pH, TDS and turbidity probes → Arduino Uno → USB/Python bridge → authenticated HTTPS ingestion → stored readings, alerts and dashboard. Deterministic backend rules create expiring commands; the bridge and controller return acknowledgements. Critical conditions latch a stop and require explicit recovered acknowledgement. Local sensor interlocks and a communication lease address loss of communication in software.
 
-The interface distinguishes simulation, current readings, stale data, desired action and controller-reported state. Flow is demo-only and is not a fourth validated physical channel. AI assistance is secondary and explanation-only; it cannot issue an actuation request.
+The four components are Live authenticated monitoring/control, Demo synthetic browser scenarios, Hardware sensing/bridge/interlocks and Ethm read-only explanations. Flow is demo-only. Ethm cannot issue actuation requests; a real authenticated data/model response still needs verification. Existing server configuration alone is not proof of live readiness.
 
 ## Innovation and competitive positioning
 
@@ -37,7 +37,7 @@ Commercial water-monitoring products already provide connected instruments, dash
 
 The repository includes automated input/auth/rule/failure tests, a real isolated-backend integration runner, controller host tests and an Arduino Uno target compile. The public demo uses explicitly simulated scenarios. The isolated runner uses synthetic readings and controller acknowledgements against actual HTTP, database, reactive query, notification and command functions. Exact runs and limits are recorded in [the readiness evidence matrix](../docs/VALIDATION.md).
 
-**Physical validation is incomplete.** Exact probe-module conversions and independent calibration records are absent; relay control remains disabled. A compiled sketch or software ACK does not prove sensor accuracy, pump movement, treatment effectiveness or safe water. The three probes do not establish microbiological safety or complete reuse compliance.
+**Historical hardware and current evidence differ.** The owner reports that an earlier physical prototype operated, but it is currently unavailable and no audited measurements were supplied. Recover that setup using [the hardware guide](../docs/HARDWARE.md); current repository conversion/calibration and relay gates remain disabled. Compilation or an ACK does not establish sensor accuracy, pump motion, treatment or water safety. The three probes do not establish microbiological safety or complete reuse compliance.
 
 ## Feasibility and next milestone
 

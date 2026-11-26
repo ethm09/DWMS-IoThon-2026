@@ -24,7 +24,7 @@ export default function AuthCallback() {
       return;
     }
     if (error) {
-      setSyncError(error.message);
+      setSyncError("Sign-in could not be completed. Check the application's allowed callback and try again.");
       return;
     }
     if (isLoading) return;
@@ -37,13 +37,11 @@ export default function AuthCallback() {
 
     syncStarted.current = true;
     void updateCurrentUser()
-      .then(() => navigate("/dashboard", { replace: true }))
-      .catch((syncError: unknown) => {
+      .then(() => navigate("/live", { replace: true }))
+      .catch(() => {
         syncStarted.current = false;
         setSyncError(
-          syncError instanceof Error
-            ? syncError.message
-            : "Could not sync the signed-in user.",
+          "Your identity was signed in, but the monitoring account could not be registered. Please try again or contact the platform administrator.",
         );
       });
   }, [

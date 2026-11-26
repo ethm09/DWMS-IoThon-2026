@@ -1,5 +1,6 @@
 import { internalQuery } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
+import { requireFleetAccess } from "./users";
 import type { QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import {
@@ -36,6 +37,7 @@ function toAgentReading(reading: Doc<"sensorReadings">): AgentReading {
 export const listDevices = internalQuery({
   args: {},
   handler: async (ctx) => {
+    await requireFleetAccess(ctx);
     const devices = await ctx.db.query("devices").take(100);
     return devices.map((device) => ({
       deviceId: device.deviceId,
@@ -53,6 +55,7 @@ export const listDevices = internalQuery({
 export const getLatestSensorReadings = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const [device, reading] = await Promise.all([
       getDevice(ctx, args.deviceId),
       getLatestReading(ctx, args.deviceId),
@@ -80,6 +83,7 @@ export const getLatestSensorReadings = internalQuery({
 export const getRecentSensorReadings = internalQuery({
   args: { deviceId: v.string(), limit: v.number() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const limit = Math.max(1, Math.min(50, Math.floor(args.limit)));
     const readings = await ctx.db
       .query("sensorReadings")
@@ -105,6 +109,7 @@ export const getRecentSensorReadings = internalQuery({
 export const getDeviceStatus = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const device = await getDevice(ctx, args.deviceId);
     if (!device) return { available: false, reason: "Device not found." };
     const command = device.lastCommandId
@@ -143,6 +148,12 @@ export const getDeviceStatus = internalQuery({
 export const getActiveAlerts = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
+    const user = await requireFleetAccess(ctx);
+    if (user._id !== args.userId)
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cannot read another user's notifications.",
+      });
     const alerts = await ctx.db
       .query("notifications")
       .withIndex("by_userId_dismissed", (q) =>
@@ -166,6 +177,12 @@ export const getActiveAlerts = internalQuery({
 export const getRecentAlerts = internalQuery({
   args: { userId: v.id("users"), limit: v.number() },
   handler: async (ctx, args) => {
+    const user = await requireFleetAccess(ctx);
+    if (user._id !== args.userId)
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cannot read another user's notifications.",
+      });
     const limit = Math.max(1, Math.min(50, Math.floor(args.limit)));
     const alerts = await ctx.db
       .query("notifications")
@@ -189,6 +206,7 @@ export const getRecentAlerts = internalQuery({
 export const getSystemMode = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const device = await getDevice(ctx, args.deviceId);
     if (!device)
       return { available: false, mode: "unknown", reason: "Device not found." };
@@ -204,6 +222,7 @@ export const getSystemMode = internalQuery({
 export const getDataMode = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const [device, reading] = await Promise.all([
       getDevice(ctx, args.deviceId),
       getLatestReading(ctx, args.deviceId),
@@ -237,6 +256,7 @@ export const getDataMode = internalQuery({
 export const evaluateSafetyState = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const reading = await getLatestReading(ctx, args.deviceId);
     return evaluateSafetyData(reading ? toAgentReading(reading) : null);
   },
@@ -245,6 +265,7 @@ export const evaluateSafetyState = internalQuery({
 export const analyzeWaterQuality = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const reading = await getLatestReading(ctx, args.deviceId);
     return analyzeQualityData(reading ? toAgentReading(reading) : null);
   },
@@ -253,6 +274,7 @@ export const analyzeWaterQuality = internalQuery({
 export const analyzeSensorTrends = internalQuery({
   args: { deviceId: v.string(), limit: v.number() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const limit = Math.max(3, Math.min(50, Math.floor(args.limit)));
     const readings = await ctx.db
       .query("sensorReadings")
@@ -268,6 +290,7 @@ export const analyzeSensorTrends = internalQuery({
 export const getRecentEvents = internalQuery({
   args: { deviceId: v.string(), limit: v.number() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const limit = Math.max(1, Math.min(30, Math.floor(args.limit)));
     const events = await ctx.db
       .query("deviceCommands")
@@ -292,6 +315,7 @@ export const getRecentEvents = internalQuery({
 export const getRelevantExperiences = internalQuery({
   args: { deviceId: v.string(), limit: v.number() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const limit = Math.max(1, Math.min(8, Math.floor(args.limit)));
     const experiences = await ctx.db
       .query("agentExperiences")

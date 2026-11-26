@@ -5,7 +5,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { getCurrentUserOrThrow } from "./users";
+import { getCurrentUserOrThrow, requireFleetAccess } from "./users";
 
 const eventState = v.union(
   v.literal("thinking"),
@@ -187,12 +187,12 @@ export const getRunForExecution = internalQuery({
     tokenIdentifier: v.string(),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", args.tokenIdentifier),
-      )
-      .unique();
+    const user = await requireFleetAccess(ctx);
+    if (user.tokenIdentifier !== args.tokenIdentifier)
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cannot execute another account's assistant run.",
+      });
     const run = await ctx.db.get(args.runId);
     if (!user || !run || run.userId !== user._id) {
       throw new ConvexError({

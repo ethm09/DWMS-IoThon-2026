@@ -134,11 +134,11 @@ def make_deck(desktop,mobile,args):
     txt(sl,'Monitor. Detect. Respond.',.7,2.85,9,.6,25,CYAN)
     txt(sl,'A focused monitoring and response prototype\nfor networks, reservoirs and treated-water reuse.',.7,3.7,9.3,1.1,21,WHITE)
     tag(sl,'SOFTWARE DEMO + TARGET BUILD',.7,5.32,3.65)
-    txt(sl,'Calibrated probes and physical response: validation pending.',.7,5.85,10,.45,14,'BED4E5')
+    txt(sl,'Live • Demo • Hardware • Ethm. Physical revalidation remains pending.',.7,5.85,10,.45,14,'BED4E5')
     picture_fit(sl,BRAND_MARK,10.1,2.22,2.6,2.6)
     txt(sl,'DWMS',10.38,5.05,2.2,.6,24,WHITE,True)
     txt(sl,'Ahmed Alzahrani  •  Founder and Project Lead',.7,6.42,10,.3,12,WHITE)
-    sl.notes_slide.notes_text_frame.text='Founder identity confirmed by the user. No hardware measurements or customer adoption claims are presented.'
+    sl.notes_slide.notes_text_frame.text='Founder identity confirmed. Owner reports an earlier operating physical prototype, currently unavailable; no independently audited measurements or customer adoption are claimed.'
 
     sl=base(prs,2,'Operator need','One decision chain, from reading to response')
     items=[('01  MONITOR','Which site? Which source?','pH, TDS and turbidity with age, connectivity and history.'),('02  DETECT','What changed?','Warning bands flag deviations; critical rules identify when to stop.'),('03  RESPOND','What is confirmed?','Rule-based action, command expiry and explicit operator recovery.')]
@@ -156,9 +156,9 @@ def make_deck(desktop,mobile,args):
     picture_window(sl,desktop,.67,2.38,7.41,3.71,800)
     shape(sl,8.4,2.26,1.98,3.95,WHITE,BORDER)
     picture_window(sl,mobile,8.48,2.36,1.82,3.75,844,390)
-    for y,label,body in [(2.55,'Source','Simulation is explicit.'),(3.75,'Status','Readings carry context.'),(4.95,'Response','Rules remain inspectable.')]:
-        txt(sl,label,10.65,y,2.05,.35,17,BLUE,True)
-        txt(sl,body,10.65,y+.44,2.05,.7,13,MUTED)
+    for y,label,body in [(2.40,'Live','Authenticated path; rollout gated.'),(3.35,'Demo','Shared synthetic scenarios.'),(4.30,'Hardware','Recover the prior prototype.'),(5.25,'Ethm','Read-only evidence explanation.')]:
+        txt(sl,label,10.65,y,2.05,.32,15,BLUE,True)
+        txt(sl,body,10.65,y+.35,2.05,.52,11,MUTED)
     txt(sl,'Cropped actual application captures • displayed scenario values are simulated.',.6,6.23,12,.28,11,MUTED)
     foot(sl,['CODE'])
 
@@ -200,7 +200,7 @@ def make_deck(desktop,mobile,args):
         txt(sl,label,1.3,y-.03,10.8,.4,19,INK,True)
         txt(sl,detail,1.3,y+.43,10.8,.43,14,MUTED)
     shape(sl,.6,5.6,12.1,.62,NAVY)
-    txt(sl,'NEXT GATE: calibrated probes + independently observed output + two physical nodes.',.82,5.79,11.7,.3,13,WHITE,True)
+    txt(sl,'NEXT GATE: recover prior hardware, audit calibration/output, then prove two physical nodes.',.82,5.79,11.7,.3,12,WHITE,True)
     linktxt(sl,'Completed CI baseline: '+args.evidence_commit+'  •  '+args.ci_url,args.ci_url,.6,6.29,12,.2,8)
     foot(sl,['CODE'])
 
@@ -228,12 +228,12 @@ def make_deck(desktop,mobile,args):
     txt(sl,'Host, enclosure, power, isolation, reference standards, installation and recurring costs: TBC.',.6,6.11,12,.33,11,MUTED)
     foot(sl,['PH','TDS','TURB'])
 
-    sl=base(prs,10,'Pilot request','Help prove the physical chain.',True)
+    sl=base(prs,10,'Pilot request','Reconnect and validate the physical chain.',True)
     txt(sl,'One supervised non-potable pilot.\nTwo identified nodes. A named operator.',.65,2.45,11.8,1.15,26,WHITE,True)
     txt(sl,'01  Calibrate against independent reference measurements\n02  Verify isolated-load safety and separate failure modes\n03  Measure completeness, alert/ACK time and maintenance effort',.7,4.04,11.6,1.43,18,'D5E9F3')
     txt(sl,'Ahmed Alzahrani, Founder and Project Lead  •  Pilot partner, budget and limits: TBC.',.7,5.96,11.6,.4,13,CYAN)
     linktxt(sl,'Repository: '+REPO,REPO,.7,6.49,11.5,.28,10,'D5E9F3')
-    sl.notes_slide.notes_text_frame.text='Do not claim water or energy savings without independent metering and a baseline. Founder Ahmed Alzahrani confirmed by user; other role assignments TBC. No physical validation has been performed.'
+    sl.notes_slide.notes_text_frame.text='No savings without independent metering/baseline. Founder Ahmed Alzahrani confirmed; other roles TBC. Earlier hardware operation is owner-reported and unavailable; no independent physical measurements were reviewed in this work.'
     path=OUT/'DWMS-Pitch.pptx'; prs.save(path)
     return path
 
@@ -289,14 +289,15 @@ def make_doc(args):
     p(doc,'IoThon 2026 / Decision brief','Subtitle')
     p(doc,'DWMS\nWater Intelligence','Title')
     p(doc,'Monitor. Detect. Respond.','Subtitle')
-    heading(doc,'Feasible as a software demonstrator; physical deployment remains gated.')
-    p(doc,'DWMS monitors pH, TDS and turbidity, flags threshold deviations, and connects deterministic response requests to an acknowledged controller protocol. This study supports a supervised non-potable pilot decision. It is not a certification, procurement approval or claim of measured treatment performance.')
+    heading(doc,'Four components; distinct evidence and deployment gates.')
+    p(doc,'Live monitoring, the shared Demo, Hardware integration and Ethm explanations support one operational workflow around pH, TDS and turbidity. Flow remains demo-only. This study supports a supervised reuse-buffer pilot, not a certification or measured treatment claim. The owner reports earlier physical operation; that unavailable setup has not been independently revalidated here.')
     document_table(doc,['Decision area','Current evidence','Decision'],[
-      ('Software','Tests, connected isolated-backend scenario, reactive dashboard and traceable rules.','Proceed with competition demonstration.'),
-      ('Controller build','Arduino Uno target compiles with pinned tooling; calibration and relay gates remain 0.','Compiled only; no upload or physical proof.'),
-      ('Physical operation','Probe identities, conversion/calibration, relay/load behavior and two-node evidence are missing.','Hold process actuation pending validation.'),
+      ('Live','Protected source/tests and real isolated-backend trace; existing cloud source/allowed Auth0 URLs need rollout.','Rehearse actual sessions after deployment.'),
+      ('Demo','Shared synthetic readings, alerts, history and operator scenarios.','Use explicit simulation labels.'),
+      ('Hardware','Earlier operation is owner-reported; current template compiles with calibration/relay gates 0.','Recover original setup; audit physical results.'),
+      ('Ethm','Read-only authenticated evidence explanation; server key reported configured.','Verify real data/model request; no fake replies.'),
       ('Commercial/financial','Dated component price references; no installed BOM, customer interviews or field operating costs.','Pilot and obtain quotes; no ROI claim.')])
-    p(doc,'Scope: water networks, reservoirs and treated-water reuse. First-site hypothesis: a supervised non-potable reuse point. The applicable jurisdiction, process and acceptable response must be selected with the operator. EPA explains that treatment and monitoring depend on source and intended end use [S1].')
+    p(doc,'First pilot: an industrial utilities engineer overseeing a supervised non-potable reuse buffer tank. Partner, jurisdiction and acceptance criteria are unconfirmed. EPA explains that treatment/monitoring depend on source and intended end use [S1].')
     p(doc,'Ahmed Alzahrani — Founder and Project Lead (user confirmed). Pilot partner, location, budget, other role assignments, schedule owners and acceptance limits: TBC. Source review date: '+DATE+'.')
 
     newpage(doc,'Technical feasibility','A small system with an inspectable control path')
@@ -319,15 +320,9 @@ def make_doc(args):
       ('DFRobot SEN0161-V2','Laboratory-grade pH kit; manufacturer warns of drift with extended measurements [S3].','Do not assume suitability for continuous immersion or unattended operation.'),
       ('DFRobot SEN0244','Catalog measurement range 0–1000 ppm [S4].','Cannot validate the current 1500 ppm trigger using this example. Select a suitable range or revalidate policy.'),
       ('DFRobot SEN0189','Analog/digital turbidity component for prototypes; output interpretation needs module-specific validation [S5].','Do not infer traceable NTU accuracy from an ADC conversion or generic curve.')])
-    doc.add_heading('Required physical procedure',level=2)
-    for text in [
-      'Record exact probe/interface part numbers, datasheets, wiring, ADC reference/supply, firmware revision, operator and date. readVoltage assumes 5 V; measure it.',
-      'Keep the repository sensor-calibration and relay-control flags disabled. Disconnect the process load. An independently approved isolated-load setup is required before bench actuation.',
-      'Follow manufacturer calibration procedures with traceable pH buffers, conductivity/TDS references and turbidity standards bracketing the intended range. Record lot/expiry, raw ADC/voltage, reference value, water temperature, stabilization and repeat readings.',
-      'Implement only verified module-specific equations. Validate held-out standards against agreed reference/datasheet tolerances; record residuals, uncertainty and drift. No temperature sensor is installed; document compensation assumptions.',
-      'Unplug each sensor separately. Floating analog inputs may remain plausible: demonstrate invalid detection or add verified diagnostics before enabling.',
-      'Observe OFF at startup/reset, critical input, stale sensor, USB loss, network loss and recovered acknowledgement. Measure relay/load state independently; ACK and a high-impedance pin are not physical OFF evidence.'
-    ]: p(doc,text,'List Number')
+    doc.add_heading('Canonical hardware recovery and validation',level=2)
+    p(doc,'Preserve and identify the earlier running firmware, bridge and wiring before changes. The calibration-disabled repository template is not recovered historical firmware. Obtain exact modules, references and electrical details; independently calibrate and commission an isolated load before operational enable. Test probe/USB/network failures and record raw observations.')
+    p(doc,'The single procedural guide, including historical source evidence, is '+REPO+'/blob/improve/iothon-2026-focus/docs/HARDWARE.md. Keep repository relay/calibration enables disabled; a software ACK or target compile is not a physical measurement.')
     p(doc,'pH/TDS/turbidity do not establish microbiological safety or complete water-reuse compliance. Site-specific additional parameters, sampling and treatment requirements remain TBC [S1].')
 
     newpage(doc,'Operational feasibility','A supervised pilot with named responsibilities')
@@ -345,7 +340,7 @@ def make_doc(args):
       ('Maintenance effort','Record cleaning, calibration, replacement, operator time and consumables.','TBC before pilot'),
       ('Water / energy impact','Use independent meters and a comparable baseline before attributing any change.','No current savings claim')])
     p(doc,'Run probe loss, USB disconnect and network failure as separate tests. Observe the physical output, actual stop timing, recovery and data gaps. A clean software status is not a substitute for the witnessed result. Two registered devices in the UI are not two physically validated nodes.')
-    p(doc,'Use nonsensitive pilot data until deployed Auth0 roles, tenant isolation, retention and credential lifecycle are verified. AI explains readings; no actuator tool or control endpoint is available.')
+    p(doc,'Use nonsensitive pilot data until deployed roles, tenant isolation, retention and credentials are verified. Ethm explains authenticated evidence without actuation; dedicated authorized operator controls remain separate. A configured server key alone does not prove live AI readiness.')
 
     newpage(doc,'Economic feasibility','A cost model with traceable inputs and explicit unknowns')
     p(doc,'Observed manufacturer catalog prices, '+DATE+', USD single-unit listings. Shipping, taxes, currency conversion and local availability are excluded. These examples are not confirmed DWMS modules, supplier quotes or a deployment recommendation [S3–S5].')
@@ -404,7 +399,7 @@ def make_doc(args):
         p(doc,url)
     p(doc,'S7  Completed software/firmware CI baseline: '+args.ci_url)
     p(doc,'Artifact reproduction: python scripts/generate-deliverables.py. Authoring libraries and LibreOffice are tooling outside the application runtime. Slides, narrative, tables and architecture elements remain editable in PPTX/DOCX; screenshots are actual application captures.')
-    p(doc,'Evidence categories: simulated = scenario/injected values; software = executed checks with named contexts; CI = linked run for an exact commit; physical = witnessed measurements on identified probes/controller/load. No physical category is marked complete by this feasibility document.')
+    p(doc,'Readiness categories: Implemented, Software verified, Simulation verified, Physically validated, Pending and Blocked. Earlier hardware operation is owner-reported; no independently audited physical measurements were supplied. The single current matrix is docs/VALIDATION.md.')
     path=OUT/'DWMS-Feasibility.docx'; doc.save(path); return path
 
 

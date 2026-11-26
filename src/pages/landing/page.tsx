@@ -2,17 +2,13 @@ import { Link } from "react-router-dom";
 import { Activity, ShieldCheck, Radio, Waves } from "lucide-react";
 import DwmsLogo from "@/components/dwms-logo";
 import { Button } from "@/components/ui/button";
-import { SignInButton } from "@/components/ui/signin";
-import { useAuth } from "@/hooks/use-auth";
-import { useProcessMode } from "@/hooks/use-process-mode";
 
 export default function Landing() {
-  const { isConfigured } = useAuth();
-  const { setDataMode } = useProcessMode();
   return <div className="min-h-screen bg-[#F3F7FA]">
-    <header className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-10">
-      <DwmsLogo />
-      <nav className="flex items-center gap-4 text-sm"><a className="hidden text-[#52697C] sm:inline" href="https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus">Project & evidence</a>{isConfigured && <SignInButton variant="outline" />}<Button asChild size="sm"><Link to="/dashboard" onClick={() => setDataMode("demo")}>Explore demo</Link></Button></nav>
+    <header className="relative overflow-hidden bg-[#0B2039] pb-7 text-white">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 md:px-10"><DwmsLogo light />
+        <nav className="flex items-center gap-3 text-sm"><a className="hidden text-slate-300 md:inline" href="https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus">Project & evidence</a><Link to="/live" className="inline-flex min-h-11 items-center rounded-lg border border-white/30 px-3 text-xs sm:text-sm">Launch Live Platform</Link><Link to="/demo" className="hidden min-h-11 items-center rounded-lg bg-[#087EA4] px-4 font-medium sm:inline-flex">Explore Demo</Link></nav>
+      </div><img src="/brand/waves.svg" alt="" className="absolute inset-x-0 bottom-0 h-6 w-full" />
     </header>
     <main>
       <section className="mx-auto grid max-w-7xl items-center gap-10 px-5 pb-10 pt-8 md:px-10 md:py-16 lg:grid-cols-[1fr_1.1fr]">
@@ -20,10 +16,10 @@ export default function Landing() {
           <p className="dwms-eyebrow">IoThon 2026 · Connected water operations</p>
           <h1 className="max-w-2xl text-[2.6rem] font-semibold leading-[1.1] tracking-[-.045em] text-[#0B2039] sm:text-5xl lg:text-[3.7rem]">Intelligent Water Monitoring.<br /><span className="text-[#087EA4]">Proactive Response.</span></h1>
           <p className="max-w-lg text-base leading-relaxed text-[#52697C] md:text-lg">Turn water-condition readings into a clear operational workflow — from the first warning to an acknowledged response and recorded recovery.</p>
-          <div className="flex flex-wrap items-center gap-4"><Button size="lg" asChild><Link to="/dashboard" onClick={() => setDataMode("demo")}>Explore the interactive demo</Link></Button><span className="text-sm text-[#52697C]">No account needed · 60-second walkthrough</span></div>
-          <p className="text-sm font-medium text-[#0B2039]">Monitor. Detect. Respond.</p>
+          <div className="flex flex-wrap items-center gap-4"><Button size="lg" asChild><Link to="/demo">Explore Demo</Link></Button><Button size="lg" variant="outline" asChild><Link to="/live">Launch Live Platform</Link></Button></div>
+          <p className="text-sm text-[#52697C]">Demo: no account needed. Live: approved operational access.</p>
         </div>
-        <Link to="/dashboard" onClick={() => setDataMode("demo")} className="group relative block overflow-hidden rounded-2xl border border-[#DCE6ED] bg-white p-2 shadow-[0_18px_70px_#0B203914]" aria-label="Explore the DWMS dashboard">
+        <Link to="/demo" className="group relative block overflow-hidden rounded-2xl border border-[#DCE6ED] bg-white p-2 shadow-[0_18px_70px_#0B203914]" aria-label="Explore the DWMS dashboard">
           <div className="flex items-center justify-between border-b border-[#DCE6ED] px-3 pb-3 pt-2 text-xs text-[#52697C]"><span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-[#087EA4]" /> DWMS monitoring workspace</span><span>Simulation preview</span></div>
           <img src="/screenshots/dashboard-preview.png" alt="Implemented DWMS dashboard with sensor readings, response status and water process overview" className="mt-2 aspect-[1.3] w-full rounded-lg object-cover object-left-top" />
         </Link>

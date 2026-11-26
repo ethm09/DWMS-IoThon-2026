@@ -19,6 +19,7 @@ function fixture({
   role = "operator",
   authenticated = true,
   registered = true,
+  fleetAccess,
   ...deviceOverrides
 } = {}) {
   const tables = {
@@ -46,6 +47,7 @@ function fixture({
             _creationTime: 1,
             tokenIdentifier: "test-user",
             role,
+            fleetAccess,
           },
         ]
       : [],
@@ -574,14 +576,19 @@ test("critical input before recovery delivery supersedes the reset with emergenc
   }
 });
 
-test("live registry, telemetry and command state require an authenticated registered account", async () => {
+test("live registry, telemetry and command state require explicit shared-fleet approval", async () => {
   const reads = [
     ["listDevices", {}],
     ["getLatestReading", { deviceId: "site-a" }],
     ["getRecentReadings", { deviceId: "site-a", limit: 200 }],
     ["getControlState", { deviceId: "site-a" }],
   ];
-  for (const options of [{ authenticated: false }, { registered: false }]) {
+  for (const options of [
+    { authenticated: false },
+    { registered: false },
+    { role: "viewer" },
+    { role: "viewer", fleetAccess: false },
+  ]) {
     const blocked = fixture(options);
     for (const [name, args] of reads) {
       await assert.rejects(blocked.invoke(name, args), (error) => {
@@ -594,10 +601,10 @@ test("live registry, telemetry and command state require an authenticated regist
       });
     }
   }
-  // Each registered role can observe this deployment; only operator/admin roles
-  // are authorized for control mutations. Guest demo values remain browser-local.
+  // Roles assigned by an admin or explicit viewer approval grant shared-fleet
+  // reads. An approved viewer still cannot operate the pump.
   for (const role of ["viewer", "operator", "admin"]) {
-    const allowed = fixture({ role });
+    const allowed = fixture({ role, fleetAccess: role === "viewer" });
     await allowed.ingest(healthy);
     for (const [name, args] of reads) {
       const value = await allowed.invoke(name, args);
@@ -637,4 +644,31 @@ test("the legacy AI confirmation endpoint cannot enqueue actuator commands", asy
     );
     assert.deepEqual(calls, []);
   }
+});
+
+test("automatic threshold fanout excludes viewers without fleet approval", async () => {
+  const f = fixture({ role: "viewer" });
+  f.tables.users.push(
+    {
+      _id: "user:approved",
+      tokenIdentifier: "approved",
+      role: "viewer",
+      fleetAccess: true,
+    },
+    { _id: "user:operator", tokenIdentifier: "operator", role: "operator" },
+  );
+  await f.ingest({ ...healthy, turbidity: 25 });
+  assert.ok(f.tables.notifications.length > 0);
+  assert.ok(f.tables.notifications.every((item) => item.userId !== "user:1"));
+  assert.deepEqual(
+    new Set(f.tables.notifications.map((item) => item.userId)),
+    new Set(["user:approved", "user:operator"]),
+  );
+  await assert.rejects(
+    fixture({ role: "viewer", fleetAccess: true }).invoke(
+      "setDeviceControlMode",
+      { deviceId: "site-a", mode: "emergency" },
+    ),
+    (error) => error.data?.code === "FORBIDDEN",
+  );
 });

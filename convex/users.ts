@@ -27,6 +27,30 @@ export async function getCurrentUserOrThrow(
   return user;
 }
 
+/** Shared-fleet approval is distinct from merely creating an account. */
+export function hasFleetAccess(user: {
+  role: string;
+  fleetAccess?: boolean;
+}): boolean {
+  return (
+    user.role === "admin" ||
+    user.role === "operator" ||
+    user.fleetAccess === true
+  );
+}
+
+export async function requireFleetAccess(
+  ctx: QueryCtx | MutationCtx,
+): Promise<Doc<"users">> {
+  const user = await getCurrentUserOrThrow(ctx);
+  if (!hasFleetAccess(user))
+    throw new ConvexError({
+      code: "FORBIDDEN",
+      message: "An administrator must approve access to device data.",
+    });
+  return user;
+}
+
 export async function requireAdmin(
   ctx: QueryCtx | MutationCtx,
 ): Promise<Doc<"users">> {
@@ -138,6 +162,7 @@ export const updateCurrentUser = mutation({
       email: identity.email?.trim().toLowerCase(),
       tokenIdentifier: identity.tokenIdentifier,
       role,
+      fleetAccess: false,
     });
   },
 });
@@ -206,5 +231,23 @@ export const updateUserRole = mutation({
     }
 
     await ctx.db.patch(args.userId, { role: args.role });
+  },
+});
+
+// Approval grants shared-fleet read access only; viewers cannot operate devices.
+export const updateUserFleetAccess = mutation({
+  args: { userId: v.id("users"), fleetAccess: v.boolean() },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const target = await ctx.db.get(args.userId);
+    if (!target)
+      throw new ConvexError({ code: "NOT_FOUND", message: "User not found" });
+    if (target.role !== "viewer")
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message:
+          "Administrator and operator access is controlled by their role.",
+      });
+    await ctx.db.patch(args.userId, { fleetAccess: args.fleetAccess });
   },
 });

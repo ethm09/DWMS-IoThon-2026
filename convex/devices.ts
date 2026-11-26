@@ -9,7 +9,11 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel.d.ts";
 import type { MutationCtx } from "./_generated/server";
 import { createSystemNotification } from "./notifications";
-import { getCurrentUserOrThrow } from "./users";
+import {
+  getCurrentUserOrThrow,
+  hasFleetAccess,
+  requireFleetAccess,
+} from "./users";
 import {
   classifyPh,
   classifyTds,
@@ -197,7 +201,7 @@ async function requireAdmin(ctx: MutationCtx) {
 export const listDevices = query({
   args: {},
   handler: async (ctx): Promise<Array<Omit<Doc<"devices">, "apiKey">>> => {
-    await getCurrentUserOrThrow(ctx);
+    await requireFleetAccess(ctx);
     const devices = await ctx.db.query("devices").collect();
     return devices.map((device) => {
       const { apiKey, ...publicDevice } = device;
@@ -211,7 +215,7 @@ export const listDevices = query({
 export const getControlState = query({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
-    await getCurrentUserOrThrow(ctx);
+    await requireFleetAccess(ctx);
     const device = await ctx.db
       .query("devices")
       .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
@@ -580,7 +584,7 @@ export const deleteDevice = mutation({
 export const getLatestReading = query({
   args: { deviceId: v.string() },
   handler: async (ctx, args): Promise<Doc<"sensorReadings"> | null> => {
-    await getCurrentUserOrThrow(ctx);
+    await requireFleetAccess(ctx);
     return await ctx.db
       .query("sensorReadings")
       .withIndex("by_deviceId_timestamp", (q) =>
@@ -595,7 +599,7 @@ export const getLatestReading = query({
 export const getRecentReadings = query({
   args: { deviceId: v.string(), limit: v.optional(v.number()) },
   handler: async (ctx, args): Promise<Doc<"sensorReadings">[]> => {
-    await getCurrentUserOrThrow(ctx);
+    await requireFleetAccess(ctx);
     return await ctx.db
       .query("sensorReadings")
       .withIndex("by_deviceId_timestamp", (q) =>
@@ -737,7 +741,7 @@ export const internalSaveReading = internalMutation({
     if (alerts.length > 0) {
       const users = await ctx.db.query("users").collect();
       for (const alert of alerts) {
-        for (const target of users) {
+        for (const target of users.filter(hasFleetAccess)) {
           await createSystemNotification(ctx, target._id, {
             level: alert.level,
             category: "threshold",

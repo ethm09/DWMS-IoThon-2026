@@ -6,6 +6,8 @@ export default defineSchema({
     tokenIdentifier: v.string(),
     name: v.optional(v.string()),
     email: v.optional(v.string()),
+    // Explicit viewer approval for the shared fleet; absent legacy values deny.
+    fleetAccess: v.optional(v.boolean()),
     role: v.union(
       v.literal("admin"),
       v.literal("operator"),

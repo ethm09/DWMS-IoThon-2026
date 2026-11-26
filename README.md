@@ -2,7 +2,14 @@
 
 **Monitor. Detect. Respond.**
 
-A focused IoThon 2026 prototype for water-quality monitoring across networks, reservoirs and treated-water reuse. DWMS brings pH, TDS and turbidity readings, data freshness, threshold alerts and traceable device response into one operator workflow. Flow is demo-only. AI assistance is optional and explanation-only.
+A focused IoThon 2026 prototype for water-quality monitoring across networks, reservoirs and treated-water reuse. DWMS brings pH, TDS and turbidity readings, data freshness, threshold alerts and traceable response into one workflow. Flow is demo-only.
+
+| Component | Purpose | Current boundary |
+|---|---|---|
+| **Live** | Authenticated readings, alerts, history and authorized device controls | Existing cloud source/allowed Auth0 URLs need update and end-to-end rehearsal |
+| **Demo** | Shared browser scenarios for a repeatable presentation | Synthetic readings and response; no physical action |
+| **Hardware** | Arduino/USB bridge and deterministic local interlocks | Owner reports an earlier operating prototype; it is currently unavailable for audited revalidation |
+| **Ethm** | Read-only explanation of authenticated device evidence | Real provider/data/model operation is pending; no fabricated replies or actuation |
 
 Competition implementation: [improvement branch](https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus) · [Draft PR #2](https://github.com/ethm09/DWMS-IoThon-2026/pull/2). Main is unchanged pending approval.
 
@@ -30,7 +37,7 @@ pnpm lint
 pnpm build
 ```
 
-The integration runner uses a disposable local backend with synthetic readings/operator/ACKs. Its results, CI and Uno target compilation are software evidence. Probe conversion/calibration and physical relay commissioning remain incomplete; repository relay control stays disabled. A software acknowledgement does not prove pump motion or water safety.
+The integration runner uses a disposable local backend with synthetic readings/operator/ACKs. CI and Uno compilation are software evidence. No audited physical measurements from the earlier prototype were supplied; current repository calibration/relay gates remain disabled. Use the [hardware reconnection guide](docs/HARDWARE.md) before commissioning. An ACK does not prove pump motion or water safety.
 
 ## Review the project
 

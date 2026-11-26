@@ -6,7 +6,7 @@ import type {
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
 import { ConvexError, v } from "convex/values";
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import { MAX_FILTER_CAPACITY, THRESHOLDS } from "./safetyPolicy";
@@ -16,6 +16,29 @@ const MAX_TOOLS_PER_RUN = 12;
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_MESSAGE_LENGTH = 1800;
 const MAX_TOOL_OUTPUT_LENGTH = 12_000;
+
+/** Deployment-only check: no device tools, records, identities or actuator access. */
+export const verifyConnection = internalAction({
+  args: {},
+  handler: async () => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    const model = process.env.ETHM_MODEL?.trim() || "gpt-5-mini";
+    if (!apiKey) return { available: false, model, reason: "not_configured" };
+    try {
+      const client = new OpenAI({ apiKey, timeout: 25_000, maxRetries: 0 });
+      const response = await client.chat.completions.create({
+        model,
+        messages: [{ role: "user", content: "Reply with exactly DWMS_CONNECTIVITY_OK. This is a service connection check; no sensor readings are provided." }],
+        max_completion_tokens: 1200,
+      });
+      const text = response.choices[0]?.message.content?.trim();
+      return { available: text === "DWMS_CONNECTIVITY_OK", model, reason: text === "DWMS_CONNECTIVITY_OK" ? "completion_received" : "unexpected_response" };
+    } catch (error) {
+      const status = error instanceof OpenAI.APIError ? error.status : undefined;
+      return { available: false, model, reason: status === 401 ? "provider_authentication_failed" : status === 429 ? "provider_quota_or_rate_limit" : "provider_request_failed" };
+    }
+  },
+});
 
 const ETHM_SYSTEM_PROMPT = `You are ETHM — DWMS AI Operations Agent, part of the existing Defense Water Monitoring System.
 
