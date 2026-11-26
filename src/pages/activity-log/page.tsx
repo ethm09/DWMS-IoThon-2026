@@ -455,7 +455,7 @@ function ActivityLogInner() {
         >
           <Shield className="w-4 h-4 text-yellow-500 shrink-0" />
           <span className="text-[10px] text-muted-foreground">
-            This log is stored only in this browser and is not a centralized audit trail. Admin controls can export or clear this local history.
+            This activity buffer lasts for this tab session. Persistent device measurements and command records are stored separately in the backend.
           </span>
         </motion.div>
       )}

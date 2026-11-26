@@ -17,7 +17,7 @@ import { classifyFlow, classifyPh, classifyTds, classifyTurbidity, evaluateState
 import { DEMO_SCENARIOS, readingFreshness, waterQuality, validWaterReading, type DemoScenario, type WaterReading, type ReadingFreshness } from "@/lib/monitoring";
 
 type HistoryPoint = WaterReading & { timestamp: string; flowRate?: number };
-type DisplayReading = WaterReading & { flowRate?: number };
+type DisplayReading = WaterReading & { flowRate?: number; timestamp?: string };
 const METRICS = [
   { key: "ph", label: "pH", unit: "", classify: classifyPh, icon: FlaskConical, band: `${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}`, limit: 8.5, color: "#0f7a93" },
   { key: "tds", label: "TDS", unit: "ppm", classify: classifyTds, icon: Droplets, band: `< ${THRESHOLDS.tds.safe.max} ppm`, limit: 500, color: "#2563eb" },
@@ -33,18 +33,22 @@ const STATUS = {
 
 function SensorReadings({ reading, freshness, history, demo = false }: { reading: DisplayReading | null | undefined; freshness: ReadingFreshness; history: HistoryPoint[]; demo?: boolean }) {
   const valid = validWaterReading(reading);
-  const latestTime = history.length ? new Date(history[history.length - 1].timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
+  const latestTimestamp = reading?.timestamp ?? history[history.length - 1]?.timestamp;
+  const latestTime = latestTimestamp ? new Date(latestTimestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
   return <div className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-4">
     {METRICS.map((metric) => {
       const value = reading?.[metric.key];
       const present = valid && typeof value === "number" && Number.isFinite(value);
       const level = present && freshness === "fresh" ? metric.classify(value) : "unknown";
+      const samples = history.slice(-12).map(point => point[metric.key]).filter((sample): sample is number => typeof sample === "number" && Number.isFinite(sample));
+      const minimum = Math.min(...samples), span = Math.max(...samples) - minimum;
+      const spark = samples.map((sample, index) => `${2 + index / Math.max(1, samples.length - 1) * 52},${span ? 24 - (sample - minimum) / span * 20 : 14}`).join(" ");
       return <Card key={metric.key} className="min-w-0 overflow-hidden py-0 shadow-none">
         <CardContent className="p-3">
           <div className="mb-2 flex items-center justify-between gap-2"><span className="flex items-center gap-1.5 text-sm font-medium"><metric.icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{metric.label}</span><span title={STATUS[level].label} aria-label={STATUS[level].label} className={`h-2 w-2 shrink-0 rounded-full ${STATUS[level].dot}`} /></div>
-          <div className="flex items-baseline gap-1"><span className="font-mono text-[26px] font-semibold leading-none tracking-tight">{present ? value.toFixed(metric.key === "tds" ? 0 : metric.key === "ph" ? 2 : 1) : "—"}</span><span className="text-xs text-muted-foreground">{metric.unit}</span></div>
-          <p className={`mt-2 truncate text-xs ${level === "warning" ? "text-amber-700 dark:text-amber-400" : level === "critical" ? "text-red-700 dark:text-red-400" : "text-muted-foreground"}`}>{!present ? "No sensor connected" : freshness !== "fresh" ? "Historical value" : `${STATUS[level].label} · ${metric.band}`}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{present && latestTime ? `Updated ${latestTime}` : "No current reading"}</p>
+          <div className="flex items-center justify-between gap-2"><div className="flex items-baseline gap-1 whitespace-nowrap"><span className="font-mono text-[26px] font-semibold leading-none tracking-tight">{present ? value.toFixed(metric.key === "tds" ? 0 : metric.key === "ph" ? 2 : 1) : "—"}</span><span className="text-xs text-muted-foreground">{metric.unit}</span></div>{samples.length > 1 && <svg viewBox="0 0 56 28" role="img" aria-label={metric.label + " recent recorded values"} className="h-7 w-14 min-w-6 text-primary"><polyline points={spark} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>}</div>
+          <p className={`mt-2 text-xs ${level === "warning" ? "text-amber-700" : level === "critical" ? "text-red-700" : "text-muted-foreground"}`}>{!demo && metric.key === "flowRate" ? "Interface unverified" : `${freshness !== "fresh" && present ? "Historical" : STATUS[level].label} · ${metric.band}`}</p>
+          <p className="mt-1 text-xs text-muted-foreground" title={latestTimestamp ? new Date(latestTimestamp).toLocaleString() : undefined}>{present && latestTime ? `${freshness === "fresh" ? "Updated" : "Last valid"} ${latestTime}` : "No current reading"}</p>
         </CardContent>
       </Card>;
     })}

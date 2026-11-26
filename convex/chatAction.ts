@@ -36,7 +36,10 @@ export const verifyConnection = internalAction({
     } catch (error) {
       const status = error instanceof OpenAI.APIError ? error.status : undefined;
       const quotaExhausted = error instanceof OpenAI.APIError && error.code === "insufficient_quota";
-      return { available: false, model, reason: quotaExhausted ? "provider_quota_exhausted" : status === 401 ? "provider_authentication_failed" : status === 429 ? "provider_rate_limit" : "provider_request_failed" };
+      const code = error instanceof OpenAI.APIError ? error.code : null;
+      const providerCode = typeof code === "string" && /^[a-z0-9_]{1,80}$/i.test(code) ? code : null;
+      const retryAfter = error instanceof OpenAI.APIError ? Number(error.headers?.get("retry-after")) : NaN;
+      return { available: false, model, reason: quotaExhausted ? "provider_quota_exhausted" : status === 401 ? "provider_authentication_failed" : status === 429 ? "provider_rate_limit" : "provider_request_failed", providerCode, retryAfterSeconds: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null };
     }
   },
 });

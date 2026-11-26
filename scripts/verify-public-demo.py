@@ -150,7 +150,7 @@ def verify_viewport(browser, options, width):
         expect(page.get_by_role("button", name="Pump response. PUMP ON", exact=True)).to_be_visible()
         checks.append("response scenario requests simulated pump ON")
         page.get_by_role("button", name="Arduino controller. Select for component details", exact=True).press("Enter")
-        expect(page.locator("summary").filter(has_text="Arduino controller")).to_be_visible()
+        expect(page.get_by_role("button", name="Arduino controller · details", exact=True)).to_have_attribute("aria-expanded", "true")
         checks.append("interactive engineering schematic responds to keyboard input")
 
         scenario("critical").click()
@@ -186,6 +186,17 @@ def verify_viewport(browser, options, width):
             scenario("critical").click()
             expect(page.get_by_text("Emergency stop latched · pump OFF", exact=True)).to_be_visible()
             checks.append("critical interlock overrides a manually started demo pump")
+
+        # A separate Live tab cannot change an active Demo workspace or restore
+        # the legacy unencrypted operational event cache.
+        live_tab = context.new_page()
+        live_tab.goto(options.url + "/live", wait_until="domcontentloaded")
+        expect(live_tab.locator("main")).to_contain_text("No live data available")
+        expect(page.get_by_text("Simulation mode", exact=True)).to_have_count(1)
+        expect(scenario("warning")).to_have_count(1)
+        assert page.evaluate("localStorage.getItem('ldwms.eventLog')") is None
+        live_tab.close()
+        checks.append("Live and Demo tabs remain isolated without cached operational events")
 
         # Visiting Live must retain an honest signed-out/unconfigured view.
         # It must never mount the demo scenarios as a fallback for missing data.
