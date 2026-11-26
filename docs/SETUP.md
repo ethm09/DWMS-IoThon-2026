@@ -41,6 +41,8 @@ Use the actual serial port (`COM3` is a Windows example); baud defaults to 9600.
 
 ## Deploy
 
+The [public software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site) is a static Sites deployment (`.openai/hosting.json`) built with empty `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_AUTH0_DOMAIN` and `VITE_AUTH0_CLIENT_ID` overrides. Its browser scenarios need no connected backend; `_redirects` preserves SPA deep links. The existing Vercel branch preview requires SSO and is not the judges’ public link.
+
 Run the checks in [VALIDATION.md](VALIDATION.md), then deploy Convex separately with `pnpm exec convex deploy`. Vercel uses `vercel.json` to build `dist` and serve SPA routes; set frontend variables in hosting settings and allow the deployed origin in Auth0. Committed bindings permit a frontend build without starting Convex.
 
 Update backend, bridge and firmware together while outputs are inactive. `clearEmergency` is an optional stored command field and fifth serial field; old commands default to no recovery permission. Only explicit acknowledgement may request local latch recovery, with fresh acceptable readings and a live lease still required.

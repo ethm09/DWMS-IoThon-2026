@@ -4,6 +4,8 @@
 
 DWMS focuses on **pH, TDS and turbidity → threshold alerts → deterministic response → controller acknowledgement**. The existing React/Convex application provides device selection, stored trends, receipt freshness and rule-based Auto / Manual / latched Emergency control. AI assistance is optional.
 
+[Public software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site) — synthetic browser scenarios, no login or relay operation.
+
 ## Run the local demo
 
 Use Node.js 24 and pnpm 10:

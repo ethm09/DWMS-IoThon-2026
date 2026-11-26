@@ -7,10 +7,9 @@ This is the single readiness record. **Simulated** means injected/scenario value
 | [x] | Input validation, device credentials and role checks | Recorded local `pnpm test`: 20 Node tests (15 backend, 5 monitoring), 16 Python tests. [Backend handlers](../tests/backend.test.cjs), [bridge tests](../tests/test_bridge.py); fake contexts/mocked I/O, not deployed Auth0 |
 | [x] | Shared thresholds, stale/invalid handling, Emergency recovery and command failures | Same suite plus [monitoring tests](../tests/monitoring.test.cjs) and [controller host harness](../tests/firmware/controller_test.cpp). Host harness runs actual sketch with mocked pins/LCD/serial |
 | [x] | Dashboard and repeatable simulation | Local desktop/390px smoke: five scenarios, blocked critical acknowledgement, explicit recovered acknowledgement, source labels, core routes; no page errors/overflow |
-| [ ] | Public software-demo URL | Publication verification pending; a public simulation is separate from the authenticated connected path |
+| [x] | Public software-demo URL | [Open demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site). Sites version 1 from `e7f7bb3`; public access confirmed, anonymous root/core-route HTML and assets returned 200. Fixed browser scenarios only; no connected credentials or relay operation |
 | [x] | Lint, frontend build and isolated Convex codegen | Recorded local passes: `pnpm lint`, `pnpm build`, `bash scripts/prepare-convex-build.sh` |
-| [x] | CI evidence for prior improvement commit | [Run 45821769699](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821769699), `69b49d4`, 2026-11-26: codegen, 18 Node +16 Python tests, host harness, lint/build/scans. This is not a result for later changes |
-| [ ] | Final revision CI | Verify the exact submitted commit's checks on the PR; do not transfer the prior run's pass to a new revision |
+| [x] | Competition implementation CI | [Run 45829367723](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45829367723), `e7f7bb3`, 2026-11-26: both jobs passed, including 20 Node +16 Python tests, 9 real-backend checkpoints, codegen/lint/build/scans, host harness and Uno target compile. [Target-build artifact](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45829367723/artifacts/15121866512) |
 | [x] | Arduino Uno target build | Arduino CLI 1.6.0, `arduino:avr@1.8.6`, AVR GCC 7.3.0, `LiquidCrystal I2C@1.1.2`, FQBN `arduino:avr:uno`; default calibration/relay flags `0`. Compiled, not uploaded or physically tested |
 | [x] | Connected software ingestion → reactive readings → alerts → control | [Isolated runner](../scripts/demo-e2e.mjs) exited `0`: all 9 checkpoints passed using actual HTTP/database/subscriptions/notifications/commands and scheduled stale OFF. Inputs/ACKs/operator are synthetic; no browser/probes/Auth0 validation |
 | [ ] | Auth0 / deployed role enforcement | Requires configured deployment, verified administrator and viewer/operator sessions |
@@ -18,7 +17,7 @@ This is the single readiness record. **Simulated** means injected/scenario value
 | [ ] | Physical relay/interlock/failure behavior | Relay disabled; verify polarity/startup, independent output state and probe/USB/network outage behavior before enabling a load |
 | [ ] | Multi-node / field / impact evidence | Registry-backed sites are implemented; two physical nodes, retention/load/soak testing, accuracy/latency/uptime/savings are unmeasured |
 
-Recorded local results above are from 2026-11-26. Add the final commit and exact run/artifact when completing a pending gate. Passing software checks does not complete a physical gate.
+Results above are from 2026-11-26 and name the checked implementation commit. A later documentation-only commit records these links. The public software bundle has no Auth0/Convex deployment configuration. Passing software checks does not complete a physical gate.
 
 ## Calibration and physical validation procedure
 

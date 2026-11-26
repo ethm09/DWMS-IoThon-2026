@@ -8,7 +8,7 @@
 
 ## 1. Local dashboard — reliable presentation fallback
 
-Run `pnpm dev`, open `/` and choose **Local demo**. No accounts, cloud or AI key are needed.
+Open the [public software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site) or run `pnpm dev`, open `/` and choose **Local demo**. No accounts or AI key are needed.
 
 | Action | Expected result |
 |---|---|
