@@ -1,7 +1,7 @@
 {
   "checked_at_utc": "2026-11-26T21:00:38.075667+00:00",
   "deployment": "canny-mosquito-637",
-  "backend_source_commit": "0cb515d",
+  "backend_source_commit": "646a47d",
   "anonymous_access_checks": [
     {
       "operation": "devices:listDevices",
@@ -37,7 +37,10 @@
   "ethm_provider_connection": {
     "available": false,
     "model": "gpt-5-mini",
-    "reason": "provider_rate_limit"
+    "providerCode": "credit_balance_exhausted",
+    "reason": "provider_rate_limit",
+    "retryAfterSeconds": null
   },
-  "scope": "Authorized existing production deployment. Negative authorization probes and backend-only model check; no synthetic measurements, test devices or test identities created in production. Not an Auth0 browser-session or physical validation."
+  "scope": "Authorized existing production deployment. Negative authorization probes and backend-only model check; no synthetic measurements, test devices or test identities created in production. Not an Auth0 browser-session or physical validation.",
+  "model_checked_at_utc": "2026-11-26T21:06:37.797947+00:00"
 }

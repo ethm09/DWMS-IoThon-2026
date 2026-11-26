@@ -1,6 +1,6 @@
 # Competition demo runbook
 
-Present all four components honestly: **Live** is the authenticated cloud path, **Demo** is shared synthetic browser state, **Hardware** includes a reported earlier prototype awaiting recovery, and **Ethm** explains authenticated evidence without actuation. Live/Ethm provider gates and audited physical results remain distinct from the public Demo.
+Present all four components honestly: **Live** is the authenticated cloud path, **Demo** is shared synthetic browser state, **Hardware** includes a reported earlier prototype awaiting recovery, and **Ethm** explains authenticated evidence without actuation. Live/Ethm provider gates and audited physical results remain distinct from the public Demo. `/live` is explicitly disabled until the callback/session rehearsal passes; its unavailable state is not a live feed or a model reply.
 
 | Demonstration | What it proves | What remains simulated |
 |---|---|---|
@@ -10,7 +10,7 @@ Present all four components honestly: **Live** is the authenticated cloud path, 
 
 ## 1. Local dashboard — reliable presentation fallback
 
-Open the [public software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/dashboard) or run `pnpm dev` and open `/dashboard` in Simulation mode. `/` is the product introduction. No accounts or AI key are needed. The single site **Reservoir demo / SIMULATION-NODE-01** is synthetic; flow is a fixed demo-only value.
+Open the [public software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo) or run `pnpm dev` and open `/demo`. `/` is the product introduction. No accounts or AI key are needed. The single site **Reservoir demo / SIMULATION-NODE-01** is synthetic; flow is a fixed demo-only value.
 
 | Action | Expected result |
 |---|---|
@@ -40,7 +40,7 @@ Record the runner result in the [readiness checklist](VALIDATION.md). Do not des
 
 Prerequisites: recovery and commissioning through [HARDWARE.md](HARDWARE.md), configured Auth0/Convex, a registered physical node, bridge, isolated load and references. The owner reports earlier physical operation, but that setup is unavailable; the checked-in disabled template is not its recovered firmware or a new physical validation result.
 
-1. Choose **Device data** and the physical node. Show its ID/location, three live values and receipt age; compare measurements to independent references.
+1. Once Auth0 and hardware gates pass, open `/live` and select the physical node. Show its ID/location, three live values and receipt age; compare measurements to independent references.
 2. Introduce an approved warning/response condition. Show live monitoring, saved alert, command pending → ACK/applied or failed, and independently observed output.
 3. Introduce a critical condition, observe OFF and latch, restore acceptable readings, then explicitly acknowledge recovery.
 4. Disconnect probe, USB and network separately. Show stale/unknown status and local watchdog behavior; measure actual stop/reconnect timing.

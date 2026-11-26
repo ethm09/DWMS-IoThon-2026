@@ -1,6 +1,6 @@
 # System architecture
 
-The existing Vite/React/TypeScript, Convex and Auth0 architecture is retained. Four components share it: **Live** authenticated monitoring/control, **Demo** synthetic browser state, **Hardware** acquisition/bridge/local interlocks, and **Ethm** read-only explanation of authenticated evidence.
+The existing Vite/React/TypeScript, Convex and Auth0 architecture is retained. Four components share it: **Live** authenticated `/live` monitoring/control, **Demo** synthetic `/demo` browser state, **Hardware** acquisition/bridge/local interlocks, and **Ethm** read-only explanation of authenticated evidence.
 
 ```mermaid
 flowchart LR
@@ -23,6 +23,8 @@ Rules are defined in [safetyPolicy.ts](../convex/safetyPolicy.ts): warnings prec
 
 Successful authenticated polls renew the Arduino's 15-second lease; sensor freshness is 5 seconds. Loss while operating latches OFF in software. USB retries cap at 10 seconds and delayed serial data is discarded. These configured durations are not measured stop latency.
 
-Current source requires authenticated registered viewers/operators/admins to read the shared prototype fleet; guests and unregistered identities are denied. Roles protect controls; per-device keys protect bridge endpoints and are redacted from listings. Publishing these source changes to the existing cloud backend and testing real Auth0 sessions remain deployment gates. Site/tenant isolation, retention, notification fanout and larger-fleet capacity are unvalidated.
+The existing production backend now denies anonymous real-data reads, pump requests and agent runs. Operational reads additionally require an approved fleet grant or operator/admin role; new/legacy unapproved viewers are denied. Granted viewers cannot actuate. Private histories remain user-owned, while approved users share a fleet without per-site tenant isolation. Live Auth0 callback/session rehearsal remains blocked; Demo never initializes Auth0 and the hardware bridge is mounted only under `/live`. Legacy operational buffers are volatile per tab.
+
+Ethm's real backend provider check returned HTTP 429 (`provider_rate_limit`), so it remains unavailable; no quota/billing cause or successful AI answer is inferred.
 
 See the [single evidence record](VALIDATION.md) and [demo runbook](DEMO.md). Ethm requires a real authenticated data/model path; no live AI response is established by a demo or a configured server key alone.

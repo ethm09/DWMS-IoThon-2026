@@ -35,7 +35,7 @@ export const verifyConnection = internalAction({
       return { available: text === "DWMS_CONNECTIVITY_OK", model, reason: text === "DWMS_CONNECTIVITY_OK" ? "completion_received" : "unexpected_response" };
     } catch (error) {
       const status = error instanceof OpenAI.APIError ? error.status : undefined;
-      const quotaExhausted = error instanceof OpenAI.APIError && error.code === "insufficient_quota";
+      const quotaExhausted = error instanceof OpenAI.APIError && (error.code === "insufficient_quota" || error.code === "credit_balance_exhausted");
       const code = error instanceof OpenAI.APIError ? error.code : null;
       const providerCode = typeof code === "string" && /^[a-z0-9_]{1,80}$/i.test(code) ? code : null;
       const retryAfter = error instanceof OpenAI.APIError ? Number(error.headers?.get("retry-after")) : NaN;

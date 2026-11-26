@@ -6,14 +6,14 @@ A focused IoThon 2026 prototype for water-quality monitoring across networks, re
 
 | Component | Purpose | Current boundary |
 |---|---|---|
-| **Live** | Authenticated readings, alerts, history and authorized device controls | Existing cloud source/allowed Auth0 URLs need update and end-to-end rehearsal |
+| **Live** | Authenticated readings, alerts, history and authorized device controls | Backend deployed and anonymous access denied; Auth0 callback/session gate remains blocked |
 | **Demo** | Shared browser scenarios for a repeatable presentation | Synthetic readings and response; no physical action |
 | **Hardware** | Arduino/USB bridge and deterministic local interlocks | Owner reports an earlier operating prototype; it is currently unavailable for audited revalidation |
-| **Ethm** | Read-only explanation of authenticated device evidence | Real provider/data/model operation is pending; no fabricated replies or actuation |
+| **Ethm** | Read-only explanation of authenticated device evidence | Read-only path; provider returned HTTP 429 and real-session rehearsal remains blocked |
 
 Competition implementation: [improvement branch](https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus) · [Draft PR #2](https://github.com/ethm09/DWMS-IoThon-2026/pull/2). Main is unchanged pending approval.
 
-**[Open the software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site)** · [Readiness and evidence](docs/VALIDATION.md) · [Demo runbook](docs/DEMO.md)
+**[Open Demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo)** · [Live workspace — gated](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/live) · [Readiness and evidence](docs/VALIDATION.md) · [Demo runbook](docs/DEMO.md)
 
 ![DWMS overview showing the three water-quality readings and demo-only flow in Simulation mode](docs/screenshots/dashboard-desktop.png)
 
@@ -28,7 +28,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Choose Simulation for the public browser demonstration. It requires no login, changes no physical output and does not write device history. Connected operation uses the existing React/TypeScript + Convex architecture with Auth0 identities and a Python/USB Arduino bridge; see [setup](docs/SETUP.md).
+Open `/demo` for the browser demonstration; `/live` is the separate operational workspace. Demo requires no login, changes no physical output and does not write device history. Connected operation uses the existing React/TypeScript + Convex architecture with Auth0 identities and a Python/USB Arduino bridge; see [setup](docs/SETUP.md).
 
 ```bash
 pnpm test

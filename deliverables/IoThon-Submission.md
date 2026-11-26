@@ -25,7 +25,7 @@ Our proposed first user is an industrial utilities engineer responsible for a tr
 
 DWMS retains its existing React/TypeScript dashboard and Convex backend. The intended physical path is pH, TDS and turbidity probes → Arduino Uno → USB/Python bridge → authenticated HTTPS ingestion → stored readings, alerts and dashboard. Deterministic backend rules create expiring commands; the bridge and controller return acknowledgements. Critical conditions latch a stop and require explicit recovered acknowledgement. Local sensor interlocks and a communication lease address loss of communication in software.
 
-The four components are Live authenticated monitoring/control, Demo synthetic browser scenarios, Hardware sensing/bridge/interlocks and Ethm read-only explanations. Flow is demo-only. Ethm cannot issue actuation requests; a real authenticated data/model response still needs verification. Existing server configuration alone is not proof of live readiness.
+The four components are Live authenticated monitoring/control, Demo synthetic browser scenarios, Hardware sensing/bridge/interlocks and Ethm read-only explanations. Flow is demo-only. Ethm cannot issue actuation requests. The existing backend now denies anonymous operational access, but real Auth0 callback/session access remains blocked. The model provider returned HTTP 429; no successful Ethm response or specific quota cause is claimed. `/demo` and the gated `/live` workspace remain separate.
 
 ## Innovation and competitive positioning
 
@@ -50,7 +50,7 @@ Before a field pilot, obtain component and maintenance quotes, select site-speci
 | Item | Value / status |
 |---|---|
 | Source | https://github.com/ethm09/DWMS-IoThon-2026 — competition implementation on [improve/iothon-2026-focus](https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus), [Draft PR #2](https://github.com/ethm09/DWMS-IoThon-2026/pull/2); main remains unchanged |
-| Public software demo | https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site — simulated readings; no physical control |
+| Public software demo | https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo — simulated readings; no physical control |
 | Evidence / readiness | [docs/VALIDATION.md](../docs/VALIDATION.md) |
 | Architecture / setup | [Architecture](../docs/ARCHITECTURE.md) · [Setup](../docs/SETUP.md) |
 | Demo video | **Pending recording, review and hosted URL**; [storyboard](Demo-Video-Storyboard.md) |

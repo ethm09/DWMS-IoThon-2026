@@ -2,41 +2,44 @@
 
 ## Demo
 
-Use Node.js 24 and pnpm 10: `pnpm install --frozen-lockfile`, then `pnpm dev`. Open `/dashboard` in Simulation mode. The [public Demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site) needs no account or probes and never controls physical output. Follow [DEMO.md](DEMO.md).
+Use Node.js 24 and pnpm 10: `pnpm install --frozen-lockfile`, then `pnpm dev`. Canonical workspaces are **`/demo`** for synthetic browser scenarios and **`/live`** for operational access. The [public Demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo) needs no account or probes and never controls hardware. Demo does not initialize Auth0; the hardware subscription bridge runs only in Live. Follow [DEMO.md](DEMO.md).
 
-## Live and Ethm: reuse existing infrastructure
+## Existing infrastructure and public configuration
 
-Copy `.env.example` to `.env.local` and use the existing deployment/SPA; do not create replacement services.
+Reuse the existing deployment/SPA. Copy `.env.example` to `.env.local`; no replacement service is needed.
 
 | Frontend public value | Existing backend counterpart |
 |---|---|
 | `VITE_CONVEX_URL=https://canny-mosquito-637.convex.cloud` | Existing Convex deployment |
 | `VITE_CONVEX_SITE_URL=https://canny-mosquito-637.convex.site` | Its HTTP actions |
-| `VITE_AUTH0_DOMAIN=dev-i3qysqy0xf3uqtvv.us.auth0.com` | Existing `AUTH0_DOMAIN`; canonical issuer `https://dev-i3qysqy0xf3uqtvv.us.auth0.com/` |
-| `VITE_AUTH0_CLIENT_ID=Z8rnHb9dVeG1YH3nqlfeuZ1ZT2Yfd4Bx` | Recovered public SPA ID; match existing `AUTH0_CLIENT_ID`; owner confirmation pending |
+| `VITE_AUTH0_DOMAIN=dev-i3qysqy0xf3uqtvv.us.auth0.com` | Issuer `https://dev-i3qysqy0xf3uqtvv.us.auth0.com/` |
+| `VITE_AUTH0_CLIENT_ID=Z8rnHb9dVeG1YH3nqlfeuZ1ZT2Yfd4Bx` | Confirmed directly against existing `AUTH0_CLIENT_ID` |
+| `VITE_DWMS_LIVE_ENABLED=false` | Keep disabled until the Auth0 callback/login rehearsal succeeds |
 
-Preserve the existing verified `DWMS_INITIAL_ADMIN_EMAIL` and server-only `OPENAI_API_KEY`. New users start as viewers; an administrator registers devices and operators control existing devices. The owner reports that the OpenAI key is already configured; this does not verify a successful Ethm request. Ethm is read-only and needs authenticated device evidence plus an available model service. No client secret or custom API audience is used by this SPA ID-token integration. Never put server keys/deployment credentials in frontend variables or recordings.
+Preserve existing server-only `DWMS_INITIAL_ADMIN_EMAIL` and `OPENAI_API_KEY`; never put keys/deployment credentials in frontend variables, chat or recordings. Public URLs/domain/client ID are not private credentials. Static values require a frontend rebuild. The public configuration can be present while Live remains explicitly gated.
 
-## Auth0 application settings
+New and legacy viewers without an explicit fleet grant cannot read operational data. An administrator grants/revokes viewer fleet-read access or assigns operator/admin roles. A granted viewer cannot actuate. Approved users share the prototype fleet; there is no per-site tenant model. Chat, notification and run histories remain user-owned. Tokens are cached in memory and legacy operational buffers are volatile per tab, not browser localStorage.
 
-Add/verify these exact entries in the **existing Single Page Application**, retaining its working origins:
+## Auth0 application settings and authorization blocker
 
-| Setting | Values |
+These exact entries are required on the **existing SPA**, retaining working origins:
+
+| Setting | Required values |
 |---|---|
 | Allowed Callback URLs | `http://localhost:5173/auth/callback` and `https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/auth/callback` |
 | Allowed Logout URLs | `http://localhost:5173` and `https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site` |
 | Allowed Web Origins | `http://localhost:5173` and `https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site` |
 
-Callbacks include `/auth/callback`; logout/origin entries do not. Add the actual origin if the port/host changes. Tokens are cached in memory; refresh, sign-in restoration and logout need an actual provider/browser rehearsal. Confirm signup is enabled if registration is intended.
+Callbacks include `/auth/callback`; logout/origin entries do not. Add the exact origin if the port/host changes. This integration uses the SPA ID token for Convex, not a client secret or custom API audience.
 
-**Observed external gates, 2026-11-26:** the existing SPA authorization request for the new Site returned **Callback URL mismatch**. The ID above was recovered from the original Vercel bundle, not generated; no account/credential was created. This workspace also lacks an authorized Convex deployment session. A read-only live check found the older production registry query accepted an anonymous request (zero records). Current protected source/tests are not a deployed-security claim.
+**Observed:** the Site callback still returns **Callback URL mismatch**. Auth0 CLI 1.40.0 default and additional-scope device attempts failed with “User is not authorized” / `ActivationDenied`. The CLI uses its own first-party/global authorization client; those failures do not establish a defect in the DWMS SPA grant. Tenant/account-policy cause is unknown without authorized logs.
 
-## Hardware
+**Required access:** a secure authorization grant to the existing Auth0 Management API integration, or a functional authenticated browser, is needed to inspect logs and update the existing SPA. No new service or further blind device-code attempts are needed. Do not send private M2M secrets in chat. After authorized correction, test registration/login, reload/session restoration, logout and fleet/role boundaries before setting `VITE_DWMS_LIVE_ENABLED=true` and rebuilding. A configured tenant/client ID does not prove these flows.
 
-Use [HARDWARE.md](HARDWARE.md), the single reconnection/intake/calibration/commissioning guide. The owner-reported earlier prototype is currently unavailable. Preserve its running firmware/wiring before changes; the disabled repository template is not its recovered firmware. Compilation is not upload or physical validation.
+## Backend, Hardware and Ethm
 
-## Publish the connected revision
+Current source `646a47d` was deployed to the existing Convex backend. Six anonymous probes—four real-data reads, pump command and agent run—were denied `UNAUTHENTICATED`; see [production checks](screenshots/production-release-checks.json). Future deployment must retain the same existing target and checks.
 
-Run the checks in [VALIDATION.md](VALIDATION.md). From an authorized terminal, use `pnpm exec convex deploy` and verify that its selected target is the existing `canny-mosquito-637` production deployment. Complete the Auth0 settings, then rehearse registration/login, reload/logout, roles and real Ethm evidence. Keep backend, bridge and firmware protocol versions coordinated.
+Use [HARDWARE.md](HARDWARE.md), the canonical recovery/calibration/commissioning guide. The owner-reported earlier prototype is unavailable; preserve its firmware/wiring before changes. The disabled repository template is not recovered historical firmware. Keep backend, bridge and firmware protocol versions coordinated.
 
-Only after those gates pass, rebuild/publish the frontend with all four public values above. Static variables require a rebuild; runtime edits do not change a bundle. The current public Sites guest build deliberately omits Auth0 values and remains Demo-only while Live/Ethm gates are blocked. `.openai/hosting.json` and SPA redirects support that hosting; the retained Vercel preview requires SSO and is not the judges' public link.
+Ethm is read-only and needs approved authenticated device evidence plus an available model service. The actual backend provider check returned HTTP 429 with `credit_balance_exhausted`; Ethm remains unavailable until the provider account has usable API credit. The key remains backend-only. Do not substitute a fake model reply. Deterministic monitoring/control is separate.
