@@ -684,3 +684,64 @@ test("automatic threshold fanout excludes viewers without fleet approval", async
     (error) => error.data?.code === "FORBIDDEN",
   );
 });
+
+const envelope = (seq = 1, offset = -2000, sessionId = "gateway_session_a") => ({
+  sessionId, seq, gatewayObservedAt: stamp(offset),
+});
+test("gateway observation and receipt are separate persistent timestamps", async () => {
+  const f = fixture();
+  const frame = { ...healthy, ...envelope(), sourceSequence: 1, sourceUptimeMs: 1000 };
+  assert.equal((await f.request("/arduino/data", frame)).status, 200);
+  const reading = f.tables.sensorReadings[0];
+  assert.equal(reading.timestamp, frame.gatewayObservedAt);
+  assert.equal(reading.timeBasis, "gateway_observation");
+  assert.ok(reading.receivedAt > reading.timestamp);
+  assert.equal(reading.sourceSequence, 1);
+  assert.ok(f.scheduled.find(s => s.fn === "devices:checkDeviceStale").delay <= 8000);
+});
+test("exact duplicate is idempotent without renewing receipt, alerts, commands or offline lease", async () => {
+  const f = fixture();
+  const frame = { ...healthy, tds: 900, ...envelope() };
+  await f.request("/arduino/data", frame);
+  const before = JSON.stringify({ tables: f.tables, scheduled: f.scheduled });
+  const duplicate = await f.request("/arduino/data", frame);
+  assert.equal(duplicate.status, 200);
+  assert.equal((await duplicate.json()).duplicate, true);
+  assert.equal(JSON.stringify({ tables: f.tables, scheduled: f.scheduled }), before);
+  assert.equal((await f.request("/arduino/data", { ...frame, tds: 901 })).status, 409);
+});
+test("gateway sequence, replay, delayed and future frames cannot refresh accepted data", async () => {
+  const f = fixture();
+  const first = { ...healthy, ...envelope(2) };
+  await f.request("/arduino/data", first);
+  for (const frame of [
+    { ...healthy, ...envelope(1, -1000) },
+    { ...healthy, ...envelope(3, -11000) },
+    { ...healthy, ...envelope(3, 5000) },
+    { ...healthy, ...envelope(3, -5000) },
+    { ...healthy, ...envelope(1, -5000, "older_gateway_session") },
+    healthy,
+  ]) assert.equal((await f.request("/arduino/data", frame)).status, 409);
+  assert.equal(f.tables.sensorReadings.length, 1);
+});
+test("new gateway session reconnects with newer observation despite a lost first upload", async () => {
+  const f = fixture();
+  await f.request("/arduino/data", { ...healthy, ...envelope() });
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000, "new_gateway_session") })).status, 200);
+  assert.equal(f.tables.sensorReadings.length, 2);
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope() })).status, 409);
+});
+test("invalid telemetry identity and partial controller metadata fail closed", async () => {
+  for (const bad of [{ seq: true }, { sessionId: 123 }, { ...envelope(), seq: 0 }, { ...envelope(), sourceSequence: 1 }, { ...envelope(), sourceSequence: 1, sourceUptimeMs: -1 }, { ...envelope(), gatewayObservedAt: "not-a-date" }, { ...envelope(), sessionId: "short" }]) {
+    const f = fixture();
+    assert.ok([400, 409].includes((await f.request("/arduino/data", { ...healthy, ...bad })).status));
+    assert.equal(f.tables.sensorReadings.length, 0);
+  }
+});
+test("controller duplicate sequence cannot be rewrapped in a newer gateway packet", async () => {
+  const f = fixture();
+  await f.request("/arduino/data", { ...healthy, ...envelope(), sourceSequence: 5, sourceUptimeMs: 1000 });
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000), sourceSequence: 5, sourceUptimeMs: 1000 })).status, 409);
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000) })).status, 409);
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000), sourceSequence: 6, sourceUptimeMs: 500 })).status, 409);
+});

@@ -126,6 +126,38 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaises(OSError):
             bridge.poll_command(self.board, self.session, "next")
 
+    def test_gateway_envelope_is_identified_and_never_claims_probe_utc(self):
+        telemetry = bridge.TelemetrySession()
+        bridge.handle_reading('{"calibrated":true,"ph":7,"tds":100,"turbidity":1}', self.session, "data", telemetry)
+        sent = self.session.post.call_args.kwargs["json"]
+        self.assertEqual(sent["seq"], 1)
+        self.assertEqual(len(sent["sessionId"]), 32)
+        self.assertTrue(sent["gatewayObservedAt"].endswith("Z"))
+        self.assertNotIn("sourceAcquiredAt", sent)
+
+    def test_duplicate_controller_frame_is_not_uploaded_again(self):
+        telemetry = bridge.TelemetrySession()
+        frame = '{"calibrated":true,"ph":7,"tds":100,"turbidity":1,"sourceSequence":1,"sourceUptimeMs":1000}'
+        bridge.handle_reading(frame, self.session, "data", telemetry)
+        bridge.handle_reading(frame, self.session, "data", telemetry)
+        self.assertEqual(self.session.post.call_count, 1)
+
+    def test_controller_restart_opens_new_gateway_session(self):
+        telemetry = bridge.TelemetrySession()
+        first = telemetry.envelope({"sourceSequence":10,"sourceUptimeMs":20000}, "time")
+        second = telemetry.envelope({"sourceSequence":1,"sourceUptimeMs":1000}, "time2")
+        self.assertNotEqual(first["sessionId"], second["sessionId"])
+        self.assertEqual(second["seq"], 1)
+
+    def test_invalid_controller_identity_or_downgrade_rejected(self):
+        telemetry = bridge.TelemetrySession()
+        for fields in [{"sourceSequence":True,"sourceUptimeMs":1}, {"sourceSequence":1}, {"sourceSequence":1,"sourceUptimeMs":-1}]:
+            with self.assertRaises(ValueError):
+                telemetry.envelope(fields, "time")
+        telemetry.envelope({"sourceSequence":1,"sourceUptimeMs":1000}, "time")
+        with self.assertRaises(ValueError):
+            telemetry.envelope({}, "time2")
+
     def test_usb_open_failures_retry_with_bounded_backoff(self):
         bridge.serial.Serial = Mock(side_effect=OSError("not connected"))
         session = Mock()

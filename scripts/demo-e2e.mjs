@@ -588,6 +588,24 @@ try {
   passed(
     "real scheduler marked a silent node offline, state unknown, and issued latched OFF (physical stop unverified)",
   );
+  // Upgrade only after legacy-path checkpoints, in the same disposable deployment.
+  const gatewayFrame = { ph: 7.2, tds: 300, turbidity: 2,
+    sessionId: "isolated_gateway_session", seq: 1,
+    gatewayObservedAt: new Date(Date.now() - 1000).toISOString(),
+    sourceSequence: 1, sourceUptimeMs: 1000 };
+  await post("/arduino/data", gatewayFrame);
+  const beforeDuplicate = await operatorClient.query(api.devices.getRecentReadings, { deviceId, limit: 200 });
+  const duplicate = await post("/arduino/data", gatewayFrame);
+  assert.equal(duplicate.duplicate, true);
+  assert.equal((await operatorClient.query(api.devices.getRecentReadings, { deviceId, limit: 200 })).length, beforeDuplicate.length);
+  assert.equal(beforeDuplicate[0].timestamp, gatewayFrame.gatewayObservedAt);
+  assert.equal(beforeDuplicate[0].timeBasis, "gateway_observation");
+  assert.ok(beforeDuplicate[0].receivedAt > beforeDuplicate[0].timestamp);
+  await post("/arduino/data", { ...gatewayFrame, ph: 7.3 }, deviceId, syntheticKey, 409);
+  await post("/arduino/data", { ...gatewayFrame, seq: 2, gatewayObservedAt: new Date(Date.now()-11000).toISOString() }, deviceId, syntheticKey, 409);
+  await post("/arduino/data", { ph: 7.2, tds: 300, turbidity: 2 }, deviceId, syntheticKey, 409);
+  await post("/arduino/data", { ...gatewayFrame, sessionId: "isolated_gateway_restart", seq: 1, gatewayObservedAt: new Date().toISOString() });
+  passed("gateway timestamps persisted; duplicate/conflicting/delayed/downgrade frames rejected or ignored; new gateway session reconnected without production writes");
   unsubscribe();
   console.log(
     `DWMS synthetic HTTP integration passed: ${checks.length} checkpoints. Temporary backend/data removed; no physical result claimed.`,

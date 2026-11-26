@@ -42,7 +42,7 @@ Current backend source `ce3df43` was deployed to the existing Convex backend. Se
 
 Use [HARDWARE.md](HARDWARE.md), the canonical recovery/calibration/commissioning guide. The owner-reported earlier prototype is unavailable; preserve its firmware/wiring before changes. The disabled repository template is not recovered historical firmware. Keep backend, bridge and firmware protocol versions coordinated.
 
-Ethm is read-only and needs approved authenticated device evidence plus an available model service. The actual backend provider check returned HTTP 429 with `credit_balance_exhausted`; Ethm remains unavailable until the provider account has usable API credit. The key remains backend-only. Do not substitute a fake model reply. Deterministic monitoring/control is separate.
+Ethm is read-only and needs approved authenticated device evidence plus an available model service. The actual backend provider check returned HTTP 429 with `credit_balance_exhausted`; Ethm remains unavailable until the provider account has usable API credit. API billing is separate from ChatGPT: an organization owner must review https://platform.openai.com/settings/organization/billing/overview and approve any credit purchase. No purchase was made. The key remains backend-only. Do not substitute a fake model reply. Deterministic monitoring/control is separate.
 
 ## Credential review
 

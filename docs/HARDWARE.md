@@ -20,7 +20,7 @@ The retained path is `probes → Uno → USB/Python bridge → authenticated HTT
 | Probe inputs | pH A0, TDS A1, turbidity A2; actual module/output compatibility must be verified |
 | Local display / indication | LCD I²C A4/A5, address `0x27`; LEDs D2–D4 |
 | Relay | D7; polarity unknown until measured; repository control enable remains `0` |
-| Serial | 9600 baud; newline JSON `{ph,tds,turbidity,calibrated:true}` only after independent calibration; a flag alone is not calibration evidence |
+| Serial | 9600 baud; newline JSON `{ph,tds,turbidity,calibrated:true,sourceSequence,sourceUptimeMs}` only after independent calibration; older calibrated three-value frames remain bridge-compatible; a flag alone is not calibration evidence |
 | Device telemetry | HTTPS `POST /arduino/data`; numeric, finite, nonnegative values and pH 0–14; matching device credentials required |
 | Control / feedback | `/arduino/control/next`, `/arduino/control/ack`, `/arduino/control/status`; serial `KEEPALIVE`, `SET_PUMP,id,mode,state,clearEmergency`, `ACK`, `STATUS` |
 | Flow | Simulation only. No physical flow pin, pulse conversion, transmitted field or stored reading is implemented |
@@ -53,7 +53,7 @@ Obtain these exact details before claiming calibrated readings or reconnecting a
 5. In an authorized Devices session, register/select the actual device. Set `DWMS_HTTP_URL=https://canny-mosquito-637.convex.site`, its exact `DWMS_DEVICE_ID`, `DWMS_SERIAL_PORT` and secret `DWMS_API_KEY` in the local environment. Keep the key out of commands saved to history, screenshots and recordings. Run `python public/hardware/serial_bridge.py` only with the verified inactive bench setup and compatible firmware.
 6. Observe raw serial output, accepted upload, correct selected-device receipt, history/alert and command/ACK as distinct checkpoints. The default template emits `CALIBRATION_REQUIRED`; receiving no measurement from that template is expected. Do not flash it over a previously working controller merely to produce a green dashboard.
 
-The bridge retries USB with bounded backoff and discards delayed samples rather than replaying them as fresh. Successful authenticated polling renews a configured 15-second control lease; command expiry is 20 seconds, backend receipt freshness 10 seconds and local sensor freshness 5 seconds. These are software policies. Measure actual physical timing during commissioning; receipt time does not establish acquisition time.
+The bridge retries USB with bounded backoff and discards delayed samples rather than replaying them as fresh. Successful authenticated polling renews a configured 15-second control lease; command expiry is 20 seconds, backend observation freshness 10 seconds (legacy receipt freshness) and local sensor freshness 5 seconds. These are software policies. The upgraded bridge supplies gateway observation UTC, a USB-session UUID and increasing packet sequence; optional controller sequence/uptime identifies duplicate frames and restart/wrap. Observation is not probe acquisition UTC. Keep the gateway clock synchronized: delayed (>10 seconds), future, conflicting or out-of-order frames are rejected; exact duplicates do not renew freshness. After a device first accepts the envelope, receipt-only downgrade is blocked; keep the upgraded bridge when reconnecting. No retry queue replays telemetry after an outage. Measure actual physical timing during commissioning; gateway/receipt timestamps do not establish acquisition time.
 
 ## Calibration and commissioning procedure
 
@@ -76,3 +76,5 @@ bash scripts/compile-arduino.sh <evidence-dir>
 The 2026-11-26 local rerun passed with `arduino:avr@1.8.6`, AVR GCC 7.3.0, `LiquidCrystal I2C@1.1.2`, FQBN `arduino:avr:uno`, and both source gates `0`. HEX SHA-256: `0c46970a95b127e0c865749a99043bc20ea7b7e77161689333ad456d99a29009`. Compiler estimates: 8,232 flash bytes and 772 static SRAM bytes. Only upstream core/LCD unused-parameter warnings occurred. These are build outputs, not physical measurements.
 
 The [readiness record](VALIDATION.md) links exact CI evidence. **Still missing:** recovered historical firmware and identified modules, independent calibration records, verified disconnect diagnostics, physical relay/load/failure observations, complete acquired-data trace and two physical nodes. No calibration or relay enable was changed during this audit.
+
+The [downloadable reconnection package](../deliverables/DWMS-Hardware-Reconnection.zip) bundles the current disabled scaffold, bridge, dependency constraints, compile script, host harness, setup and this guide. It contains no historical working firmware or private credentials. Its manifest hashes identify the included files; recover the original board/backup separately.

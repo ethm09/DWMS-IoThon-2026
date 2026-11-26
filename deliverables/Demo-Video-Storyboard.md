@@ -1,7 +1,9 @@
-# DWMS demo video — 100-second storyboard
+# DWMS demo video — production handover
 
 Actual screen recording: [93-second software walkthrough](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-software-demo.mp4), repository file [MP4](../public/media/dwms-software-demo.mp4). Recorded from the published application; 92.75 seconds, silent, simulation visible. No physical prototype footage is included. The narration below remains a reviewable script.
 
+
+**Current edited assets:** [96-second 1080p visual master](video/DWMS-Competition-Visual-Master.mp4), [timed English SRT](video/DWMS-English.srt), [final narration script](video/DWMS-Narration.txt), [production/license record](video/PRODUCTION.txt). The original 1440×950 recording is framed at native resolution, without upscaling. The detailed table below is the earlier optional 100-second storyboard; the timed 96-second script is the current edit. Professional AI voice remains pending an authorized service; there is no final narrated MP4 or voiceover MP3 yet.
 
 **Display:** DWMS · Water Intelligence  
 **Tagline:** Monitor. Detect. Respond.  

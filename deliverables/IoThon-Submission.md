@@ -25,19 +25,35 @@ Our proposed first user is an industrial utilities engineer responsible for a tr
 
 DWMS retains its existing React/TypeScript dashboard and Convex backend. The intended physical path is pH, TDS and turbidity probes → Arduino Uno → USB/Python bridge → authenticated HTTPS ingestion → stored readings, alerts and dashboard. Deterministic backend rules create expiring commands; the bridge and controller return acknowledgements. Critical conditions latch a stop and require explicit recovered acknowledgement. Local sensor interlocks and a communication lease address loss of communication in software.
 
-The four components are Live authenticated monitoring/control, Demo synthetic browser scenarios, Hardware sensing/bridge/interlocks and Ethm read-only explanations. Flow is demo-only. Ethm cannot issue actuation requests. The existing backend now denies anonymous operational access, but real Auth0 callback/session access remains blocked. The model provider returned HTTP 429; no successful Ethm response or specific quota cause is claimed. `/demo` and the gated `/live` workspace remain separate.
+The four components are Live authenticated monitoring/control, Demo synthetic browser scenarios, Hardware sensing/bridge/interlocks and Ethm read-only explanations. Flow is demo-only. Ethm cannot issue actuation requests. The existing backend now denies anonymous operational access, but real Auth0 callback/session access remains blocked. The model provider returned HTTP 429 with `credit_balance_exhausted`; no successful Ethm response is claimed. `/demo` and the gated `/live` workspace remain separate.
 
-## Innovation and competitive positioning
+## Innovation
 
 The focused contribution is a reviewable monitoring-to-response workflow: source, data age, threshold decision and command outcome are visible together. Warning bands provide early threshold detection; they are not a claim of predictive contamination detection. Registered sites and per-device history support a distributed prototype.
 
 Commercial water-monitoring products already provide connected instruments, dashboards and alarms. DWMS does not claim category uniqueness, lower cost, superior accuracy or industrial certification. Its current value is a transparent, reproducible prototype that can be evaluated against a narrow pilot workflow.
 
-## What has been demonstrated
+## Competitive advantage
+
+DWMS brings readings, freshness, threshold alerts, operating mode, command status and explicit recovery into one reviewable workflow. Commercial systems already provide monitoring and control; the current differentiator is the focused, inspectable prototype demonstration, not a claim of unique technology or proven superiority.
+
+## Target users
+
+The proposed first customer is an industrial utilities engineer managing a treated-water reuse buffer tank in Saudi Arabia. Networks, reservoirs and industrial storage are relevant adjacent applications. No pilot partner, demand validation or customer commitment is claimed.
+
+## Project readiness and verified achievements
 
 The repository includes automated input/auth/rule/failure tests, a real isolated-backend integration runner, controller host tests and an Arduino Uno target compile. The public demo uses explicitly simulated scenarios. The isolated runner uses synthetic readings and controller acknowledgements against actual HTTP, database, reactive query, notification and command functions. Exact runs and limits are recorded in [the readiness evidence matrix](../docs/VALIDATION.md).
 
 **Historical hardware and current evidence differ.** The owner reports that an earlier physical prototype operated, but it is currently unavailable and no audited measurements were supplied. Recover that setup using [the hardware guide](../docs/HARDWARE.md); current repository conversion/calibration and relay gates remain disabled. Compilation or an ACK does not establish sensor accuracy, pump motion, treatment or water safety. The three probes do not establish microbiological safety or complete reuse compliance.
+
+## Expected impact
+
+The pilot will measure data completeness, false/missed alerts, time from alert to operator acknowledgement, maintenance effort and operating cost against the existing workflow. Expected value is clearer inspection and escalation of water-condition changes. Water/energy savings, treatment outcomes and improved response times are hypotheses until independently measured.
+
+## Commercial potential
+
+The commercial hypothesis is installation/commissioning plus a recurring site service fee for monitoring, records and support. The feasibility study and editable SAR model distinguish catalog examples, estimates, scenarios and unknown installed specifications. Prices, margins, deployment costs and willingness to pay remain assumptions for pilot validation, not sales or profitability results.
 
 ## Feasibility and next milestone
 
@@ -54,9 +70,10 @@ Before a field pilot, obtain component and maintenance quotes, select site-speci
 | Evidence / readiness | [docs/VALIDATION.md](../docs/VALIDATION.md) |
 | Architecture / setup | [Architecture](../docs/ARCHITECTURE.md) · [Setup](../docs/SETUP.md) |
 | Demo video | https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-software-demo.mp4 — 92.75-second silent recording of the actual public simulation. No physical footage; final review and portal acceptance pending. [Narration/storyboard](Demo-Video-Storyboard.md) |
+| Video production | [96-second captioned 1080p visual master](video/DWMS-Competition-Visual-Master.mp4), [SRT](video/DWMS-English.srt), [script](video/DWMS-Narration.txt). Voice-service authorization pending; no narrated MP4/voiceover MP3 claimed. Original 1440×950 footage is framed without upscaling. |
 | Founder / project lead | Ahmed Alzahrani — confirmed; additional identities, affiliations or contact details must come from the registered account or owner |
 | Pitch deck | [Editable PPTX](DWMS-Pitch.pptx) · [PDF](DWMS-Pitch.pdf) |
-| Feasibility study | [Editable DOCX](DWMS-Feasibility.docx) · [PDF](DWMS-Feasibility.pdf) |
+| Feasibility study | [Editable DOCX](DWMS-Feasibility.docx) · [PDF](DWMS-Feasibility.pdf) · [SAR financial model](DWMS-Financial-Model.xlsx), illustrative scenarios |
 | Logo / screenshots / other uploads | Confirm exact portal requirements before attaching; screenshots identify simulated data |
 | Rules / consent / eligibility / final submission | Owner must verify the actual declarations and approve the final submission |
 

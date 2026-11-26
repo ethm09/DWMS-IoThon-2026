@@ -6,6 +6,9 @@ Telemetry is sent once, never buffered/replayed as fresh after an outage.
 Successful authenticated command polls renew the Arduino's control lease.
 """
 
+from datetime import datetime, timezone
+import uuid
+
 import json
 import math
 import os
@@ -50,6 +53,7 @@ def run_board(board: serial.Serial, session: requests.Session) -> None:
     time.sleep(2.0)
     # Discard bytes accumulated while opening/resetting. Never upload old samples.
     board.reset_input_buffer()
+    telemetry = TelemetrySession()
     last_poll = 0.0
     last_serial_read = time.monotonic()
     while True:
@@ -71,7 +75,7 @@ def run_board(board: serial.Serial, session: requests.Session) -> None:
         elif line.startswith("STATUS,"):
             handle_status(line, session, HTTP_URL + "/arduino/control/status")
         elif line.startswith("{"):
-            handle_reading(line, session, HTTP_URL + "/arduino/data")
+            handle_reading(line, session, HTTP_URL + "/arduino/data", telemetry)
         elif line and line != "CALIBRATION_REQUIRED":
             print("Controller:", line)
 
@@ -114,7 +118,38 @@ def is_measurement(value: object) -> bool:
         return False
 
 
-def handle_reading(line: str, session: requests.Session, data_url: str) -> None:
+class TelemetrySession:
+    """One gateway USB session. UTC is gateway observation, never claimed probe time."""
+    def __init__(self):
+        self.session_id = uuid.uuid4().hex
+        self.seq = 0
+        self.last_source = None
+        self.last_uptime = None
+
+    def envelope(self, payload, observed_at):
+        source = payload.get("sourceSequence")
+        uptime = payload.get("sourceUptimeMs")
+        metadata = {}
+        if source is not None or uptime is not None:
+            if not all(type(value) is int and 0 <= value <= 0xFFFFFFFF for value in (source, uptime)):
+                raise ValueError("Invalid controller identity")
+            if source == self.last_source:
+                raise ValueError("Duplicate controller frame")
+            if self.last_source is not None and (source < self.last_source or uptime < self.last_uptime):
+                # Reset or millis()/sequence wrap: a new gateway session, not fake continuity.
+                self.session_id = uuid.uuid4().hex
+                self.seq = 0
+            self.last_source, self.last_uptime = source, uptime
+            metadata = {"sourceSequence": source, "sourceUptimeMs": uptime}
+        elif self.last_source is not None:
+            raise ValueError("Controller identity downgrade")
+        self.seq += 1
+        return {"sessionId": self.session_id, "seq": self.seq,
+                "gatewayObservedAt": observed_at, **metadata}
+
+
+def handle_reading(line: str, session: requests.Session, data_url: str, telemetry=None) -> None:
+    observed_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     try:
         payload = json.loads(line)
     except (json.JSONDecodeError, ValueError):
@@ -133,6 +168,12 @@ def handle_reading(line: str, session: requests.Session, data_url: str) -> None:
         print("Ignored sensor values outside measurement ranges.")
         return
     data = {key: float(payload[key]) for key in required}
+    if telemetry is not None:
+        try:
+            data.update(telemetry.envelope(payload, observed_at))
+        except ValueError:
+            print("Ignored duplicate or invalid controller identity.")
+            return
     try:
         response = session.post(data_url, json=data, timeout=HTTP_TIMEOUT_SECONDS)
         response.raise_for_status()

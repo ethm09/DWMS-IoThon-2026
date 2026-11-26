@@ -1,7 +1,7 @@
 {
-  "checked_at_utc": "2026-11-26T21:25:34.715540+00:00",
+  "checked_at_utc": "2026-11-26T22:43:20.354391+00:00",
   "deployment": "canny-mosquito-637",
-  "backend_source_commit": "ce3df43",
+  "backend_source_commit": "release source follows",
   "anonymous_access_checks": [
     {
       "operation": "devices:listDevices",
@@ -47,6 +47,6 @@
     "retryAfterSeconds": null
   },
   "scope": "Authorized existing production deployment. Negative authorization probes and backend-only model check; no synthetic measurements, test devices or test identities created in production. Not an Auth0 browser-session or physical validation.",
-  "model_checked_at_utc": "2026-11-26T21:09:54.956042+00:00",
-  "model_source_commit": "3fb21a9"
+  "model_source_commit": "a9b90d2",
+  "model_checked_on_utc": "2026-11-26"
 }

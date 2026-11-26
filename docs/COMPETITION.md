@@ -21,7 +21,7 @@ Sources checked 2026-11-26. This is a category comparison, not hands-on product 
 
 ## Six strengths to demonstrate
 
-1. Current pH/TDS/turbidity readings, with source and receipt age.
+1. Current pH/TDS/turbidity readings, with source and reading age.
 2. Warning thresholds before critical levels; no predictive-detection claim.
 3. Rule-based response, latched stop and explicit recovered acknowledgement.
 4. Visible stale/unknown state, command expiry/ACK and local communication lease.
@@ -30,6 +30,6 @@ Sources checked 2026-11-26. This is a category comparison, not hands-on product 
 
 ## Feasibility and pitch outline
 
-Confirm models/calibration, electrical commissioning, enclosure/power and host/network needs; obtain dated component/installation/maintenance quotes; agree pilot acceptance criteria; then progress from calibrated bench to isolated-load faults, two nodes and supervised field observation. Costs, dates and impact targets remain pending actual quotes and the pilot owner's agreement.
+Confirm models/calibration, electrical commissioning, enclosure/power and host/network needs; obtain dated component/installation/maintenance quotes; agree pilot acceptance criteria; then progress from calibrated bench to isolated-load faults, two nodes and supervised field observation. Actual costs, dates and impact targets remain pending quotes and the pilot owner's agreement. The [SAR financial workbook](../deliverables/DWMS-Financial-Model.xlsx) provides explicit conservative/base/optimistic assumptions; modeled results are not revenue, profit or ROI evidence. [The study](../deliverables/DWMS-Feasibility.docx) cites Saudi policy, supplier catalogs and established alternatives.
 
 Pitch: operator problem → focused interface → three-channel architecture → labeled demo → evidence and gaps → proposed pilot/quoted economics → next validation gate. Keep AI secondary and use only the evidence categories in the readiness record.

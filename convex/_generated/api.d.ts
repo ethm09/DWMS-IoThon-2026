@@ -17,6 +17,7 @@ import type * as devices from "../devices.js";
 import type * as http from "../http.js";
 import type * as notifications from "../notifications.js";
 import type * as safetyPolicy from "../safetyPolicy.js";
+import type * as telemetry from "../telemetry.js";
 import type * as users from "../users.js";
 
 import type {
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   notifications: typeof notifications;
   safetyPolicy: typeof safetyPolicy;
+  telemetry: typeof telemetry;
   users: typeof users;
 }>;
 

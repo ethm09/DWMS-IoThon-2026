@@ -1,0 +1,38 @@
+DWMS — final narration script / voice production pending
+Target: male, natural American English, confident documentary delivery. AI-generated voice must be disclosed.
+
+00.00–08.00s
+Water quality monitoring should do more than display numbers. It should help operators detect problems and respond before they escalate.
+
+08.00–16.00s
+Introducing DWMS. Sensor data, real-time visualization, and a traceable response workflow in one platform.
+
+16.00–23.00s
+The hardware path supports pH, total dissolved solids, and turbidity. These demonstration readings are simulated.
+
+23.00–29.00s
+Abnormal readings create alerts, showing the affected parameter and condition.
+
+29.00–40.00s
+DWMS connects detection with action, requesting a response through predefined operating rules. This pump activity is a simulation; no physical equipment is connected.
+
+40.00–49.00s
+Critical conditions latch emergency mode, request a stop, and prevent automatic restart.
+
+49.00–56.00s
+Returning readings alone cannot clear the interlock. Recovery requires an operator acknowledgement.
+
+56.00–66.00s
+Once readings recover, the operator confirms recovery, allowing a controlled return to normal operation and recording the transition.
+
+66.00–78.00s
+Historical trends, device records, and site grouping provide operational visibility across monitoring locations. The software integration is tested with isolated fixtures.
+
+78.00–86.00s
+Ethm is designed to explain authorized monitoring evidence. Live AI remains unavailable until provider credit is restored. AI never controls equipment.
+
+86.00–92.75s
+DWMS. Turning water data into accountable decisions. Monitor. Detect. Respond.
+
+92.75–96.00s
+Ahmed Alzahrani. Founder and Project Lead.

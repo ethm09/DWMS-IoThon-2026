@@ -1,0 +1,8 @@
+DWMS competition video production record
+Original: public/media/dwms-software-demo.mp4 (preserved unchanged).
+Source footage: actual published application, 1440×950, 92.75s. Simulated readings and response, no hardware footage.
+Output: 1920×1080 frame, native-resolution source centered with branded borders; no upscaling or invented Full HD detail.
+Visual master: 96s, English captions, original ambient backing, branded closing and founder credit. Not a narrated final.
+Voice: pending an authorized service connection and successful generation; no fake MP3 or AI response supplied.
+Music: generated specifically for DWMS by this authoring script from synthesized tones, no samples or third-party recordings. Dedicated under CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
+Final gate: approved voice, synchronization/audition, owner content review and actual portal duration/file/link requirements. Do not submit automatically.

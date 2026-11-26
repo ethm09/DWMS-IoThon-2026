@@ -1,0 +1,107 @@
+1
+00:00:00,000 --> 00:00:04,800
+Water quality monitoring should do more
+than display numbers. It should help
+
+2
+00:00:04,800 --> 00:00:08,000
+operators detect problems and
+respond before they escalate.
+
+3
+00:00:08,000 --> 00:00:13,714
+Introducing DWMS. Sensor data, real-time
+visualization, and a traceable response
+
+4
+00:00:13,714 --> 00:00:16,000
+workflow in one platform.
+
+5
+00:00:16,000 --> 00:00:21,133
+The hardware path supports pH,
+total dissolved solids, and turbidity. These
+
+6
+00:00:21,133 --> 00:00:23,000
+demonstration readings are simulated.
+
+7
+00:00:23,000 --> 00:00:29,000
+Abnormal readings create alerts, showing
+the affected parameter and condition.
+
+8
+00:00:29,000 --> 00:00:33,783
+DWMS connects detection with action,
+requesting a response through predefined
+
+9
+00:00:33,783 --> 00:00:39,522
+operating rules. This pump activity is
+a simulation; no physical equipment is
+
+10
+00:00:39,522 --> 00:00:40,000
+connected.
+
+11
+00:00:40,000 --> 00:00:48,250
+Critical conditions latch emergency mode,
+request a stop, and prevent automatic
+
+12
+00:00:48,250 --> 00:00:49,000
+restart.
+
+13
+00:00:49,000 --> 00:00:55,417
+Returning readings alone cannot clear
+the interlock. Recovery requires an operator
+
+14
+00:00:55,417 --> 00:00:56,000
+acknowledgement.
+
+15
+00:00:56,000 --> 00:01:02,111
+Once readings recover, the operator
+confirms recovery, allowing a controlled return
+
+16
+00:01:02,111 --> 00:01:06,000
+to normal operation
+and recording the transition.
+
+17
+00:01:06,000 --> 00:01:11,714
+Historical trends, device records, and
+site grouping provide operational visibility
+
+18
+00:01:11,714 --> 00:01:17,429
+across monitoring locations. The software
+integration is tested with isolated
+
+19
+00:01:17,429 --> 00:01:18,000
+fixtures.
+
+20
+00:01:18,000 --> 00:01:22,190
+Ethm is designed to explain
+authorized monitoring evidence. Live AI remains
+
+21
+00:01:22,190 --> 00:01:26,000
+unavailable until provider credit is
+restored. AI never controls equipment.
+
+22
+00:01:26,000 --> 00:01:32,750
+DWMS. Turning water data into
+accountable decisions. Monitor. Detect. Respond.
+
+23
+00:01:32,750 --> 00:01:36,000
+Ahmed Alzahrani. Founder and Project Lead.

@@ -83,7 +83,7 @@ function HistoryInner() {
     .reverse()
     .map((reading) => ({
       ...reading,
-      receivedAt: Date.parse(reading.timestamp),
+      readingAt: Date.parse(reading.timestamp),
     }));
   const latest = readings?.[0];
   const age = latest ? now - Date.parse(latest.timestamp) : null;
@@ -168,13 +168,13 @@ function HistoryInner() {
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Latest receipt:{" "}
+                Latest reading:{" "}
                 <time dateTime={latest?.timestamp}>
                   {latest ? new Date(latest.timestamp).toLocaleString() : "—"}
                 </time>
                 {" · "}
                 {fresh
-                  ? "received within 10 seconds"
+                  ? "reading age within 10 seconds"
                   : "historical / stale; current water status is unknown"}
                 .
               </p>
@@ -198,7 +198,7 @@ function HistoryInner() {
                     >
                       <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
                       <XAxis
-                        dataKey="receivedAt"
+                        dataKey="readingAt"
                         type="number"
                         domain={["dataMin", "dataMax"]}
                         tickFormatter={(value: number) =>
@@ -253,7 +253,7 @@ function HistoryInner() {
                     </LineChart>
                   </ResponsiveContainer>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Horizontal axis: server receipt time. Lines connect received
+                    Horizontal axis: recorded reading time. Lines connect available
                     samples and do not establish continuous measurement between
                     them. Dashed lines show the configured normal band.
                   </p>
@@ -269,7 +269,7 @@ function HistoryInner() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Received at</TableHead>
+                        <TableHead>Reading time</TableHead>
                         <TableHead>pH</TableHead>
                         <TableHead>TDS (ppm)</TableHead>
                         <TableHead>Turbidity (NTU)</TableHead>
@@ -282,6 +282,9 @@ function HistoryInner() {
                             <time dateTime={reading.timestamp}>
                               {new Date(reading.timestamp).toLocaleString()}
                             </time>
+                            <span className="block text-xs text-muted-foreground">
+                              {reading.timeBasis === "gateway_observation" ? "Gateway observation" : "Backend receipt · legacy"}
+                            </span>
                           </TableCell>
                           <TableCell>{reading.ph.toFixed(2)}</TableCell>
                           <TableCell>{reading.tds.toFixed(1)}</TableCell>
@@ -297,7 +300,7 @@ function HistoryInner() {
         </>
       )}
       <p className="text-xs text-muted-foreground">
-        Timestamps record backend receipt, not probe acquisition time. Device
+        Timestamps use gateway observation for upgraded bridges and backend receipt for legacy records; neither establishes probe acquisition time. Device
         ingestion alone does not establish physical calibration or water
         compliance. This view is limited to 200 recent records per device.
       </p>

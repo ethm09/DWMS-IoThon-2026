@@ -24,7 +24,13 @@ export default defineSchema({
     name: v.string(),
     location: v.optional(v.string()),
     apiKey: v.string(), // secret key for device auth
-    lastSeen: v.optional(v.string()), // ISO timestamp
+    lastSeen: v.optional(v.string()), // Latest accepted telemetry receipt; duplicates never renew it.
+    telemetrySessionId: v.optional(v.string()),
+    telemetrySeq: v.optional(v.number()),
+    telemetryObservedAt: v.optional(v.string()),
+    telemetryFingerprint: v.optional(v.string()),
+    telemetrySourceSequence: v.optional(v.number()),
+    telemetrySourceUptimeMs: v.optional(v.number()),
     status: v.union(
       v.literal("online"),
       v.literal("offline"),
@@ -79,7 +85,13 @@ export default defineSchema({
   // Sensor readings from Arduino (pH, TDS, Turbidity only)
   sensorReadings: defineTable({
     deviceId: v.string(),
-    timestamp: v.string(), // ISO timestamp
+    timestamp: v.string(), // Gateway observation, or legacy backend receipt (not probe acquisition).
+    receivedAt: v.optional(v.string()),
+    timeBasis: v.optional(v.union(v.literal("gateway_observation"), v.literal("server_receipt"))),
+    sessionId: v.optional(v.string()),
+    seq: v.optional(v.number()),
+    sourceSequence: v.optional(v.number()),
+    sourceUptimeMs: v.optional(v.number()),
     ph: v.number(),
     tds: v.number(),
     turbidity: v.number(),

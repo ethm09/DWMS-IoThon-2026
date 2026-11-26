@@ -48,7 +48,8 @@ The integration runner uses a disposable local backend with synthetic readings/o
 - [Audit and priorities](docs/AUDIT.md): retained functionality and focused reliability changes.
 - [Pilot and competitive context](docs/COMPETITION.md): proposed utilities-engineer pilot, primary-source competitors and feasibility.
 - [English submission draft](deliverables/IoThon-Submission.md) · [100-second video storyboard](deliverables/Demo-Video-Storyboard.md).
-- Pitch: [editable PPTX](deliverables/DWMS-Pitch.pptx) · [PDF](deliverables/DWMS-Pitch.pdf). Feasibility: [editable DOCX](deliverables/DWMS-Feasibility.docx) · [PDF](deliverables/DWMS-Feasibility.pdf).
+- Pitch: [editable PPTX](deliverables/DWMS-Pitch.pptx) · [PDF](deliverables/DWMS-Pitch.pdf). Feasibility: [editable DOCX](deliverables/DWMS-Feasibility.docx) · [PDF](deliverables/DWMS-Feasibility.pdf) · [editable SAR model](deliverables/DWMS-Financial-Model.xlsx) (illustrative assumptions, no actual revenue or costs).
+- [1080p captioned visual master](deliverables/video/DWMS-Competition-Visual-Master.mp4), [English SRT](deliverables/video/DWMS-English.srt) and [narration script](deliverables/video/DWMS-Narration.txt); authorized voice generation remains blocked. Original recording is preserved; native footage is framed without upscaling.
 - Actual application captures: [desktop](docs/screenshots/dashboard-desktop.png) · [mobile](docs/screenshots/dashboard-mobile.png).
 
 Founder and Project Lead: **Ahmed Alzahrani**. Original contributor history and the [MIT license](LICENSE) are preserved. DWMS retains its formal expansion, Defense Water Monitoring System; Water Intelligence is the display brand.

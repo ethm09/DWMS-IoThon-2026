@@ -25,6 +25,8 @@ import {
   SENSOR_FRESHNESS_MS,
 } from "./safetyPolicy";
 
+import { telemetryFields, checkTelemetry } from "./telemetry";
+
 const CONTROL_COMMAND_TTL_MS = 20_000;
 
 async function requireOperator(ctx: MutationCtx) {
@@ -637,12 +639,13 @@ export const getRecentCommands = query({
 // Internal: save a sensor reading (called from HTTP action)
 export const internalSaveReading = internalMutation({
   args: {
+    ...telemetryFields,
     deviceId: v.string(),
     ph: v.number(),
     tds: v.number(),
     turbidity: v.number(),
   },
-  handler: async (ctx, args): Promise<void> => {
+  handler: async (ctx, args) => {
     if (!isValidSensorValues(args)) {
       throw new ConvexError({
         code: "INVALID_SENSOR_DATA",
@@ -666,12 +669,29 @@ export const internalSaveReading = internalMutation({
       .unique();
     if (!device)
       throw new ConvexError({ code: "NOT_FOUND", message: "Device not found" });
-    await ctx.db.patch(device._id, { lastSeen: now, status: "online" });
+    const frame = {
+      sessionId: args.sessionId, seq: args.seq, gatewayObservedAt: args.gatewayObservedAt,
+      sourceSequence: args.sourceSequence, sourceUptimeMs: args.sourceUptimeMs,
+    };
+    const fingerprint = JSON.stringify({ ...frame, ph: args.ph, tds: args.tds, turbidity: args.turbidity });
+    const identity = checkTelemetry(frame, device, fingerprint, Date.parse(now));
+    if (identity.duplicate) return { duplicate: true };
+    const timestamp = args.gatewayObservedAt ?? now;
+    await ctx.db.patch(device._id, {
+      lastSeen: now, status: "online",
+      ...(args.sessionId ? {
+        telemetrySessionId: args.sessionId, telemetrySeq: args.seq,
+        telemetryObservedAt: args.gatewayObservedAt, telemetryFingerprint: fingerprint,
+        telemetrySourceSequence: args.sourceSequence, telemetrySourceUptimeMs: args.sourceUptimeMs,
+      } : {}),
+    });
 
     // Insert reading
     await ctx.db.insert("sensorReadings", {
       deviceId: args.deviceId,
-      timestamp: now,
+      timestamp, receivedAt: now, timeBasis: identity.timeBasis,
+      ...(args.sessionId ? { sessionId: args.sessionId, seq: args.seq } : {}),
+      ...(args.sourceSequence !== undefined ? { sourceSequence: args.sourceSequence, sourceUptimeMs: args.sourceUptimeMs } : {}),
       ph: args.ph,
       tds: args.tds,
       turbidity: args.turbidity,
@@ -688,7 +708,7 @@ export const internalSaveReading = internalMutation({
 
     // Schedule offline check in 10 seconds
     await ctx.scheduler.runAfter(
-      SENSOR_FRESHNESS_MS,
+      Math.max(0, SENSOR_FRESHNESS_MS - (Date.parse(now) - Date.parse(timestamp))),
       internal.devices.checkDeviceStale,
       {
         deviceId: args.deviceId,
@@ -721,7 +741,7 @@ export const internalSaveReading = internalMutation({
       alerts.push({
         level,
         title: `pH ${level === "critical" ? "CRITICAL" : "Warning"}: ${args.ph.toFixed(2)}`,
-        message: `pH reading of ${args.ph.toFixed(2)} is outside the safe range (${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}). Device: ${args.deviceId}`,
+        message: `pH reading of ${args.ph.toFixed(2)} is outside the configured prototype range (${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}). Device: ${args.deviceId}`,
         parameter: "pH",
         value: args.ph.toFixed(2),
       });
@@ -736,7 +756,7 @@ export const internalSaveReading = internalMutation({
       alerts.push({
         level,
         title: `TDS ${level === "critical" ? "CRITICAL" : "Warning"}: ${args.tds.toFixed(0)} ppm`,
-        message: `TDS reading of ${args.tds.toFixed(0)} ppm is at or above the recommended limit of ${THRESHOLDS.tds.safe.max} ppm. Device: ${args.deviceId}`,
+        message: `TDS reading of ${args.tds.toFixed(0)} ppm is at or above the configured prototype limit of ${THRESHOLDS.tds.safe.max} ppm. Device: ${args.deviceId}`,
         parameter: "TDS",
         value: `${args.tds.toFixed(0)} ppm`,
       });
@@ -773,6 +793,7 @@ export const internalSaveReading = internalMutation({
         }
       }
     }
+    return { duplicate: false };
   },
 });
 
@@ -812,7 +833,7 @@ export const checkDeviceStale = internalMutation({
           level: "warning",
           category: "device",
           title: `Device offline: ${device.name}`,
-          message: `Device ${device.deviceId} (${device.name}) has not sent data for 10+ seconds. Last seen: ${device.lastSeen ?? "unknown"}`,
+          message: `Device ${device.deviceId} (${device.name}) has stale measurement data. Latest accepted receipt: ${device.lastSeen ?? "unknown"}`,
         });
       }
     }

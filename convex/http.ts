@@ -1,3 +1,5 @@
+import { type Telemetry } from "./telemetry";
+import { ConvexError } from "convex/values";
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -106,19 +108,37 @@ http.route({
       );
     }
     const { ph, tds, turbidity } = body;
+    const raw = parsedBody as Record<string, unknown>;
+    const keys = ["sessionId", "seq", "gatewayObservedAt", "sourceSequence", "sourceUptimeMs"];
+    const metadata = Object.fromEntries(keys.filter(key => raw[key] !== undefined).map(key => [key, raw[key]]));
+    if (keys.some(key => metadata[key] !== undefined && typeof metadata[key] !==
+        (["sessionId", "gatewayObservedAt"].includes(key) ? "string" : "number"))) {
+      return new Response(JSON.stringify({ error: "Invalid telemetry metadata types" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Save reading (triggers threshold alerts + offline scheduling)
-    await ctx.runMutation(internal.devices.internalSaveReading, {
-      deviceId,
-      ph,
-      tds,
-      turbidity,
-    });
+    let result;
+    try {
+      result = await ctx.runMutation(internal.devices.internalSaveReading, {
+        deviceId, ph, tds, turbidity,
+        ...metadata as Telemetry,
+      });
+    } catch (error) {
+      if (error instanceof ConvexError && typeof error.data === "object" && error.data?.code === "TELEMETRY_REJECTED") {
+        return new Response(JSON.stringify({ error: "Telemetry rejected: invalid, delayed or replayed frame." }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw error;
+    }
 
     return new Response(
       JSON.stringify({
         ok: true,
-        message: "Reading saved",
+        message: result?.duplicate ? "Duplicate ignored" : "Reading saved",
+        duplicate: result?.duplicate ?? false,
         timestamp: new Date().toISOString(),
       }),
       {

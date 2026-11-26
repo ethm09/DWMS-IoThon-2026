@@ -4,6 +4,7 @@
 Authoring only; never imported by DWMS. Requires python-pptx, python-docx,
 Pillow, PyMuPDF, the Inter font and soffice outside the application's runtime dependencies.
 Run from anywhere after screenshots exist: python scripts/generate-deliverables.py
+Use --deck-only to refresh the pitch without changing the feasibility study.
 """
 from pathlib import Path
 import argparse
@@ -15,10 +16,6 @@ from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
-from docx import Document
-from docx.shared import Inches as DI, Pt as DP, RGBColor as DC
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'deliverables'
@@ -127,285 +124,162 @@ def node(sl,title,body,x,y,w=2.2,h=1.2,dark=False):
 
 
 def make_deck(desktop,mobile,args):
+    """Competition story: operator problem, visible product, proof and a narrow pilot."""
     prs=Presentation(); prs.slide_width=Inches(13.333); prs.slide_height=Inches(7.5)
-    prs.core_properties.title='DWMS — Water Intelligence'; prs.core_properties.subject='IoThon 2026 competition pitch'; prs.core_properties.author='Ahmed Alzahrani, Founder and Project Lead'
-    sl=base(prs,1,'IoThon 2026','',True)
-    txt(sl,'Water Intelligence',.65,1.65,8.8,1.0,43,WHITE,True)
-    txt(sl,'Monitor. Detect. Respond.',.7,2.85,9,.6,25,CYAN)
-    txt(sl,'A focused monitoring and response prototype\nfor networks, reservoirs and treated-water reuse.',.7,3.7,9.3,1.1,21,WHITE)
-    tag(sl,'SOFTWARE DEMO + TARGET BUILD',.7,5.32,3.65)
-    txt(sl,'Live • Demo • Hardware • Ethm. Physical revalidation remains pending.',.7,5.85,10,.45,14,'BED4E5')
-    picture_fit(sl,BRAND_MARK,10.1,2.22,2.6,2.6)
-    txt(sl,'DWMS',10.38,5.05,2.2,.6,24,WHITE,True)
-    txt(sl,'Ahmed Alzahrani  •  Founder and Project Lead',.7,6.42,10,.3,12,WHITE)
-    sl.notes_slide.notes_text_frame.text='Founder identity confirmed. Owner reports an earlier operating physical prototype, currently unavailable; no independently audited measurements or customer adoption are claimed.'
+    prs.core_properties.title='DWMS — Water Intelligence'
+    prs.core_properties.subject='IoThon 2026 competition pitch'
+    prs.core_properties.author='Ahmed Alzahrani, Founder and Project Lead'
+    demo='https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo'
+    repo_branch=REPO+'/tree/improve/iothon-2026-focus'
 
-    sl=base(prs,2,'Operator need','One decision chain, from reading to response')
-    items=[('01  MONITOR','Which site? Which source?','pH, TDS and turbidity with age, connectivity and history.'),('02  DETECT','What changed?','Warning bands flag deviations; critical rules identify when to stop.'),('03  RESPOND','What is confirmed?','Rule-based action, command expiry and explicit operator recovery.')]
-    for i,(a,b,c) in enumerate(items):
-        x=.55+i*4.15
-        shape(sl,x,2.48,3.92,2.8,WHITE,BORDER)
-        txt(sl,a,x+.2,2.72,3.5,.4,12,BLUE,True)
-        txt(sl,b,x+.2,3.33,3.45,.78,20,INK,True)
-        txt(sl,c,x+.2,4.2,3.45,.95,14,MUTED)
-    txt(sl,'First pilot hypothesis: a supervised non-potable reuse point with a named operator.',.6,5.65,12,.6,17,INK)
-    foot(sl,['EPA'])
+    def refs(sl,keys,note=''):
+        x=.6
+        labels={'EPA':'EPA • water reuse','HACH':'Hach • SC4500','CODE':'DWMS • evidence','PH':'DFRobot • components'}
+        for key in keys:
+            if key not in SOURCES: continue
+            title,url=SOURCES[key]
+            label=labels.get(key,key)
+            linktxt(sl,label,url,x,6.68,3,.2,8.8,MUTED);x+=3.1
+        sl.notes_slide.notes_text_frame.text=(note+'\n\nEvidence boundary: actual UI captures contain synthetic scenario data. Software checks, command acknowledgements and compilation do not establish sensor accuracy, physical output, treatment effectiveness, water safety or compliance.\nSources accessed '+DATE+':\n'+'\n'.join(SOURCES[k][0]+' — '+SOURCES[k][1] for k in keys if k in SOURCES))
 
-    sl=base(prs,3,'Focused product','Status, evidence and the next operator action')
-    shape(sl,.55,2.26,7.65,3.95,WHITE,BORDER)
-    picture_window(sl,desktop,.67,2.38,7.41,3.71,800)
-    shape(sl,8.4,2.26,1.98,3.95,WHITE,BORDER)
-    picture_window(sl,mobile,8.48,2.36,1.82,3.75,844,390)
-    for y,label,body in [(2.40,'Live','Authenticated path; rollout gated.'),(3.35,'Demo','Shared synthetic scenarios.'),(4.30,'Hardware','Recover the prior prototype.'),(5.25,'Ethm','Read-only; provider credit blocked.')]:
-        txt(sl,label,10.65,y,2.05,.32,15,BLUE,True)
-        txt(sl,body,10.65,y+.35,2.05,.52,11,MUTED)
-    txt(sl,'Cropped actual application captures • displayed scenario values are simulated.',.6,6.23,12,.28,11,MUTED)
-    foot(sl,['CODE'])
+    def arrow(sl,x,y,w=.45,color=BLUE):
+        a=shape(sl,x,y,w,.28,color,kind=MSO_SHAPE.CHEVRON)
+        return a
 
-    sl=base(prs,4,'System architecture','A traceable data path and acknowledged command loop')
-    for i,(title,body) in enumerate([('Sensors','pH / TDS / turbidity\nConversions pending'),('Arduino Uno','Local interlocks\nRelay disabled'),('Python bridge','USB serial → HTTPS\nPer-device credential'),('Convex backend','Validate • store • alert\nRules + command queue'),('Dashboard','Live subscriptions\nSites + history + alerts')]):
-        x=.55+i*2.48; node(sl,title,body,x,2.7,2.25,1.65,dark=i==3)
-        if i<4:
-            line(sl,x+2.25,3.52,x+2.46,3.52,BLUE,2)
-    line(sl,11.6,4.7,11.6,5.25,CYAN,2); line(sl,11.6,5.25,4.15,5.25,CYAN,2); line(sl,4.15,5.25,4.15,4.55,CYAN,2)
-    txt(sl,'Operator → backend authorization → short-lived command → controller interlock → ACK → dashboard',.7,5.55,11.9,.65,15,BLUE,True)
-    txt(sl,'The current controller uses a host gateway. It is not a standalone cellular or LoRaWAN node.',.7,6.15,11.9,.3,11,MUTED)
-    foot(sl,['CODE'])
+    def dot(sl,x,y,label,color=BLUE):
+        shape(sl,x,y,.46,.46,color,kind=MSO_SHAPE.OVAL)
+        txt(sl,label,x+.02,y+.11,.42,.22,11,WHITE,True,PP_ALIGN.CENTER)
 
-    sl=base(prs,5,'Rule-based response','Deterministic decisions; explicit recovered acknowledgement')
-    rows=[('MONITOR','Fresh valid readings','Readings and receipt age remain visible.'),('WARN / REQUEST','Turbidity >20 NTU or TDS >1500 ppm','Prototype Auto requests pump ON if critical interlocks pass.'),('STOP + LATCH','pH <5.5 or >10; turbidity >50 NTU','Emergency stops output and blocks ordinary Auto restart.'),('RECOVER','Fresh non-critical readings + operator acknowledgement','Only explicit recovery may clear the local emergency latch.')]
-    for i,(title,trigger,body) in enumerate(rows):
-        y=2.28+i*.94
-        shape(sl,.6,y,2.25,.76,BLUE if i!=2 else NAVY)
-        txt(sl,title,.78,y+.2,1.95,.3,12,WHITE,True)
-        txt(sl,trigger,3.1,y+.02,9.45,.34,16,INK,True)
-        txt(sl,body,3.1,y+.4,9.45,.35,12,MUTED)
-    txt(sl,'Prototype values, not regulatory limits. A pump request does not establish treatment effectiveness.',.6,6.22,12,.3,11,AMBER)
-    foot(sl,['CODE'])
+    # 1 — The problem, framed around an operator rather than invented market data.
+    sl=base(prs,1,'The water-monitoring problem','',True)
+    txt(sl,'A reading is only\nthe beginning.',.65,1.52,9.5,1.7,44,WHITE,True)
+    txt(sl,'When conditions change, operators need\na clear path from detection to response.',.7,3.58,10.8,1.05,23,'D5E9F3')
+    picture_fit(sl,BRAND_MARK,10.4,1.7,2.25,2.4)
+    for x,title,body in [(.7,'Know the condition','pH • TDS • turbidity'),(4.85,'Know the next action','Rules • alerts • control'),(9.0,'Know the outcome','ACK • recovery • record')]:
+        line(sl,x,5.17,x+3.45,5.17,CYAN,2)
+        txt(sl,title,x,5.43,3.55,.42,17,WHITE,True)
+        txt(sl,body,x,5.96,3.55,.3,12,'BED4E5')
+    txt(sl,'DWMS • Water Intelligence',.7,6.5,9,.3,14,CYAN,True)
+    sl.notes_slide.notes_text_frame.text='Operator problem framing, not a quantified customer survey. DWMS serves networks, reservoirs and treated-water reuse. No market size, customer commitment or physical performance claim is made.'
 
-    sl=base(prs,6,'Connectivity and failure handling','Loss of certainty stays visible')
-    for x,big,title,body in [(.6,'10 s','Receipt freshness','Older readings become UNKNOWN. No automatic substitution with demo values.'),(4.76,'20 s','Command expiry','An unacknowledged command expires. Requested output is separate from reported state.'),(8.92,'15 s','Local control lease','Successful authenticated polling renews the lease. Loss latches the Arduino output OFF.')]:
-        shape(sl,x,2.5,3.8,2.65,WHITE,BORDER)
-        txt(sl,big,x+.2,2.77,3.4,.7,38,BLUE,True)
-        txt(sl,title,x+.2,3.64,3.4,.45,17,INK,True)
-        txt(sl,body,x+.2,4.2,3.4,.86,12,MUTED)
-    txt(sl,'Configured policy values, exercised by software tests. Actual physical stop/reconnect timing is unmeasured.',.6,5.55,12,0.7,17,INK)
-    foot(sl,['CODE'])
+    # 2 — Why a display alone does not complete the operational job.
+    sl=base(prs,2,'Why monitoring alone is insufficient','The handoff matters as much as the measurement.')
+    txt(sl,'A dashboard can show a deviation. An operator still needs three answers.',.6,2.27,12.1,.65,21,INK)
+    for i,(heading,question,detail) in enumerate([
+        ('DETECT','What changed?','Which parameter, which site, and how fresh is the reading?'),
+        ('RESPOND','What should happen?','Which configured rule applies, and who may act?'),
+        ('CONFIRM','Was it confirmed?','Was the request acknowledged, rejected or left uncertain?')]):
+        x=.6+i*4.15
+        shape(sl,x,3.14,3.9,2.45,WHITE,BORDER)
+        txt(sl,heading,x+.2,3.39,3.5,.28,11,BLUE,True)
+        txt(sl,question,x+.2,3.99,3.5,.55,24,INK,True)
+        txt(sl,detail,x+.2,4.78,3.5,.69,14,MUTED)
+    txt(sl,'The opportunity: make the entire response chain inspectable.',.65,5.94,12,.52,20,BLUE,True)
+    refs(sl,['CODE'], 'This is an operational workflow requirement, not a claim that established industrial products lack alarms or control. Existing commercial alternatives are acknowledged on slide 7.')
 
-    sl=base(prs,7,'Evidence','Software proof is explicit; physical proof is a separate gate')
-    for i,(label,detail) in enumerate([('Local behavioral checks',f'{args.node_tests} Node + {args.python_tests} Python checks: validation, authorization, stale/abnormal inputs and command failures.'),('Connected software trace','Actual isolated HTTP, database, reactive readings, alerts, commands and synthetic ACKs.'),('Arduino target build','Uno firmware compiles with pinned tooling. Calibration and relay remain disabled.')]):
-        y=2.27+i*1.05
-        shape(sl,.6,y,.47,.47,CYAN,kind=MSO_SHAPE.OVAL)
-        txt(sl,str(i+1),.6,y+.09,.47,.22,12,NAVY,True,PP_ALIGN.CENTER)
-        txt(sl,label,1.3,y-.03,10.8,.4,19,INK,True)
-        txt(sl,detail,1.3,y+.43,10.8,.43,14,MUTED)
-    shape(sl,.6,5.6,12.1,.62,NAVY)
-    txt(sl,'NEXT GATE: recover prior hardware, audit calibration/output, then prove two physical nodes.',.82,5.79,11.7,.3,12,WHITE,True)
-    linktxt(sl,'Completed CI baseline: '+args.evidence_commit+'  •  '+args.ci_url,args.ci_url,.6,6.29,12,.2,8)
-    foot(sl,['CODE'])
+    # 3 — The value proposition and the product's four coherent components.
+    sl=base(prs,3,'DWMS solution','One workflow, from water data to accountable action.')
+    stages=['Monitor','Detect','Alert','Respond','Recover','Record']
+    for i,label in enumerate(stages):
+        x=.6+i*2.08
+        shape(sl,x,2.58,1.86,.82,NAVY if i in [3,4] else BLUE)
+        txt(sl,label,x+.08,2.83,1.7,.34,15,WHITE,True,PP_ALIGN.CENTER)
+        if i<5:arrow(sl,x+1.87,2.86,.18,CYAN)
+    txt(sl,'Multi-parameter visibility. Deterministic decisions. A traceable outcome.',.6,3.79,12.15,.62,21,INK,True)
+    for i,(label,body) in enumerate([
+        ('Live','Approved operational access'),('Demo','Independent public scenarios'),('Hardware','Arduino + USB gateway'),('Ethm','Designed read-only explanations')]):
+        x=.6+i*3.13
+        shape(sl,x,4.91,2.93,1.18,WHITE,BORDER)
+        txt(sl,label,x+.17,5.09,2.6,.32,17,BLUE,True)
+        txt(sl,body,x+.17,5.56,2.6,.4,12,MUTED)
+    refs(sl,['CODE'], 'Live authentication rollout and successful Ethm replies remain blocked by external authorization/provider credit. Demo does not initialize Auth0 or write operational records. Physical relays remain disabled; flow is demonstration-only.')
 
-    sl=base(prs,8,'Competitive positioning','Compete on clarity, testability and a focused demonstration')
-    headers=['Approach','Established capability / value','Boundary for this pitch']
-    xs=[.6,3.5,8.65]; widths=[2.75,5,4.05]
-    for x,w,h in zip(xs,widths,headers):
-        shape(sl,x,2.3,w,.55,NAVY); txt(sl,h,x+.13,2.45,w-.26,.3,11,WHITE,True)
-    data=[('Hach SC4500','Industrial sensor integration, SCADA/PLC and optional network connectivity.','Vendor product category; no DWMS cost or reliability superiority claim.'),('Modular sensor kits','Accessible bench components with model-specific calibration and range limits.','Component availability is not field qualification.'),('DWMS prototype','Inspectable rules, a repeatable scenario, device registry/history and visible uncertainty.','No measured accuracy, field uptime, treatment or fleet-capacity claim.')]
-    for i,row in enumerate(data):
-        y=2.94+i*1.01
-        for j,cell in enumerate(row):
-            shape(sl,xs[j],y,widths[j],.92,WHITE,BORDER)
-            txt(sl,cell,xs[j]+.13,y+.13,widths[j]-.26,.72,11.4,BLUE if j==0 else INK,j==0)
-    foot(sl,['HACH','PH','CODE'])
+    # 4 — The product is the strongest visual proof.
+    sl=base(prs,4,'Product demonstration','Follow one complete response.')
+    shape(sl,.55,2.22,9.46,4.08,WHITE,BORDER)
+    picture_window(sl,desktop,.67,2.34,9.22,3.84,600)
+    shape(sl,10.22,2.22,2.55,4.08,WHITE,BORDER)
+    picture_window(sl,mobile,10.34,2.34,2.31,3.84,650,390)
+    txt(sl,'Normal → Warning → Response → Critical → Recovery',.6,6.35,10.9,.25,13,BLUE,True)
+    linktxt(sl,'Explore the public demo',demo,10.38,6.35,2.4,.25,10,BLUE)
+    refs(sl,['CODE'], 'These are actual desktop/mobile screenshots of the published DWMS application. Displayed readings and response are synthetic and carry the application simulation label. The walkthrough has five deterministic scenarios and explicit recovery acknowledgement. No physical sensor or equipment result is depicted.')
 
-    sl=base(prs,9,'Market and business hypothesis','Start with one supervised reuse site')
-    txt(sl,'Customer: industrial utilities engineer • setup + per-site service fee',.6,2.25,12,.45,17,INK,True)
-    for i,(price,label,key) in enumerate([('$39.50','pH kit SEN0161-V2','PH'),('$11.80','TDS kit SEN0244','TDS'),('$9.90','Turbidity kit SEN0189','TURB')]):
-        x=.6+i*4.15; shape(sl,x,2.95,3.9,1.38,WHITE,BORDER)
-        txt(sl,price,x+.2,3.13,3.5,.6,30,BLUE,True)
-        txt(sl,label,x+.2,3.84,3.5,.3,12,MUTED)
-    txt(sl,'USD catalog anchors only; not installed models, a complete BOM or quotes. Pricing and willingness to pay: TBC.',.6,4.57,12,.62,15,INK)
-    txt(sl,'Qualification gap: the example TDS kit ends at 1000 ppm, below the 1500 ppm Auto trigger. The pH kit is laboratory grade.',.6,5.32,12,.62,14,AMBER,True)
-    txt(sl,'Host, enclosure, power, isolation, reference standards, installation and recurring costs: TBC.',.6,6.11,12,.33,11,MUTED)
-    foot(sl,['PH','TDS','TURB'])
+    # 5 — Architecture is modular, with an explicit command loop.
+    sl=base(prs,5,'Technical architecture','A modular data path. A controlled return path.')
+    blocks=[('Sensors','pH • TDS • turbidity'),('Arduino Uno','Sample + local interlocks'),('Python gateway','USB serial → HTTPS'),('Convex backend','Validate • store • decide'),('Platform','Sites • alerts • history')]
+    for i,(title,body) in enumerate(blocks):
+        x=.58+i*2.49
+        node(sl,title,body,x,2.78,2.25,1.58,dark=i==3)
+        if i<4:arrow(sl,x+2.28,3.37,.18)
+    line(sl,11.65,4.55,11.65,5.08,CYAN,2);line(sl,11.65,5.08,4.13,5.08,CYAN,2);line(sl,4.13,5.08,4.13,4.53,CYAN,2)
+    txt(sl,'Authorized request → expiring command → controller interlock → ACK → recorded outcome',.68,5.48,12,.7,18,BLUE,True)
+    txt(sl,'The Uno uses a host gateway; native internet connectivity is not assumed.',.68,6.27,12,.3,12,MUTED)
+    refs(sl,['CODE'], 'Three physical-channel integration contract; flow is demo-only. Original operating hardware is owner-reported and currently unavailable. Current firmware calibration/relay gates are disabled. Earlier working firmware must be preserved and identified before any upload. Source timestamp/sequence reliability changes, where implemented, require their own evidence in the readiness matrix.')
 
-    sl=base(prs,10,'Pilot request','Reconnect and validate the physical chain.',True)
-    txt(sl,'One supervised non-potable pilot.\nTwo identified nodes. A named operator.',.65,2.45,11.8,1.15,26,WHITE,True)
-    txt(sl,'01  Calibrate against independent reference measurements\n02  Verify isolated-load safety and separate failure modes\n03  Measure completeness, alert/ACK time and maintenance effort',.7,4.04,11.6,1.43,18,'D5E9F3')
-    txt(sl,'Ahmed Alzahrani, Founder and Project Lead  •  Pilot partner, budget and limits: TBC.',.7,5.96,11.6,.4,13,CYAN)
-    linktxt(sl,'Demo: https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo','https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo',.7,6.45,11.5,.22,10,'D5E9F3')
-    linktxt(sl,'Repository: '+REPO,REPO,.7,6.72,11.5,.19,9,'D5E9F3')
-    sl.notes_slide.notes_text_frame.text='No savings without independent metering/baseline. Founder Ahmed Alzahrani confirmed; other roles TBC. Earlier hardware operation is owner-reported and unavailable; no independent physical measurements were reviewed in this work.'
-    path=OUT/'DWMS-Pitch.pptx'; prs.save(path)
+    # 6 — Safety has a clear place in the product story, not a wall of caveats.
+    sl=base(prs,6,'Automated response and safety','Respond by rule. Recover by acknowledgement.')
+    rows=[('WARN','Flag a deviation','Show the affected sensor and current condition.',BLUE),('REQUEST','Apply the configured response','Track requested output separately from its acknowledgement.',BLUE),('STOP','Latch critical conditions','Request OFF and prevent an ordinary automatic restart.',NAVY),('RECOVER','Require an operator acknowledgement','Restore acceptable readings, then explicitly clear the latch.',BLUE)]
+    for i,(word,title,body,fill) in enumerate(rows):
+        y=2.28+i*.91
+        shape(sl,.6,y,1.9,.73,fill);txt(sl,word,.73,y+.2,1.64,.28,12,WHITE,True,PP_ALIGN.CENTER)
+        txt(sl,title,2.77,y+.02,9.85,.33,18,INK,True);txt(sl,body,2.77,y+.41,9.85,.34,13,MUTED)
+    txt(sl,'Safety-critical rules remain deterministic. Ethm cannot issue equipment commands.',.6,6.18,12,.32,14,BLUE,True)
+    refs(sl,['CODE'], 'The public demonstration exercises configured thresholds and a simulated latched stop. Software tests exercise authorization, stale/invalid inputs, command expiry, controller restart and explicit recovery. Physical relay/load behavior remains unvalidated and disabled. Monitored parameters do not establish drinking-water safety or full reuse compliance.')
+
+    # 7 — Differentiation is the integrated decision chain, not invented uniqueness.
+    sl=base(prs,7,'Innovation and differentiation','The decision chain stays visible.')
+    items=[('Source + freshness','Know which data can support a decision.'),('Inspectable rules','Explain why the configured response changed.'),('Command + outcome','Separate intention, acknowledgement and uncertainty.'),('Human recovery','Make the return from emergency explicit.')]
+    for i,(label,body) in enumerate(items):
+        col=i%2;row=i//2;x=.6+col*6.3;y=2.4+row*1.35
+        shape(sl,x,y,6.05,1.13,WHITE,BORDER);dot(sl,x+.18,y+.24,'✓')
+        txt(sl,label,x+.86,y+.16,4.95,.37,18,BLUE,True);txt(sl,body,x+.86,y+.65,4.95,.35,13,MUTED)
+    shape(sl,.6,5.42,12.35,.86,NAVY)
+    txt(sl,'Focused prototype value: a repeatable, reviewable monitoring-to-response workflow.',.83,5.68,11.9,.34,17,WHITE,True)
+    refs(sl,['HACH','CODE'], 'Hach SC4500 is an established industrial sensor/controller category with optional network connectivity and SCADA/PLC integration. DWMS does not claim category uniqueness, superior accuracy, lower cost or industrial certification. Its defensible contribution here is the inspectable, reproducible integrated workflow.')
+
+    # 8 — Proof is concise, named, and clearly separated from physical evidence.
+    sl=base(prs,8,'Verified achievements','Built to be inspected. Demonstrated without guesswork.')
+    evidence=[(str(args.node_tests),'Node tests'),(str(args.python_tests),'Python tests'),(str(args.checkpoints),'Isolated backend checks'),('Uno','Target compilation')]
+    for i,(big,label) in enumerate(evidence):
+        x=.6+i*3.13
+        shape(sl,x,2.48,2.93,1.72,WHITE,BORDER)
+        txt(sl,big,x+.18,2.73,2.57,.66,38,BLUE,True);txt(sl,label,x+.18,3.53,2.57,.45,14,INK,True)
+    txt(sl,'Published UI checked at five widths. Production anonymous access denied.',.65,4.59,12,.63,21,INK,True)
+    shape(sl,.6,5.47,12.35,.71,NAVY)
+    txt(sl,'Physical revalidation pending • Auth0 administration blocked • Ethm provider credit blocked',.8,5.7,11.95,.28,13,WHITE,True)
+    linktxt(sl,'Executed evidence: '+args.evidence_commit+' • CI run',args.ci_url,.65,6.33,12,.23,10,BLUE)
+    refs(sl,['CODE'], 'Exact test counts and run scope must match the cited commit. The isolated backend uses synthetic samples, test identities and acknowledgements; this is not physical validation or a real Auth0 browser session. The owner reports an earlier operating prototype, currently unavailable; no independently audited measurements, field uptime, treatment performance or awards are claimed.')
+
+    # 9 — The market entry is a testable pilot and service hypothesis.
+    sl=base(prs,9,'Commercial opportunity and pilot','Start narrow. Prove value. Replicate what works.')
+    shape(sl,.6,2.35,4.05,3.95,NAVY)
+    txt(sl,'FIRST PILOT HYPOTHESIS',.84,2.66,3.56,.34,11,CYAN,True)
+    txt(sl,'Saudi industrial\ntreated-water reuse',.84,3.23,3.56,1.05,26,WHITE,True)
+    txt(sl,'A utilities engineer.\nA supervised reuse-buffer tank.\nAn agreed response procedure.',.84,4.63,3.56,1.15,17,'D5E9F3')
+    for i,(title,body) in enumerate([('Pilot','Reconnect, calibrate and observe an isolated response.'),('Measure','Data completeness, alert/ACK time, operator effort and maintenance.'),('Commercialize','Installation/commissioning plus a site service fee — pricing hypothesis.')]):
+        y=2.52+i*1.19
+        dot(sl,4.98,y+.04,str(i+1));txt(sl,title,5.72,y,6.85,.35,18,BLUE,True);txt(sl,body,5.72,y+.49,6.85,.61,15,MUTED)
+    refs(sl,['EPA','CODE'], 'Saudi industrial reuse is the proposed initial customer segment, not a confirmed customer or measured market size. No pilot partner, purchase, revenue, savings or ROI is claimed. Financial scenarios and SAR estimates are transparent assumptions in the separate feasibility study and XLSX model; actual hardware specification, supplier/installation quotes and willingness to pay remain unconfirmed.')
+
+    # 10 — Close on the product promise, with one concrete next step.
+    sl=base(prs,10,'DWMS • Water Intelligence','',True)
+    txt(sl,'Turn water data into\nan accountable response.',.65,1.62,11.5,1.7,40,WHITE,True)
+    txt(sl,'Monitor. Detect. Respond.',.7,3.54,11.5,.7,26,CYAN,True)
+    txt(sl,'Seeking a supervised industrial reuse pilot\nto validate the physical chain and operator value.',.7,4.62,11.35,1.0,22,'D5E9F3')
+    txt(sl,'Ahmed Alzahrani',.7,5.93,10.3,.35,17,WHITE,True)
+    txt(sl,'Founder and Project Lead',.7,6.37,10.3,.28,12,'BED4E5')
+    picture_fit(sl,BRAND_MARK,10.55,4.05,2.0,2.22)
+    # Footer links are practical review routes; no unapproved merger is implied.
+    linktxt(sl,'Explore Demo',demo,.7,6.78,2.3,.21,10,CYAN)
+    linktxt(sl,'Source + evidence',repo_branch,3.3,6.78,3,.21,10,CYAN)
+    sl.notes_slide.notes_text_frame.text='Founder/project-lead identity confirmed by the owner: Ahmed Alzahrani. Original contributors remain credited in the repository Git history and MIT license; no other role, team membership, award, partner or commercial achievement is invented. Physical prototype was previously operated according to the owner but is unavailable for current validation. Keep relay operation disabled pending qualified bench commissioning. Demo URL: '+demo+'\nRepository branch: '+repo_branch
+    path=OUT/'DWMS-Pitch.pptx';prs.save(path)
     return path
 
 
-# Document helpers. Manual page breaks keep editable sections predictable.
-def shade(cell,fill):
-    p=cell._tc.get_or_add_tcPr(); node=OxmlElement('w:shd'); node.set(qn('w:fill'),fill); p.append(node)
-
-def document_table(doc,headers,rows,widths=None):
-    table=doc.add_table(rows=1,cols=len(headers)); table.style='Table Grid'
-    for i,h in enumerate(headers):
-        table.rows[0].cells[i].text=h; shade(table.rows[0].cells[i],NAVY)
-        for r in table.rows[0].cells[i].paragraphs[0].runs: r.font.color.rgb=DC.from_string(WHITE); r.bold=True
-    for row in rows:
-        cells=table.add_row().cells
-        for i,value in enumerate(row): cells[i].text=str(value)
-    table.autofit=False
-    cell_widths=widths or ([1.45,3.25,2.4] if len(headers)==3 else [2.0,1.3,.95,2.85])
-    if len(cell_widths)==len(headers):
-        for row in table.rows:
-            for cell,width in zip(row.cells,cell_widths): cell.width=DI(width)
-    for ri,row in enumerate(table.rows):
-        trPr=row._tr.get_or_add_trPr(); keep=OxmlElement('w:cantSplit'); trPr.append(keep)
-        if ri>0 and ri%2: [shade(c,'F3F7FA') for c in row.cells]
-        for cell in row.cells:
-            for p in cell.paragraphs:
-                p.paragraph_format.space_after=DP(3); p.paragraph_format.space_before=DP(2)
-                for r in p.runs: r.font.size=DP(10); r.font.name=FONT
-    return table
-
-
-def p(doc,text,style=None): return doc.add_paragraph(text,style)
-def bullet(doc,text): return p(doc,text,'List Bullet')
-def heading(doc,title): return doc.add_heading(title,level=1)
-def newpage(doc,kicker,title):
-    para=p(doc,kicker.upper(),'Subtitle'); para.paragraph_format.page_break_before=True; heading(doc,title)
-
-
-def make_doc(args):
-    doc=Document(); sec=doc.sections[0]
-    sec.top_margin=DI(.62); sec.bottom_margin=DI(.6); sec.left_margin=DI(.7); sec.right_margin=DI(.7)
-    sec.header_distance=DI(.2); sec.footer_distance=DI(.25)
-    for name in ['Normal','Body Text','List Bullet','List Number']:
-        s=doc.styles[name]; s.font.name=FONT; s.font.size=DP(10.5)
-        s.paragraph_format.space_after=DP(6); s.paragraph_format.line_spacing=1.08
-    for name,size in [('Title',31),('Heading 1',21),('Heading 2',13),('Subtitle',11)]:
-        s=doc.styles[name]; s.font.name=FONT; s.font.size=DP(size); s.font.color.rgb=DC.from_string(BLUE if name!='Title' else NAVY)
-    header=sec.header.paragraphs[0]; header.text='DWMS  /  WATER INTELLIGENCE'; header.runs[0].font.size=DP(8); header.runs[0].font.color.rgb=DC.from_string(BLUE)
-    footer=sec.footer.paragraphs[0]; footer.text='Competition feasibility • '+DATE+' | '
-    f=OxmlElement('w:fldSimple'); f.set(qn('w:instr'),'PAGE'); footer._p.append(f)
-    for r in footer.runs: r.font.size=DP(8); r.font.color.rgb=DC.from_string(MUTED)
-    doc.core_properties.title='DWMS — Water Intelligence | Feasibility Study'; doc.core_properties.author='Ahmed Alzahrani, Founder and Project Lead'
-    p(doc,'IoThon 2026 / Decision brief','Subtitle')
-    p(doc,'DWMS\nWater Intelligence','Title')
-    p(doc,'Monitor. Detect. Respond.','Subtitle')
-    heading(doc,'Four components; distinct evidence and deployment gates.')
-    p(doc,'Live monitoring, the shared Demo, Hardware integration and Ethm explanations support one operational workflow around pH, TDS and turbidity. Flow remains demo-only. This study supports a supervised reuse-buffer pilot, not a certification or measured treatment claim. The owner reports earlier physical operation; that unavailable setup has not been independently revalidated here.')
-    document_table(doc,['Decision area','Current evidence','Decision'],[
-      ('Live','Hardened backend deployed; anonymous reads/controls denied. Auth0 management login is blocked.','Approve Auth0 administration, then rehearse real sessions.'),
-      ('Demo','Shared synthetic readings, alerts, history and operator scenarios.','Use explicit simulation labels.'),
-      ('Hardware','Earlier operation is owner-reported; current template compiles with calibration/relay gates 0.','Recover original setup; audit physical results.'),
-      ('Ethm','Read-only authenticated evidence explanation; server key reported configured.','Verify real data/model request; no fake replies.'),
-      ('Commercial/financial','Dated component price references; no installed BOM, customer interviews or field operating costs.','Pilot and obtain quotes; no ROI claim.')])
-    p(doc,'First pilot: an industrial utilities engineer overseeing a supervised non-potable reuse buffer tank. Partner, jurisdiction and acceptance criteria are unconfirmed. EPA explains that treatment/monitoring depend on source and intended end use [S1].')
-    p(doc,'Ahmed Alzahrani — Founder and Project Lead (user confirmed). Pilot partner, location, budget, other role assignments, schedule owners and acceptance limits: TBC. Source review date: '+DATE+'.')
-
-    newpage(doc,'Technical feasibility','A small system with an inspectable control path')
-    document_table(doc,['Layer','Implemented path','Physical or deployment gate'],[
-      ('Acquisition','Three analog channels → Arduino Uno → USB serial.','Exact probe/interface models; measured voltage/reference; calibrated conversion function.'),
-      ('Gateway','Python bridge sends HTTPS telemetry and polls per-device commands.','Always-on host, USB cabling, power and network provisioning.'),
-      ('Backend','Convex validates, stores, publishes changes, issues alerts and short-lived commands.','Deploy hardened branch to the existing backend; verify Auth0 origins/roles, tenant boundaries and lifecycle.'),
-      ('Operator','Selected-device readings, age/status, alerts, trends and registered sites.','Named operator, response procedure, training and field usability.'),
-      ('Response','Backend request → local interlock → serial ACK → displayed reported state.','Independent contact/pump feedback and approved process action.')])
-    doc.add_heading('Deterministic prototype policy',level=2)
-    bullet(doc,'Critical pH (<5.5 or >10.0) or turbidity (>50 NTU) requests Emergency OFF. Ordinary Auto commands cannot clear a local latch. Recovery requires fresh non-critical readings and explicit operator acknowledgement.')
-    bullet(doc,'Auto requests pump ON above 1500 ppm TDS or 20 NTU turbidity when critical interlocks pass. These prototype thresholds require sensor-range and process validation; pumping alone does not prove contaminant removal.')
-    bullet(doc,'Receipt freshness is 10 seconds; commands expire after 20 seconds. The Arduino control lease is 15 seconds and is renewed only after a successful authenticated poll. Values are configured policies, not measured physical timing.')
-    doc.add_heading('Limits that affect feasibility',level=2)
-    p(doc,'Existing Convex/Auth0/OpenAI resources are retained; the hardened backend is deployed; production anonymous reads and control attempts are denied. Auth0 management authorization still blocks new-origin login verification. The Uno is gateway-connected, not a standalone wireless node. Source acquisition timestamps and sequence/replay protection are absent. Range checks cannot prove that an unplugged analog probe is detected. No temperature channel, relay-contact feedback or verified treatment result is provided. Deployed real-data reads require explicit fleet approval; new and legacy unapproved viewers are denied. Private chat/alert/run records are user-owned. Approved users share a fleet; separate customer tenants are not implemented [S6]. Ethm provider verification returned credit_balance_exhausted, so model assistance is unavailable.')
-
-    newpage(doc,'Sensors and commissioning','Qualify real modules before enabling the process')
-    p(doc,'No installed sensor model is confirmed. Catalog examples below are pricing/selection references, not an installed or qualified DWMS bill of materials.')
-    document_table(doc,['Example','Primary-source constraint','Implication'],[
-      ('DFRobot SEN0161-V2','Laboratory-grade pH kit; manufacturer warns of drift with extended measurements [S3].','Do not assume suitability for continuous immersion or unattended operation.'),
-      ('DFRobot SEN0244','Catalog measurement range 0–1000 ppm [S4].','Cannot validate the current 1500 ppm trigger using this example. Select a suitable range or revalidate policy.'),
-      ('DFRobot SEN0189','Analog/digital turbidity component for prototypes; output interpretation needs module-specific validation [S5].','Do not infer traceable NTU accuracy from an ADC conversion or generic curve.')])
-    doc.add_heading('Canonical hardware recovery and validation',level=2)
-    p(doc,'Preserve and identify the earlier running firmware, bridge and wiring before changes. The calibration-disabled repository template is not recovered historical firmware. Obtain exact modules, references and electrical details; independently calibrate and commission an isolated load before operational enable. Test probe/USB/network failures and record raw observations.')
-    p(doc,'The single procedural guide, including historical source evidence, is '+REPO+'/blob/improve/iothon-2026-focus/docs/HARDWARE.md. Keep repository relay/calibration enables disabled; a software ACK or target compile is not a physical measurement.')
-    p(doc,'pH/TDS/turbidity do not establish microbiological safety or complete water-reuse compliance. Site-specific additional parameters, sampling and treatment requirements remain TBC [S1].')
-
-    newpage(doc,'Operational feasibility','A supervised pilot with named responsibilities')
-    document_table(doc,['Responsibility','Pilot activity','Owner'],[
-      ('Process operator','Choose reuse end use, approve response action and escalation; perform reference sampling.','TBC'),
-      ('Hardware lead','Identify/calibrate probes, maintain cleaning/drift records, verify electrical/load safety.','TBC'),
-      ('Software lead','Provision device credentials; test deployed roles, stale states, commands and retention.','TBC'),
-      ('Independent reviewer','Witness failure tests and assess results against pre-agreed acceptance criteria.','TBC')])
-    doc.add_heading('Pilot measurements, not promises',level=2)
-    document_table(doc,['Measure','Method / denominator','Acceptance'],[
-      ('Sample completeness','Received valid samples / expected samples over an agreed observation window; log intentional downtime.','TBC before pilot'),
-      ('Alert/ACK timing','Record source event, receipt, alert, command and ACK times with clock method and uncertainty.','TBC before pilot'),
-      ('False / missed alerts','Compare against independently labeled reference events and agreed bands.','TBC before pilot'),
-      ('Sensor agreement / drift','Held-out references and repeated checks; record environmental conditions.','Datasheet/reference tolerance TBC'),
-      ('Maintenance effort','Record cleaning, calibration, replacement, operator time and consumables.','TBC before pilot'),
-      ('Water / energy impact','Use independent meters and a comparable baseline before attributing any change.','No current savings claim')])
-    p(doc,'Run probe loss, USB disconnect and network failure as separate tests. Observe the physical output, actual stop timing, recovery and data gaps. A clean software status is not a substitute for the witnessed result. Two registered devices in the UI are not two physically validated nodes.')
-    p(doc,'Use nonsensitive pilot data until deployed roles, tenant isolation, retention and credentials are verified. Ethm explains authenticated evidence without actuation; dedicated authorized operator controls remain separate. A configured server key alone does not prove live AI readiness.')
-
-    newpage(doc,'Economic feasibility','A cost model with traceable inputs and explicit unknowns')
-    p(doc,'Observed manufacturer catalog prices, '+DATE+', USD single-unit listings. Shipping, taxes, currency conversion and local availability are excluded. These examples are not confirmed DWMS modules, supplier quotes or a deployment recommendation [S3–S5].')
-    document_table(doc,['Reference line','Quantity basis','Observed price','Qualification'],[
-      ('pH kit SEN0161-V2','1 illustrative bench kit','$39.50','Laboratory-grade; continuous deployment unqualified'),
-      ('TDS kit SEN0244','1 illustrative bench kit','$11.80','0–1000 ppm; insufficient for current 1500 ppm trigger'),
-      ('Turbidity SEN0189','1 illustrative bench kit','$9.90','Traceable NTU conversion/installation TBC'),
-      ('Controller + LCD + cabling','Exact parts / quantities TBC','TBC','Uno build proven; installed hardware unconfirmed'),
-      ('Relay / isolation / load','Site-approved design TBC','TBC','Disabled; polarity/rating/fail state unverified'),
-      ('Gateway host + network','Existing or new host TBC','TBC','Continuous host/power/network required'),
-      ('Enclosure / power / install','Environment / work scope TBC','TBC','Ingress, electrical and installation review needed'),
-      ('Reference instruments / standards','Required references TBC','TBC','Include calibration/cleaning and independent verification')])
-    doc.add_heading('Budget and pricing decisions still needed',level=2)
-    p(doc,'Total installed cost = qualified hardware + reference equipment + installation/commissioning + logistics/tax + an agreed contingency. No complete total can be supported today. Obtain dated local quotes after sensor and site requirements are frozen.')
-    p(doc,'Recurring cost = measured cloud/database/storage usage + network/host power + operator time + cleaning/calibration consumables + replacement allowance. Measure sample rate, retention, query traffic and service effort during the pilot before estimating a fleet.')
-    p(doc,'Commercial hypothesis: installation/commissioning plus a site service fee. Price, margin, willingness to pay and support scope are TBC; validate through operator interviews and a paid-pilot discussion. Do not infer affordability or ROI from the three reference prices.')
-
-    newpage(doc,'Market and positioning','A focused prototype within an established category')
-    p(doc,'Market existence is supported by established water-monitoring product categories. This research does not establish DWMS customer demand, market size, revenue or a unique invention. Begin with operator interviews at an accessible supervised reuse site.')
-    document_table(doc,['Reference','Evidence from primary source','Implication for DWMS'],[
-      ('Hach SC4500','Aug 2026 brochure describes industrial digital/analog sensing, local SCADA/PLC integration and optional network connectivity [S2].','Monitoring and remote connectivity are established capabilities; compete through a clear, inspectable prototype demonstration.'),
-      ('DFRobot bench kits','Current catalogs provide modular pH/TDS/turbidity components and model-specific limits [S3–S5].','Component accessibility supports prototyping, not verified field suitability or performance.'),
-      ('DWMS','Repository exposes ingestion, threshold rules, alerts, command states, multi-site registry/history and simulation labels [S6].','Credible strength: repeatable and reviewable behavior with visible uncertainty. Physical proof remains the next milestone.')])
-    doc.add_heading('Six strengths and their claim boundaries',level=2)
-    for text in [
-      'Real-time monitoring: reactive software updates, not a measured end-to-end physical latency claim.',
-      'Early anomaly detection: warning/critical threshold bands, not predictive AI accuracy.',
-      'Rule-based response: deterministic interlocks and explicit recovery, not proven treatment effectiveness.',
-      'Connectivity: visible stale/unknown states, ACK/expiry and local lease, not guaranteed field uptime.',
-      'Multiple sites: registry-backed selection and history, not measured fleet capacity.',
-      'Integration: compiled Uno and exercised software transport/control path, not calibrated hardware-to-dashboard evidence.'
-    ]: bullet(doc,text)
-    p(doc,'The defensible near-term offer is a supervised demonstrator for understanding operational response. A procurement-grade product requires validated instruments, installation engineering, service support, security boundaries and site-specific acceptance. No cheaper/better-than-industrial claim is supported.')
-
-    newpage(doc,'Execution and validation','Advance through evidence gates, with owners and limits agreed first')
-    document_table(doc,['Gate','Required evidence','Exit decision'],[
-      ('1 • Software baseline','Run current unit/handler, bridge, host-firmware, backend integration, lint/build and actual Uno-target checks; link exact commit/CI.','Demonstration ready after current run passes.'),
-      ('2 • Probe qualification','Exact models and calibrated conversion; independent held-out references; detected sensor disconnect; maintenance records.','Hardware sensing approved only against agreed tolerances.'),
-      ('3 • Isolated response bench','Inactive startup/reset, critical/stale/USB/network failures, explicit recovery and independent output observation.','Approve safe bench actuation; do not assume process suitability.'),
-      ('4 • Two physical nodes','Separate device identity/history, observed connectivity, faults and operator workflow at both nodes.','Multi-site demonstration substantiated.'),
-      ('5 • Supervised field observation','Agreed sampling window, completeness/alert labels/maintenance records; deployment security checks.','Decide next investment or redesign from evidence.')])
-    doc.add_heading('Risks to resolve before field commitment',level=2)
-    bullet(doc,'Unknown sensor models/conversions and prototype thresholds: freeze intended range, calibrate, and align the rule to the qualified measurement and approved process.')
-    bullet(doc,'No physical output feedback or verified treatment result: independently observe behavior; commission an appropriate response rather than treating software ACK as process proof.')
-    bullet(doc,'Gateway and network dependency: characterize separate failures and actual recovery, power and maintenance needs.')
-    bullet(doc,'Shared authenticated fleet, no tenant isolation and absent acquisition sequence: complete deployed access/data-lifecycle controls and freshness/replay design before sensitive or unattended use.')
-    p(doc,'Founder and Project Lead: Ahmed Alzahrani. Specific accountable owners for each gate, pilot duration, dates, test limits and spend approval: TBC. No invented schedule or acceptance percentage is assigned.')
-    p(doc,'Completed CI baseline: '+args.evidence_commit+' — '+args.ci_url+'. The readiness record identifies exact checked commits and outstanding physical gates [S6]. Final presentation/UI changes must be checked on their own commit.')
-
-    newpage(doc,'Sources','Primary references and internal evidence')
-    p(doc,'All external sources accessed '+DATE+'. Prices/specifications may change. Manufacturer claims are attributed; none are reported as DWMS measurements. Source URLs are preserved in full for traceability.')
-    keys=['EPA','HACH','PH','TDS','TURB','CODE']
-    for n,key in enumerate(keys,1):
-        title,url=SOURCES[key]
-        pp=doc.add_paragraph(); rr=pp.add_run(f'S{n}  {title}'); rr.bold=True
-        p(doc,url)
-    p(doc,'S7  Completed software/firmware CI baseline: '+args.ci_url)
-    p(doc,'Artifact reproduction: python scripts/generate-deliverables.py. Authoring libraries and LibreOffice are tooling outside the application runtime. Slides, narrative, tables and architecture elements remain editable in PPTX/DOCX; screenshots are actual application captures.')
-    p(doc,'Readiness categories: Implemented, Software verified, Simulation verified, Physically validated, Pending and Blocked. Earlier hardware operation is owner-reported; no independently audited physical measurements were supplied. The single current matrix is docs/VALIDATION.md.')
-    path=OUT/'DWMS-Feasibility.docx'; doc.save(path); return path
-
-
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--evidence-commit',default='62d6732'); ap.add_argument('--ci-url',default=REPO+'/actions/runs/45898346158'); ap.add_argument('--node-tests',type=int,default=41); ap.add_argument('--python-tests',type=int,default=16); ap.add_argument('--draft',action='store_true',help='Allow visibly labeled screenshot placeholders for internal review only')
+    ap=argparse.ArgumentParser(); ap.add_argument('--evidence-commit',default='62d6732'); ap.add_argument('--ci-url',default=REPO+'/actions/runs/45898346158'); ap.add_argument('--node-tests',type=int,default=47); ap.add_argument('--python-tests',type=int,default=20); ap.add_argument('--checkpoints',type=int,default=10); ap.add_argument('--draft',action='store_true',help='Allow visibly labeled screenshot placeholders for internal review only')
+    ap.add_argument('--deck-only',action='store_true',help='Regenerate only the editable pitch and its PDF')
     args=ap.parse_args(); OUT.mkdir(exist_ok=True)
     svg=fitz.open(str(ROOT/'public/brand/mark.svg')); svg[0].get_pixmap(matrix=fitz.Matrix(5,5),alpha=True).save(str(BRAND_MARK)); svg.close()
     paths=[ROOT/'docs/screenshots/dashboard-desktop.png',ROOT/'docs/screenshots/dashboard-mobile.png']
@@ -419,12 +293,15 @@ def main():
                 tmp=Path('/tmp')/('dwms-artifact-draft-'+str(i)+'.png'); im=Image.new('RGB',(1400,800) if i==0 else (390,844),'#F3F7FA'); ImageDraw.Draw(im).text((35,35),'DRAFT / Actual app screenshot pending',fill='#087EA4'); im.save(tmp); temps.append(tmp)
             else: temps.append(path)
         paths=temps
-    deck=make_deck(*paths,args); doc=make_doc(args)
+    deck=make_deck(*paths,args)
+    authored=[deck]
     profile='/tmp/dwms-deliverables-libreoffice'
-    for file in [deck,doc]:
+    for file in authored:
         subprocess.run(['soffice','-env:UserInstallation=file://'+profile,'--headless','--convert-to','pdf','--outdir',str(OUT),str(file)],check=True)
-    for file in [deck,deck.with_suffix('.pdf'),doc,doc.with_suffix('.pdf')]:
+    for file in [artifact for source in authored for artifact in [source,source.with_suffix('.pdf')]]:
         if not file.exists() or file.stat().st_size==0: raise SystemExit('Missing export: '+str(file))
         print(f'{file.relative_to(ROOT)}: {file.stat().st_size:,} bytes')
+    if not args.deck_only:
+        subprocess.run(['python3',str(ROOT/'scripts/generate-feasibility.py'),'--node-tests',str(args.node_tests),'--python-tests',str(args.python_tests),'--checkpoints',str(args.checkpoints)],check=True)
 
 if __name__=='__main__': main()

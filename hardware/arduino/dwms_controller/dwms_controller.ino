@@ -293,6 +293,8 @@ void reportStatus() {
   Serial.println(emergencyLock ? '1' : '0');
 }
 
+unsigned long telemetrySequence = 0;
+
 void sampleAndSend() {
   float ph = NAN;
   float tds = NAN;
@@ -315,6 +317,8 @@ void sampleAndSend() {
     Serial.print(F("{\"ph\":")); Serial.print(phValue, 2);
     Serial.print(F(",\"tds\":")); Serial.print(tdsValue, 2);
     Serial.print(F(",\"turbidity\":")); Serial.print(turbidityValue, 2);
+    Serial.print(F(",\"sourceSequence\":")); Serial.print(++telemetrySequence);
+    Serial.print(F(",\"sourceUptimeMs\":")); Serial.print(lastValidReadingAt);
     Serial.println(F(",\"calibrated\":true}"));
   } else {
     enforceLocalSafety();
