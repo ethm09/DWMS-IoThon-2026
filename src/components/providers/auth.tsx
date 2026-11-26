@@ -48,7 +48,7 @@ function Auth0SessionBridge({ children }: { children: ReactNode }) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   // Guest demo never initializes Auth0 or restores an operational session.
-  const operationalRoute = pathname.startsWith("/live") || pathname === "/auth/callback";
+  const operationalRoute = pathname === "/live" || pathname.startsWith("/live/") || pathname === "/auth/callback";
   if (!operationalRoute || !auth0Configured) {
     return (
       <AuthContext.Provider value={unconfiguredAuthState}>

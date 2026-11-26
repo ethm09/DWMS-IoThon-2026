@@ -17,9 +17,9 @@ export default function HardwareBridge() {
 
   const { isAuthenticated } = useConvexAuth();
 
-  const { user } = useUserRole();
+  const { user, canViewFleet } = useUserRole();
   // Registration must finish before protected device queries start.
-  const shouldSubscribe = !!user && isAuthenticated && dataMode === "hardware" && !!selectedDeviceId;
+  const shouldSubscribe = !!user && canViewFleet && isAuthenticated && dataMode === "hardware" && !!selectedDeviceId;
 
   const latestReading = useQuery(
     api.devices.getLatestReading,

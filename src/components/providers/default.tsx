@@ -19,7 +19,7 @@ export function DefaultProviders({ children }: { children: React.ReactNode }) {
             <ThemeProvider>
               <ProcessModeProvider>
                 <DemoProvider>
-                  {pathname.startsWith("/live") && <HardwareBridge />}
+                  {(pathname === "/live" || pathname.startsWith("/live/")) && <HardwareBridge />}
                   <Toaster />
                   {children}
                 </DemoProvider>
