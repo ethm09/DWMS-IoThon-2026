@@ -6,7 +6,7 @@ DWMS is an existing React/Convex prototype focused on **pH, TDS and turbidity â†
 
 ## Try the local demo
 
-Requires Node.js 20.19+ and pnpm 10; no cloud account, probes or AI key is needed for the dashboard demo.
+Requires Node.js 24 and pnpm 10; no cloud account, probes or AI key is needed for the dashboard demo.
 
 ```bash
 pnpm install --frozen-lockfile

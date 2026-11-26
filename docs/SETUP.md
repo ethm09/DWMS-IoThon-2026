@@ -2,7 +2,7 @@
 
 ## Local UI demo
 
-Use Node.js 20.19+ and pnpm 10. `pnpm test` also needs Python 3; the controller host check needs `g++`. These checks use mocks and do not need a connected Arduino or Python bridge packages.
+Use Node.js 24 and pnpm 10. `pnpm test` also needs Python 3; the controller host check needs `g++`. These checks use mocks and do not need a connected Arduino or Python bridge packages.
 
 ```bash
 pnpm install --frozen-lockfile
