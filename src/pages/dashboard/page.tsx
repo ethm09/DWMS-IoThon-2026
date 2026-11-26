@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api.js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import WaterProcessSchematic from "@/components/water-process-schematic";
+import CommandHistory from "@/components/command-history";
 import HardwareControlPanel from "@/components/hardware-control-panel.tsx";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { useDemo } from "@/hooks/use-demo";
@@ -141,7 +142,7 @@ function HardwareDashboard() {
     <div role="status" className={`flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-3 ${STATUS[quality].className}`}><div><p className="text-sm font-semibold">{quality === "safe" ? "Water parameters within prototype limits" : quality === "unknown" ? "Unknown · check device connection" : quality === "warning" ? "Warning · investigate readings" : "Critical · respond now"}</p><p className="mt-0.5 text-xs opacity-80">{decision?.reason ?? "Restore telemetry and verify sensors before starting equipment."}</p></div><span className="text-xs">{currentFreshness.toUpperCase()}{age !== null && Number.isFinite(age) ? ` · ${age}s since receipt` : ""}</span></div>
     <SensorReadings reading={latest} freshness={currentFreshness} history={history} />
     {currentFreshness !== "fresh" && latest && <p className="text-xs text-muted-foreground">Displayed values are historical. Current quality is unknown.</p>}
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"><div className="min-w-0 space-y-4"><WaterProcessSchematic demo={false} connected={currentFreshness === "fresh"} pumpOn={currentFreshness === "fresh" ? control?.reportedPumpState ?? null : null} emergency={control?.mode === "emergency"} reading={latest} history={history} mode={control?.mode} /><Trends history={history} /></div><div className="space-y-4"><HardwareControlPanel /><AssistantPanel /></div></div>
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"><div className="min-w-0 space-y-4"><WaterProcessSchematic demo={false} connected={currentFreshness === "fresh"} pumpOn={currentFreshness === "fresh" ? control?.reportedPumpState ?? null : null} emergency={control?.mode === "emergency"} reading={latest} history={history} mode={control?.mode} /><Trends history={history} /></div><div className="space-y-4"><HardwareControlPanel /><CommandHistory compact /><AssistantPanel /></div></div>
   </div>;
 }
 

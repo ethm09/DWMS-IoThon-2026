@@ -1,68 +1,75 @@
 {
   "url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site",
-  "source_commit": "8c765c456dca80ffc1803ce14002d963fda05f2e",
-  "version": 2,
+  "checked_at_utc": "2026-11-26T21:19:28.762443+00:00",
+  "source_commit": "552348cfe703fee61828c95025c3a14bda478869",
+  "version": 4,
   "http_checks": [
     {
       "path": "/",
       "status": 200,
+      "content_type": "text/html",
       "bytes": 1376
     },
     {
-      "path": "/dashboard",
+      "path": "/demo",
       "status": 200,
+      "content_type": "text/html",
       "bytes": 1376
     },
     {
-      "path": "/historical",
+      "path": "/demo/trends",
       "status": 200,
+      "content_type": "text/html",
       "bytes": 1376
     },
     {
-      "path": "/alerts",
+      "path": "/demo/alerts",
       "status": 200,
+      "content_type": "text/html",
       "bytes": 1376
     },
     {
-      "path": "/devices",
+      "path": "/demo/devices",
       "status": 200,
+      "content_type": "text/html",
       "bytes": 1376
     },
     {
-      "path": "/remote-monitoring",
+      "path": "/demo/sites",
       "status": 200,
+      "content_type": "text/html",
       "bytes": 1376
     },
     {
-      "path": "/brand/mark.svg",
+      "path": "/demo/assistant",
       "status": 200,
-      "bytes": 599
+      "content_type": "text/html",
+      "bytes": 1376
     },
     {
-      "path": "/fonts/inter.ttf",
+      "path": "/live",
       "status": 200,
-      "bytes": 876576
+      "content_type": "text/html",
+      "bytes": 1376
+    },
+    {
+      "path": "/brand/waves.svg",
+      "status": 200,
+      "content_type": "image/svg+xml",
+      "bytes": 389
     },
     {
       "path": "/screenshots/dashboard-preview.png",
       "status": 200,
-      "bytes": 164041
+      "content_type": "image/png",
+      "bytes": 198889
     },
     {
-      "path": "/site.webmanifest",
+      "path": "/media/dwms-software-demo.mp4",
       "status": 200,
-      "bytes": 387
-    },
-    {
-      "path": "/assets/index-DFACLyF6.js",
-      "status": 200,
-      "bytes": 1440513
-    },
-    {
-      "path": "/assets/index-Dfy_qq1-.css",
-      "status": 200,
-      "bytes": 130579
+      "content_type": "video/mp4",
+      "bytes": 1906562
     }
   ],
-  "scope": "Anonymous HTTP/SPA shell/assets verification; not interactive browser or Auth0 validation"
+  "scope": "Anonymous final release/asset delivery. Interactive UI evidence is separate in qa-results.json; no real Auth0 session or physical result."
 }

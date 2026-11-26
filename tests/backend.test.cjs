@@ -467,6 +467,17 @@ test("device query redacts credentials and history is capped and isolated by sit
       .length,
     1,
   );
+  for (let i = 0; i < 70; i++) f.tables.deviceCommands.push({
+    commandId: `site-a-${i}`, deviceId: "site-a", createdAt: new Date(i).toISOString(),
+    pumpOn: false, mode: "auto", source: "automatic", status: "applied", requestedBy: "private-operator@example.invalid",
+  });
+  f.tables.deviceCommands.push({ commandId: "other-site", deviceId: "other-site", createdAt: stamp(), pumpOn: true });
+  const commands = await f.invoke("getRecentCommands", { deviceId: "site-a", limit: 10000 });
+  assert.equal(commands.length, 50);
+  assert.ok(commands.every(command => command.commandId.startsWith("site-a-")));
+  assert.equal(commands[0].requestedBy, undefined);
+  assert.equal(commands[0].reportedPumpState, null, "unconfirmed output must not become OFF");
+
 });
 
 test("only explicit emergency acknowledgement authorizes local latch reset and survives pre-delivery status", async () => {
@@ -582,6 +593,7 @@ test("live registry, telemetry and command state require explicit shared-fleet a
     ["getLatestReading", { deviceId: "site-a" }],
     ["getRecentReadings", { deviceId: "site-a", limit: 200 }],
     ["getControlState", { deviceId: "site-a" }],
+    ["getRecentCommands", { deviceId: "site-a" }],
   ];
   for (const options of [
     { authenticated: false },

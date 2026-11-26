@@ -1,6 +1,6 @@
 # IoThon 2026 — English submission draft
 
-Prepared for [the submission portal](https://runhackathon.com/gic/iothon/2026/submit). **Draft only; not submitted.** Direct inspection returned HTTP 403 and the page was inaccessible through search on 2026-11-26. Exact form labels, character limits, required uploads and eligibility declarations remain unverified. The sections below are paste-ready content blocks, not invented official field requirements.
+Prepared for [the submission portal](https://runhackathon.com/gic/iothon/2026/submit). **Draft only; not submitted.** Final Chromium inspection returned HTTP 200 with a sign-in wall on 2026-11-26; the project form is account-protected. Exact form labels, character limits, required uploads and eligibility declarations remain unverified. The sections below are paste-ready content blocks, not invented official field requirements.
 
 ## Project identity
 

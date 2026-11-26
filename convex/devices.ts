@@ -614,6 +614,26 @@ export const getRecentReadings = query({
   },
 });
 
+/** Persistent operational history, without actor emails or device credentials. */
+export const getRecentCommands = query({
+  args: { deviceId: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
+    const limit = Number.isFinite(args.limit) ? Math.max(1, Math.min(50, Math.floor(args.limit!))) : 30;
+    const commands = await ctx.db.query("deviceCommands")
+      .withIndex("by_deviceId_createdAt", q => q.eq("deviceId", args.deviceId))
+      .order("desc").take(limit);
+    return commands.map(command => ({
+      commandId: command.commandId, pumpOn: command.pumpOn,
+      reportedPumpState: command.reportedPumpState ?? null,
+      mode: command.mode, source: command.source, status: command.status,
+      createdAt: command.createdAt, acknowledgedAt: command.acknowledgedAt ?? null,
+      expiresAt: new Date(Date.parse(command.createdAt) + CONTROL_COMMAND_TTL_MS).toISOString(),
+      message: command.message ?? null,
+    }));
+  },
+});
+
 // Internal: save a sensor reading (called from HTTP action)
 export const internalSaveReading = internalMutation({
   args: {

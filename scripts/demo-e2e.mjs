@@ -325,6 +325,7 @@ try {
     [api.devices.getLatestReading, { deviceId }],
     [api.devices.getRecentReadings, { deviceId, limit: 200 }],
     [api.devices.getControlState, { deviceId }],
+    [api.devices.getRecentCommands, { deviceId, limit: 50 }],
   ]) {
     await assert.rejects(
       publicClient.query(fn, args),
@@ -336,6 +337,7 @@ try {
     [api.devices.getLatestReading, { deviceId }],
     [api.devices.getRecentReadings, { deviceId, limit: 200 }],
     [api.devices.getControlState, { deviceId }],
+    [api.devices.getRecentCommands, { deviceId, limit: 50 }],
   ];
   async function assertViewerCannotControl() {
     for (const [fn, args] of [
@@ -520,6 +522,9 @@ try {
   passed(
     "recovered readings preserved latch; explicit synthetic-operator acknowledgement cleared it",
   );
+  const commandHistory = await operatorClient.query(api.devices.getRecentCommands, { deviceId, limit: 50 });
+  assert.ok(commandHistory.some(command => command.status === "applied" && command.acknowledgedAt), "ACK records persist for operational history");
+  assert.ok(commandHistory.every(command => !("requestedBy" in command)), "viewer-facing history excludes operator identity");
   const history = await operatorClient.query(api.devices.getRecentReadings, {
     deviceId,
     limit: 200,
