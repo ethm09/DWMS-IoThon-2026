@@ -38,7 +38,7 @@ Callbacks include `/auth/callback`; logout/origin entries do not. Add the exact 
 
 ## Backend, Hardware and Ethm
 
-Current source `3fb21a9` was deployed to the existing Convex backend. Six anonymous probes—four real-data reads, pump command and agent run—were denied `UNAUTHENTICATED`; see [production checks](screenshots/production-release-checks.json). Future deployment must retain the same existing target and checks.
+Current backend source `ce3df43` was deployed to the existing Convex backend. Seven anonymous probes—five real-data reads, pump command and agent run—were denied `UNAUTHENTICATED`; see [production checks](screenshots/production-release-checks.json). Future deployment must retain the same existing target and checks.
 
 Use [HARDWARE.md](HARDWARE.md), the canonical recovery/calibration/commissioning guide. The owner-reported earlier prototype is unavailable; preserve its firmware/wiring before changes. The disabled repository template is not recovered historical firmware. Keep backend, bridge and firmware protocol versions coordinated.
 

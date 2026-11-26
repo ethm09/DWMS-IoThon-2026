@@ -405,7 +405,7 @@ def make_doc(args):
 
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--evidence-commit',default='3fb21a9'); ap.add_argument('--ci-url',default=REPO+'/actions/runs/45895996303'); ap.add_argument('--node-tests',type=int,default=41); ap.add_argument('--python-tests',type=int,default=16); ap.add_argument('--draft',action='store_true',help='Allow visibly labeled screenshot placeholders for internal review only')
+    ap=argparse.ArgumentParser(); ap.add_argument('--evidence-commit',default='62d6732'); ap.add_argument('--ci-url',default=REPO+'/actions/runs/45898346158'); ap.add_argument('--node-tests',type=int,default=41); ap.add_argument('--python-tests',type=int,default=16); ap.add_argument('--draft',action='store_true',help='Allow visibly labeled screenshot placeholders for internal review only')
     args=ap.parse_args(); OUT.mkdir(exist_ok=True)
     svg=fitz.open(str(ROOT/'public/brand/mark.svg')); svg[0].get_pixmap(matrix=fitz.Matrix(5,5),alpha=True).save(str(BRAND_MARK)); svg.close()
     paths=[ROOT/'docs/screenshots/dashboard-desktop.png',ROOT/'docs/screenshots/dashboard-mobile.png']

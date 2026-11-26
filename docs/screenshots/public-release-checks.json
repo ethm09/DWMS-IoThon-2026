@@ -1,8 +1,8 @@
 {
   "url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site",
-  "checked_at_utc": "2026-11-26T21:19:28.762443+00:00",
-  "source_commit": "552348cfe703fee61828c95025c3a14bda478869",
-  "version": 4,
+  "checked_at_utc": "2026-11-26T21:31:48.268383+00:00",
+  "source_commit": "62d673231621eb231ef430f6971c75aeb93d5dfc",
+  "version": 6,
   "http_checks": [
     {
       "path": "/",
@@ -53,16 +53,16 @@
       "bytes": 1376
     },
     {
+      "path": "/live/events",
+      "status": 200,
+      "content_type": "text/html",
+      "bytes": 1376
+    },
+    {
       "path": "/brand/waves.svg",
       "status": 200,
       "content_type": "image/svg+xml",
       "bytes": 389
-    },
-    {
-      "path": "/screenshots/dashboard-preview.png",
-      "status": 200,
-      "content_type": "image/png",
-      "bytes": 198889
     },
     {
       "path": "/media/dwms-software-demo.mp4",
@@ -71,5 +71,10 @@
       "bytes": 1906562
     }
   ],
-  "scope": "Anonymous final release/asset delivery. Interactive UI evidence is separate in qa-results.json; no real Auth0 session or physical result."
+  "video": {
+    "duration_seconds": 92.75,
+    "browser_playback_verified": true,
+    "scope": "Actual silent public software recording; no physical footage"
+  },
+  "scope": "Final anonymous release delivery; interactive five-width evidence is in qa-results.json. No real Auth0 session or physical result."
 }
