@@ -6,7 +6,6 @@ import { api } from "@/convex/_generated/api.js";
 import type { Id } from "@/convex/_generated/dataModel.js";
 import { Brain, X, Send, Sparkles } from "lucide-react";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
-import { riskLabel } from "@/lib/dwms-safety.ts";
 import { cn } from "@/lib/utils.ts";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -26,7 +25,6 @@ const SUGGESTED = [
 function EthmAssistantInner() {
   const {
     assistantOpen, setAssistantOpen,
-    mode, quality,
   } = useProcessMode();
 
   const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: WELCOME }]);
@@ -208,13 +206,7 @@ function EthmAssistantInner() {
             </div>
 
             {/* Live risk strip */}
-            <div className="px-3 py-1.5 border-t flex items-center gap-2 text-[9px] font-mono tracking-wider shrink-0" style={{ borderColor: "#22c55e22", background: "oklch(0.1 0.015 145)" }}>
-              <span className="text-muted-foreground">RISK:</span>
-              <span style={{ color: quality === "critical" ? "#ef4444" : quality === "warning" ? "#eab308" : quality === "unknown" ? "#6b7280" : "#22c55e" }}>
-                {riskLabel(quality)}
-              </span>
-              <span className="text-muted-foreground ml-auto">MODE: {mode.toUpperCase()}</span>
-            </div>
+            <p className="px-3 py-2 text-[10px] text-muted-foreground border-t">Explanations use backend data. Check monitoring for current freshness and controller acknowledgement.</p>
 
             {/* Input */}
             <form

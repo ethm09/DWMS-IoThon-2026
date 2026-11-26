@@ -1,10 +1,11 @@
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
 
 type Role = "admin" | "operator" | "viewer";
 
 export function useUserRole() {
-  const user = useQuery(api.users.getCurrentUser);
+  const { isAuthenticated } = useConvexAuth();
+  const user = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
 
   // user === undefined → still loading; user === null → guest (not signed in)
   const role = user?.role as Role | undefined;
@@ -12,7 +13,7 @@ export function useUserRole() {
   return {
     user: user ?? null,
     role,
-    isGuest: user === null,
+    isGuest: !isAuthenticated || user === null,
     isAdmin: user?.role === "admin",
     isOperator: user?.role === "operator",
     isViewer: user?.role === "viewer",

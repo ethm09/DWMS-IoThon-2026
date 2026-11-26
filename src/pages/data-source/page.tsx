@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
@@ -45,11 +45,9 @@ const HW_STATUS_CONFIG: Record<HardwareStatus, { label: string; color: string; i
 function DataSourceInner() {
   const {
     dataMode, setDataMode,
-    hardwareStatus,
     apiUrl, setApiUrl,
     selectedDeviceId, setSelectedDeviceId,
-    lastUpdated,
-    setSensorData,
+    sensorData,
   } = useProcessMode();
 
   const devices = useQuery(api.devices.listDevices, {});
@@ -57,6 +55,16 @@ function DataSourceInner() {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [urlDraft, setUrlDraft] = useState(apiUrl);
 
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const receivedAt = dataMode === "hardware" && sensorData?.source === "device"
+    ? Date.parse(sensorData.timestamp) : NaN;
+  const ageMs = now - receivedAt;
+  const hardwareStatus: HardwareStatus = !Number.isFinite(ageMs) || ageMs < 0 || ageMs > 30_000
+    ? "disconnected" : ageMs > 10_000 ? "warning" : "connected";
   const hwConfig = HW_STATUS_CONFIG[hardwareStatus];
   const HwIcon = hwConfig.icon;
 
@@ -70,7 +78,7 @@ function DataSourceInner() {
       // Switch with a warning
       setDataMode(newMode as DataMode);
       toast("Switched to Hardware mode — waiting for device data", {
-        description: "If no data arrives in 30 seconds, consider switching back to Demo.",
+        description: "Check calibration, serial connection, device credentials and the bridge logs if no data arrives.",
       });
     } else {
       // Switch to demo — safe to do unless hardware is actively connected
@@ -91,21 +99,19 @@ function DataSourceInner() {
     setTestLoading(true);
     setTestResult(null);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
     try {
-      // Attempt a basic connectivity check using OPTIONS preflight
+      // OPTIONS proves HTTP reachability only, never device ingestion or calibration.
       const testUrl = urlDraft.trim().replace(/\/$/, "") + "/arduino/data";
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-
       const resp = await fetch(testUrl, {
         method: "OPTIONS",
         signal: controller.signal,
       });
-      clearTimeout(timeout);
 
       if (resp.ok || resp.status === 204) {
-        setTestResult({ ok: true, message: `Endpoint reachable (${resp.status})` });
-        toast.success("Connection successful — endpoint is reachable");
+        setTestResult({ ok: true, message: `Backend reachable (${resp.status}). Device ingestion and sensor calibration are not tested.` });
+        toast.success("Backend endpoint reachable; check actual readings to verify ingestion");
       } else {
         setTestResult({ ok: false, message: `Endpoint responded with ${resp.status}` });
         toast.error(`Connection test failed: HTTP ${resp.status}`);
@@ -115,13 +121,20 @@ function DataSourceInner() {
       setTestResult({ ok: false, message: message.includes("abort") ? "Request timed out (5s)" : message });
       toast.error(`Connection test failed: ${message}`);
     } finally {
+      clearTimeout(timeout);
       setTestLoading(false);
     }
   }, [urlDraft]);
 
   const handleSaveUrl = useCallback(() => {
-    setApiUrl(urlDraft.trim());
-    toast.success("API URL saved");
+    try {
+      const url = new URL(urlDraft.trim());
+      if (!["https:", "http:"].includes(url.protocol)) throw new Error("Unsupported protocol");
+      setApiUrl(url.href.replace(/\/$/, ""));
+      toast.success("Bridge endpoint reference saved");
+    } catch {
+      toast.error("Enter a valid HTTP or HTTPS backend URL");
+    }
   }, [urlDraft, setApiUrl]);
 
   return (
@@ -150,7 +163,7 @@ function DataSourceInner() {
               onClick={() => handleModeChange("demo")}
               icon={<Database className="w-5 h-5" />}
               title="DEMO DATA"
-              description="Gentle random drift of sensor values for testing and demonstration"
+              description="Local deterministic scenarios on the dashboard; no real sensor readings or relay control"
               color="#3b82f6"
             />
             <ModeCard
@@ -215,10 +228,10 @@ function DataSourceInner() {
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="w-3 h-3" />
             <span>
-              Last data received:{" "}
-              {lastUpdated && lastUpdated !== new Date(0).toISOString()
-                ? new Date(lastUpdated).toLocaleString()
-                : "Never"}
+              Last stored hardware reading:{" "}
+              {Number.isFinite(receivedAt)
+                ? `${new Date(receivedAt).toLocaleString()} (server receipt time)`
+                : "No selected-device hardware reading"}
             </span>
           </div>
 
@@ -274,7 +287,7 @@ function DataSourceInner() {
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground tracking-wider">
-              The Convex HTTP Actions endpoint. Your Python bridge sends data to this URL + /arduino/data
+              The Python bridge sends data to this URL + /arduino/data. This saved reference does not change the frontend subscription; VITE_CONVEX_URL configures that backend.
             </p>
           </div>
 
@@ -312,7 +325,7 @@ function DataSourceInner() {
               className="gap-2 cursor-pointer"
             >
               {testLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TestTube2 className="w-3.5 h-3.5" />}
-              {testLoading ? "Testing..." : "Test Connection"}
+              {testLoading ? "Checking..." : "Check backend reachability"}
             </Button>
 
             {/* Test result */}
@@ -345,16 +358,15 @@ function DataSourceInner() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-bold tracking-widest flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-primary" /> SUPPORTED HARDWARE
+            <Cpu className="w-4 h-4 text-primary" /> INTEGRATION STATUS
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
-              { name: "Arduino Uno + Serial Bridge", desc: "Firmware, Python telemetry bridge, and acknowledged relay commands are included", supported: true },
+              { name: "Arduino Uno + Serial Bridge", desc: "Firmware and bridge are included; sensor conversion functions require verified calibration before physical operation", supported: true },
               { name: "Authenticated HTTP endpoint", desc: "Accepts JSON sensor readings from a custom HTTP client", supported: true },
               { name: "ESP32 / Wi-Fi MCU", desc: "Requires device-specific firmware; no ESP32 sketch is included", supported: false },
-              { name: "Firebase / Supabase", desc: "No connector is implemented", supported: false },
             ].map((proto) => (
               <div key={proto.name} className="rounded-lg border border-border p-3 flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full mt-1.5 shrink-0"

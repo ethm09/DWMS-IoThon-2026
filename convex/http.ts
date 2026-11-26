@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { isValidSensorValues } from "./safetyPolicy";
 
 const http = httpRouter();
 
@@ -43,19 +44,27 @@ http.route({
     const deviceId = request.headers.get("X-Device-ID");
 
     if (!apiKey || !deviceId) {
-      return new Response(JSON.stringify({ error: "Missing X-API-Key or X-Device-ID headers" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Missing X-API-Key or X-Device-ID headers" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Validate API key
-    const device = await ctx.runQuery(internal.devices.validateApiKey, { apiKey });
+    const device = await ctx.runQuery(internal.devices.validateApiKey, {
+      apiKey,
+    });
     if (!device || device.deviceId !== deviceId) {
-      return new Response(JSON.stringify({ error: "Invalid API key or device ID" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Invalid API key or device ID" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Parse body
@@ -69,40 +78,34 @@ http.route({
       });
     }
 
-    if (typeof parsedBody !== "object" || parsedBody === null || Array.isArray(parsedBody)) {
-      return new Response(JSON.stringify({ error: "JSON body must be an object" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (
+      typeof parsedBody !== "object" ||
+      parsedBody === null ||
+      Array.isArray(parsedBody)
+    ) {
+      return new Response(
+        JSON.stringify({ error: "JSON body must be an object" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
     const body = parsedBody as Record<string, unknown>;
 
-    // Validate: must have all three sensor values as numbers
-    const ph = typeof body.ph === "number" ? body.ph : undefined;
-    const tds = typeof body.tds === "number" ? body.tds : undefined;
-    const turbidity = typeof body.turbidity === "number" ? body.turbidity : undefined;
-
-    if (ph === undefined || tds === undefined || turbidity === undefined) {
-      return new Response(JSON.stringify({ error: "Missing required fields: ph, tds, turbidity (all must be numbers)" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!isValidSensorValues(body)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Expected finite ph (0–14), nonnegative tds and turbidity; all sensors are required",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
-
-    if (
-      !Number.isFinite(ph) ||
-      !Number.isFinite(tds) ||
-      !Number.isFinite(turbidity) ||
-      ph < 0 ||
-      ph > 14 ||
-      tds < 0 ||
-      turbidity < 0
-    ) {
-      return new Response(JSON.stringify({ error: "Sensor values are outside valid measurement ranges" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const { ph, tds, turbidity } = body;
 
     // Save reading (triggers threshold alerts + offline scheduling)
     await ctx.runMutation(internal.devices.internalSaveReading, {
@@ -112,10 +115,17 @@ http.route({
       turbidity,
     });
 
-    return new Response(JSON.stringify({ ok: true, message: "Reading saved", timestamp: new Date().toISOString() }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        message: "Reading saved",
+        timestamp: new Date().toISOString(),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }),
 });
 
@@ -141,21 +151,33 @@ http.route({
     if (!apiKey || !deviceId) {
       return new Response(
         JSON.stringify({ error: "Missing X-API-Key or X-Device-ID headers" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
-    const device = await ctx.runQuery(internal.devices.validateApiKey, { apiKey });
+    const device = await ctx.runQuery(internal.devices.validateApiKey, {
+      apiKey,
+    });
     if (!device || device.deviceId !== deviceId) {
-      return new Response(JSON.stringify({ error: "Invalid API key or device ID" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Invalid API key or device ID" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
-    const command = await ctx.runQuery(internal.devices.getPendingControlCommand, {
-      deviceId,
-    });
-    if (!command) return new Response(null, { status: 204, headers: corsHeaders });
+    const command = await ctx.runQuery(
+      internal.devices.getPendingControlCommand,
+      {
+        deviceId,
+      },
+    );
+    if (!command)
+      return new Response(null, { status: 204, headers: corsHeaders });
     return new Response(JSON.stringify(command), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -181,15 +203,23 @@ http.route({
     if (!apiKey || !deviceId) {
       return new Response(
         JSON.stringify({ error: "Missing X-API-Key or X-Device-ID headers" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
-    const device = await ctx.runQuery(internal.devices.validateApiKey, { apiKey });
+    const device = await ctx.runQuery(internal.devices.validateApiKey, {
+      apiKey,
+    });
     if (!device || device.deviceId !== deviceId) {
-      return new Response(JSON.stringify({ error: "Invalid API key or device ID" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Invalid API key or device ID" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     let body: unknown;
@@ -202,10 +232,13 @@ http.route({
       });
     }
     if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      return new Response(JSON.stringify({ error: "JSON body must be an object" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "JSON body must be an object" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
     const ack = body as Record<string, unknown>;
     if (
@@ -215,8 +248,13 @@ http.route({
       (ack.message !== undefined && typeof ack.message !== "string")
     ) {
       return new Response(
-        JSON.stringify({ error: "Expected commandId, ok, pumpOn, and optional message" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({
+          error: "Expected commandId, ok, pumpOn, and optional message",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -227,7 +265,10 @@ http.route({
         commandId: ack.commandId,
         ok: ack.ok,
         pumpOn: ack.pumpOn,
-        message: typeof ack.message === "string" ? ack.message.slice(0, 240) : undefined,
+        message:
+          typeof ack.message === "string"
+            ? ack.message.slice(0, 240)
+            : undefined,
       },
     );
     return new Response(JSON.stringify(result), {
@@ -255,15 +296,23 @@ http.route({
     if (!apiKey || !deviceId) {
       return new Response(
         JSON.stringify({ error: "Missing X-API-Key or X-Device-ID headers" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
-    const device = await ctx.runQuery(internal.devices.validateApiKey, { apiKey });
+    const device = await ctx.runQuery(internal.devices.validateApiKey, {
+      apiKey,
+    });
     if (!device || device.deviceId !== deviceId) {
-      return new Response(JSON.stringify({ error: "Invalid API key or device ID" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Invalid API key or device ID" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
     let body: unknown;
     try {
@@ -278,16 +327,22 @@ http.route({
       typeof body !== "object" ||
       body === null ||
       Array.isArray(body) ||
-      typeof (body as Record<string, unknown>).pumpOn !== "boolean"
+      typeof (body as Record<string, unknown>).pumpOn !== "boolean" ||
+      ((body as Record<string, unknown>).emergencyLock !== undefined &&
+        typeof (body as Record<string, unknown>).emergencyLock !== "boolean")
     ) {
-      return new Response(JSON.stringify({ error: "Expected pumpOn: boolean" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Expected pumpOn: boolean" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
     await ctx.runMutation(internal.devices.reportPumpStatus, {
       deviceId,
       pumpOn: (body as { pumpOn: boolean }).pumpOn,
+      emergencyLock: (body as { emergencyLock?: boolean }).emergencyLock,
     });
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

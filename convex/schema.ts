@@ -46,8 +46,18 @@ export default defineSchema({
     deviceId: v.string(),
     commandId: v.string(),
     pumpOn: v.boolean(),
-    mode: v.union(v.literal("auto"), v.literal("manual"), v.literal("emergency")),
-    source: v.union(v.literal("operator"), v.literal("automatic"), v.literal("emergency")),
+    // Only an explicit operator emergency acknowledgement may clear the local latch.
+    clearEmergency: v.optional(v.boolean()),
+    mode: v.union(
+      v.literal("auto"),
+      v.literal("manual"),
+      v.literal("emergency"),
+    ),
+    source: v.union(
+      v.literal("operator"),
+      v.literal("automatic"),
+      v.literal("emergency"),
+    ),
     requestedBy: v.optional(v.string()),
     createdAt: v.string(),
     status: v.union(
@@ -149,8 +159,7 @@ export default defineSchema({
     startedAt: v.string(),
     executionClaimedAt: v.optional(v.string()),
     completedAt: v.optional(v.string()),
-  })
-    .index("by_userId_startedAt", ["userId", "startedAt"]),
+  }).index("by_userId_startedAt", ["userId", "startedAt"]),
 
   agentRunEvents: defineTable({
     runId: v.id("agentRuns"),

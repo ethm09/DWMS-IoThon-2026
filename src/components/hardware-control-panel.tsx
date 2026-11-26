@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { readingFreshness } from "@/lib/monitoring";
 import { useMutation, useQuery } from "convex/react";
 import { Activity, AlertTriangle, Loader2, Power, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +24,7 @@ export default function HardwareControlPanel() {
     acknowledgeEmergency,
     selectedDeviceId,
     hardwareStatus,
+    sensorData,
   } = useProcessMode();
   const { canControl } = useUserRole();
   const hardwareMode = dataMode === "hardware";
@@ -42,10 +45,16 @@ export default function HardwareControlPanel() {
     }
   };
 
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const mode = hardwareMode ? (state?.mode ?? "auto") : localMode;
-  const pumpOn = hardwareMode ? (state?.reportedPumpState ?? null) : localPumpStatus;
-  const waitingForCommand = state?.command?.status === "pending";
-  const connected = hardwareStatus === "connected";
+  const pumpOn = hardwareMode ? (readingFreshness(state?.reportedAt, now) === "fresh" ? state?.reportedPumpState ?? null : null) : localPumpStatus;
+  const commandExpired = state?.command?.status === "pending" && now - Date.parse(state.command.createdAt) > 20_000;
+  const waitingForCommand = state?.command?.status === "pending" && !commandExpired;
+  const connected = hardwareStatus === "connected" && readingFreshness(sensorData?.timestamp, now) === "fresh";
 
   return (
     <Card>
@@ -84,6 +93,7 @@ export default function HardwareControlPanel() {
             Command sent: pump {state.command?.pumpOn ? "ON" : "OFF"}. Waiting for an Arduino acknowledgement.
           </p>
         )}
+        {hardwareMode && commandExpired && <p className="text-xs text-destructive">Acknowledgement overdue. Actual output is unknown; check connectivity and the controller.</p>}
         {hardwareMode && state?.command && ["failed", "expired"].includes(state.command.status) && (
           <p className="text-xs text-destructive">
             {state.command.message ?? state.message ?? "The device did not confirm this command."}
@@ -148,7 +158,7 @@ export default function HardwareControlPanel() {
             <Button
               size="sm"
               variant="secondary"
-              disabled={!canControl || !selectedDeviceId || mode !== "manual" || (!connected && !pumpOn)}
+              disabled={!canControl || !selectedDeviceId || mode !== "manual" || (!connected && pumpOn !== true)}
               onClick={() => void submit(() => setHardwarePump({ deviceId: selectedDeviceId, pumpOn: !pumpOn }), pumpOn ? "Pump stop requested" : "Pump start requested")}
             >
               {pumpOn ? "Stop pump" : "Start pump"}

@@ -363,8 +363,10 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
     (data: SensorSnapshot) => {
       setSensorDataState(data);
       if (data.source === "device") {
-        lastHardwareAt.current = Date.now();
-        setHardwareStatus("connected");
+        const receivedAt = Date.parse(data.timestamp);
+        const age = Date.now() - receivedAt;
+        lastHardwareAt.current = Number.isFinite(receivedAt) ? receivedAt : null;
+        setHardwareStatus(!Number.isFinite(age) || age < 0 || age > 30_000 ? "disconnected" : age > 10_000 ? "warning" : "connected");
       }
       setReadings((prev) => {
         const next: Readings = {
@@ -512,7 +514,7 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
         return;
       }
       const elapsed = Date.now() - last;
-      if (elapsed > 30000) setHardwareStatus("disconnected");
+      if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 30000) setHardwareStatus("disconnected");
       else if (elapsed > 10000) setHardwareStatus("warning");
       else setHardwareStatus("connected");
     }, 2000);

@@ -1,47 +1,48 @@
-# DWMS Architecture
+# System architecture
 
-## Layers
+DWMS retains Vite, React, TypeScript, Convex and Auth0. No message broker or new application framework is required for the prototype.
 
-1. **Sensing / Edge** — pH, TDS, and turbidity measurements from the field node.
-2. **IoT transport / backend** — Convex stores devices and sensor readings and supports application queries/mutations.
-3. **Safety Engine** — deterministic threshold/state logic for warning and critical conditions.
-4. **Operator interface** — dashboard, alerts, analytics, historical views, reports, and device management.
-5. **AI explanation layer** — Ethm can explain readings and assist operators but must not override deterministic safety logic.
+```mermaid
+flowchart LR
+    S[pH / TDS / turbidity probes] --> E[Arduino Uno\ncalibration and local interlocks]
+    E <-->|USB serial: readings / commands / ACK| B[Python bridge]
+    B <-->|HTTPS + per-device credentials| H[Convex HTTP actions]
+    H --> D[(Device registry / readings / commands)]
+    D --> R[Deterministic safety rules]
+    R --> N[Threshold / connectivity alerts]
+    R --> C[Expiring device commands]
+    C --> H
+    D <-->|Reactive queries / authorized mutations| U[React operator dashboard]
+    N --> U
+    A[Auth0 identity + server-side roles] --> U
+    AI[Optional AI assistance] -->|authorized backend tools and interlocks| D
+```
 
-## Telemetry path
+## Data and response
 
-`pH / TDS / turbidity probes → Arduino Uno → USB serial → Python bridge → Convex HTTP action → Convex database → dashboard / alerts`
+1. The Arduino validates calibrated pH, TDS and turbidity before emitting JSON. Its conversion function currently returns `false`; enabling a flag alone does not complete calibration.
+2. The bridge rejects malformed or uncalibrated readings. Convex authenticates the device and validates values before persisting a server receipt timestamp.
+3. Rules evaluate the same configured thresholds used by the interface. A reading outside the normal band raises a warning before a critical condition. This is threshold detection, not a validated forecast.
+4. Auto can request the prototype pump output for TDS >1500 ppm or turbidity >20 NTU. Critical pH (<5.5 or >10) or turbidity >50 NTU takes priority and latches Emergency OFF. Recovery requires fresh readings and operator acknowledgement.
+5. Role-authorized controls create a command that expires after 20 seconds. The bridge sends it to the Arduino, which applies its local interlocks and returns an acknowledgement. The UI distinguishes desired output, acknowledgement and unknown state.
 
-The Arduino sketch emits readings only after its module-specific conversion functions are implemented and calibration is enabled. The bridge refuses to upload payloads not explicitly marked calibrated. Flow, temperature, and pressure are not stored as live readings because no matching hardware source is present.
+The pump rule is a demonstration policy. High TDS does not establish that a particular filter can remove dissolved solids. A site must select a suitable treatment/control action and validate it before operational use.
 
-## Control path
+## Freshness and failure boundaries
 
-`Operator UI → authenticated Convex mutation → short-lived device command → authenticated bridge poll → Arduino relay interlock → serial acknowledgement → Convex status → dashboard`
+- Hardware mode keeps the selected device source during disconnection; it does not replace missing data with demo values.
+- A recent server receipt is connectivity evidence, not proof of probe accuracy or acquisition time.
+- There is no acquisition timestamp, sequence number or replay protection in the current telemetry schema. Do not replay buffered samples as fresh measurements.
+- Backend stop requests cannot stop an isolated controller. Local sensor interlocks and the communication watchdog are the relevant software protections during communication loss; their physical effect needs bench validation.
+- The bridge sends `KEEPALIVE` only after a successful authenticated control poll. The Arduino requires that lease to start, and latches OFF after its configured 15-second lease or 5-second sensor freshness limit expires. These are software settings, not measured stop times. USB open failures retry with backoff capped at 10 seconds; delayed serial frames are discarded rather than uploaded as fresh samples.
+- Controller software state cannot prove relay contacts opened, a pump stopped, or treatment succeeded.
 
-The backend authorizes only admin/operator roles. Manual pump starts require a fresh reading and reject critical pH or turbidity. In Auto mode, the backend starts filtration for prototype TDS/turbidity triggers and stops when those readings return below the current thresholds. Critical pH or turbidity causes a latched stop; an operator must acknowledge after a fresh reading confirms recovery. Commands expire after 20 seconds without an Arduino acknowledgement and the UI displays the controller-reported state as unknown when telemetry is stale. The hardware does not report relay-contact or pump-motion feedback.
+## Access and scale
 
-## Operating modes
+Device API keys protect ingestion and bridge control. Auth0 identities map to server-side viewer/operator/admin roles; credential redaction and backend checks protect controls. Do not expose credentials in screenshots or commit deployment secrets.
 
-The product distinguishes hardware/live data from simulation/demo data. A loss of hardware connectivity should be visible as a connection/data-quality state rather than silently presenting demo values as live measurements.
+The existing device registry and reading queries remain publicly readable through the backend API even though connected UI pages request sign-in. Device keys are redacted, but locations and telemetry have no tenant/site isolation. Restrict these queries and add site authorization before using sensitive deployment data.
 
-## Safety state model
+Each device has an ID, location, command history and indexed sensor history. The Sites view uses registered devices rather than invented site statistics. This supports a multi-node prototype, not an established fleet capacity: retention, query bounds, notification fanout, credential lifecycle and tenant/site authorization need review and measured load tests before a larger deployment.
 
-A practical lifecycle is:
-
-`NORMAL → WARNING → CRITICAL/EMERGENCY → RECOVERY`
-
-Invalid or missing sensor values should be treated as `UNKNOWN/INVALID`, not as safe values.
-
-## Security principles
-
-- Authentication and authorization are enforced server-side.
-- Device API credentials must never be exposed in public device listings or frontend payloads.
-- Device credentials should use cryptographically secure random generation and support rotation/revocation.
-- Secrets belong in environment/deployment configuration, never source control.
-- Administrative actions and threshold changes should be auditable.
-- Physical relay control remains disabled in the included sketch until the sensor conversions and relay polarity are verified for the installed hardware.
-- Prototype thresholds and controller behavior are not certified industrial protections.
-
-## Scalability
-
-The architecture supports a single prototype node and can extend to multiple distributed nodes through a shared device registry and backend data model.
+Browser simulation is separate from persisted telemetry. Shared thresholds and scenario response can be demonstrated without deploying a backend. AI, local activity logs and browser storage are not authoritative physical evidence.

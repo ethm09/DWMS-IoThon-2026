@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, BarChart3, Info, Droplets, Activity, Bell, Brain, Wrench, FileText, Cpu, Radio, History, Shield, LogOut, Menu, X, SlidersHorizontal, ScrollText, BellRing, Settings2 } from "lucide-react";
+import { LayoutDashboard, Info, Droplets, Bell, Brain, Cpu, Radio, History, Shield, LogOut, Menu, X, SlidersHorizontal, ScrollText, BellRing, Settings2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Authenticated, Unauthenticated } from "convex/react";
 import { cn } from "@/lib/utils.ts";
@@ -9,9 +9,6 @@ import { useAuth } from "@/hooks/use-auth.ts";
 import { SignInButton } from "@/components/ui/signin.tsx";
 import PwaInstallBanner from "@/components/pwa-install-banner.tsx";
 import NotificationBell from "@/components/notification-bell.tsx";
-import { useNotificationBridge } from "@/hooks/use-notification-bridge.ts";
-import EthmAssistant from "@/components/ethm-assistant.tsx";
-import EthmPopups from "@/components/ethm-popups.tsx";
 
 const ROLE_COLORS = {
   admin: { color: "text-red-400", bg: "bg-red-400/10", border: "border-red-400/30" },
@@ -21,21 +18,18 @@ const ROLE_COLORS = {
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, minRole: "viewer" },
-  { to: "/analytics", label: "Analytics", icon: BarChart3, minRole: "viewer" },
-  { to: "/simulation", label: "Simulation", icon: Activity, minRole: "operator" },
   { to: "/alerts", label: "Alerts", icon: Bell, minRole: "viewer" },
-  { to: "/ai-decision", label: "AI Engine", icon: Brain, minRole: "operator" },
-  { to: "/maintenance", label: "Health", icon: Wrench, minRole: "viewer" },
-  { to: "/reports", label: "Reports", icon: FileText, minRole: "viewer" },
-  { to: "/thresholds", label: "Thresholds", icon: SlidersHorizontal, minRole: "viewer" },
-  { to: "/activity-log", label: "Activity Log", icon: ScrollText, minRole: "operator" },
-  { to: "/notifications", label: "Notifications", icon: BellRing, minRole: "viewer" },
-  { to: "/digital-twin", label: "Digital Twin", icon: Cpu, minRole: "viewer" },
-  { to: "/remote-monitoring", label: "Remote", icon: Radio, minRole: "viewer" },
   { to: "/historical", label: "History", icon: History, minRole: "viewer" },
-  { to: "/devices", label: "Sensors", icon: Cpu, minRole: "operator" },
+  { to: "/remote-monitoring", label: "Sites", icon: Radio, minRole: "viewer" },
+  { to: "/devices", label: "Devices", icon: Cpu, minRole: "operator" },
   { to: "/data-source", label: "Data Source", icon: Settings2, minRole: "operator" },
+  { to: "/thresholds", label: "Safety Rules", icon: SlidersHorizontal, minRole: "viewer" },
   { to: "/admin", label: "Access", icon: Shield, minRole: "admin" },
+];
+const toolItems = [
+  { to: "/activity-log", label: "Local Activity", icon: ScrollText, minRole: "operator" },
+  { to: "/notifications", label: "Notifications", icon: BellRing, minRole: "viewer" },
+  { to: "/ai-decision", label: "AI Assistance", icon: Brain, minRole: "operator" },
   { to: "/about", label: "About", icon: Info, minRole: "viewer" },
 ];
 
@@ -85,7 +79,7 @@ function UserBadge() {
 }
 
 // Primary mobile tabs — the 4 most important + "More"
-const MOBILE_TABS = ["/", "/simulation", "/alerts", "/historical"];
+const MOBILE_TABS = ["/", "/alerts", "/historical", "/remote-monitoring"];
 
 function MobileDrawer({ items, open, onClose }: { items: typeof navItems; open: boolean; onClose: () => void }) {
   const { user: authUser, removeUser } = useAuth();
@@ -120,11 +114,11 @@ function MobileDrawer({ items, open, onClose }: { items: typeof navItems; open: 
                   <Droplets className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold tracking-[0.2em] text-primary leading-none">LDWMS</div>
-                  <div className="text-[9px] tracking-wider text-muted-foreground mt-0.5">DEFENSE WATER MONITORING</div>
+                  <div className="text-xs font-bold tracking-[0.2em] text-primary leading-none">DWMS</div>
+                  <div className="text-[9px] tracking-wider text-muted-foreground mt-0.5">WATER QUALITY MONITORING</div>
                 </div>
               </div>
-              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-accent cursor-pointer text-muted-foreground">
+              <button aria-label="Close navigation" onClick={onClose} className="p-1.5 rounded-lg hover:bg-accent cursor-pointer text-muted-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -199,12 +193,11 @@ export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
 
-  // Bridge process-mode safety events to persistent notifications
-  useNotificationBridge();
 
   // Guests see viewer-level nav; undefined = still loading (show viewer items too)
   const effectiveRole = isGuest ? "viewer" : role;
   const visibleItems = navItems.filter(item => isAccessible(item.minRole, effectiveRole));
+  const visibleTools = toolItems.filter(item => isAccessible(item.minRole, effectiveRole));
   const mobileTabItems = visibleItems.filter(item => MOBILE_TABS.includes(item.to));
 
   // Check if current page is in the "More" menu (not a primary tab)
@@ -215,7 +208,7 @@ export default function AppLayout() {
       <PwaInstallBanner />
 
       {/* Mobile drawer */}
-      <MobileDrawer items={visibleItems} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <MobileDrawer items={[...visibleItems, ...visibleTools]} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-60 border-r border-border shrink-0">
@@ -226,8 +219,8 @@ export default function AppLayout() {
               <Droplets className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <div className="text-xs font-bold tracking-[0.2em] text-primary leading-none">LDWMS</div>
-              <div className="text-[9px] tracking-wider text-muted-foreground leading-none mt-0.5">DEFENSE WATER MONITORING</div>
+              <div className="text-xs font-bold tracking-[0.2em] text-primary leading-none">DWMS</div>
+              <div className="text-[9px] tracking-wider text-muted-foreground leading-none mt-0.5">WATER QUALITY MONITORING</div>
             </div>
           </div>
         </div>
@@ -239,6 +232,8 @@ export default function AppLayout() {
               key={item.to}
               to={item.to}
               end={item.to === "/"}
+              aria-label={item.label}
+              title={item.label}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold tracking-wider transition-all cursor-pointer",
@@ -262,6 +257,14 @@ export default function AppLayout() {
               )}
             </NavLink>
           ))}
+          <details className="pt-3 text-sm text-muted-foreground">
+            <summary className="cursor-pointer px-3 py-2">Optional tools</summary>
+            {visibleTools.map(item => (
+              <NavLink key={item.to} to={item.to} className="flex items-center gap-3 px-3 py-2 rounded hover:bg-accent">
+                <item.icon className="w-4 h-4" />{item.label}
+              </NavLink>
+            ))}
+          </details>
         </nav>
 
         {/* Bottom — user badge or sign in */}
@@ -271,7 +274,7 @@ export default function AppLayout() {
         <Unauthenticated>
           <div className="p-4 border-t border-border flex flex-col items-center gap-2">
             <div className="text-[9px] text-cyan-400 tracking-widest font-bold border border-cyan-400/30 bg-cyan-400/10 rounded px-2 py-0.5">GUEST VIEW</div>
-            <div className="text-[8px] text-muted-foreground text-center">Read-only access. Sign in for full control.</div>
+            <div className="text-[8px] text-muted-foreground text-center">Local demo available. Sign in for device data.</div>
             <SignInButton />
           </div>
         </Unauthenticated>
@@ -282,12 +285,12 @@ export default function AppLayout() {
         {/* Top bar */}
         <header className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 md:hidden">
-            <span className="text-xs font-bold tracking-[0.15em] text-primary">LDWMS</span>
+            <span className="text-xs font-bold tracking-[0.15em] text-primary">DWMS</span>
           </div>
           <div className="hidden md:block" />
           <div className="flex items-center gap-3">
             <div className="text-[10px] font-mono text-muted-foreground tracking-wider hidden md:block">
-              DEFENSE WATER MONITORING SYSTEM
+              WATER QUALITY MONITORING
             </div>
             <NotificationBell />
             <Unauthenticated>
@@ -301,9 +304,6 @@ export default function AppLayout() {
         </main>
       </div>
 
-      {/* Ethm AI — global safety pop-ups + floating chat assistant */}
-      <EthmPopups />
-      <EthmAssistant />
 
       {/* Mobile left nav — slim icon sidebar */}
       <nav className="fixed left-0 top-0 bottom-0 w-14 flex flex-col items-center border-r border-border bg-background/95 backdrop-blur-lg md:hidden z-[9999] py-3 gap-1">
@@ -319,6 +319,8 @@ export default function AppLayout() {
               key={item.to}
               to={item.to}
               end={item.to === "/"}
+              aria-label={item.label}
+              title={item.label}
               className={({ isActive }) =>
                 cn(
                   "w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer transition-all relative",
@@ -345,6 +347,7 @@ export default function AppLayout() {
 
         {/* More button at bottom */}
         <button
+          aria-label="Open navigation"
           onClick={() => setDrawerOpen(true)}
           className={cn(
             "w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer transition-all mt-auto shrink-0",

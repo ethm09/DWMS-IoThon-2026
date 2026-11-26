@@ -1,371 +1,211 @@
-import { useEffect } from "react";
-import { useQuery } from "convex/react";
+import { useEffect, useState } from "react";
+import { Authenticated, Unauthenticated, AuthLoading, useQuery, useConvexAuth } from "convex/react";
+import { Link } from "react-router-dom";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AlertTriangle, Droplets, Radio } from "lucide-react";
 import { api } from "@/convex/_generated/api.js";
-import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
-import { motion } from "motion/react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import {
-  Droplets, Wind, FlaskConical, Activity, Wifi, WifiOff, AlertTriangle,
-  Cpu, Clock,
-} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SignInButton } from "@/components/ui/signin.tsx";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
-import {
-  classifyTds, classifyTurbidity, classifyPh,
-  LEVEL_COLOR, LEVEL_LABEL, type SafetyLevel,
-} from "@/lib/dwms-safety.ts";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import HardwareControlPanel from "@/components/hardware-control-panel.tsx";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
+import { classifyPh, classifyTds, classifyTurbidity, evaluateState, LEVEL_COLOR, THRESHOLDS } from "@/lib/dwms-safety.ts";
+import {
+  DEMO_SCENARIOS, demoResponse, readingFreshness, waterQuality, validWaterReading,
+  type DemoScenario, type DemoControl, type WaterReading, type ReadingFreshness,
+} from "@/lib/monitoring";
 
-type DataPoint = { time: string; tds: number; turbidity: number; ph: number };
+type HistoryPoint = WaterReading & { time: string };
+const METRICS = [
+  { key: "ph", label: "pH", unit: "", classify: classifyPh, band: `${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}` },
+  { key: "tds", label: "TDS", unit: "ppm", classify: classifyTds, band: `< ${THRESHOLDS.tds.safe.max} ppm` },
+  { key: "turbidity", label: "Turbidity", unit: "NTU", classify: classifyTurbidity, band: `< ${THRESHOLDS.turbidity.safe.max} NTU` },
+] as const;
 
-type GaugeProps = {
-  value: number; min: number; max: number; label: string;
-  unit: string; status: SafetyLevel; icon: React.ReactNode;
-};
+function qualityLabel(quality: ReturnType<typeof waterQuality>) {
+  return quality === "safe" ? "Within prototype limits" : quality === "unknown" ? "Unknown · check data" : quality === "warning" ? "Warning · investigate" : "Critical · respond now";
+}
 
-function RadialGauge({ value, min, max, label, unit, status, icon }: GaugeProps) {
-  const pct = Math.min(1, Math.max(0, (value - min) / (max - min)));
-  const angle = pct * 240 - 120;
-  const color = LEVEL_COLOR[status];
-  const cx = 80, cy = 80, r = 60;
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const arcX = (deg: number) => cx + r * Math.cos(toRad(deg - 90));
-  const arcY = (deg: number) => cy + r * Math.sin(toRad(deg - 90));
-  const bgStart = -120, bgEnd = 120;
-  const fgEnd = bgStart + pct * 240;
-  const bgPath = `M ${arcX(bgStart)} ${arcY(bgStart)} A ${r} ${r} 0 1 1 ${arcX(bgEnd)} ${arcY(bgEnd)}`;
-  const fgPath = pct > 0
-    ? `M ${arcX(bgStart)} ${arcY(bgStart)} A ${r} ${r} 0 ${pct > 0.75 ? 1 : 0} 1 ${arcX(fgEnd)} ${arcY(fgEnd)}`
-    : "";
-  const nx = cx + 50 * Math.cos(toRad(angle - 90));
-  const ny = cy + 50 * Math.sin(toRad(angle - 90));
-
+function SensorReadings({ reading, freshness }: { reading: WaterReading | null | undefined; freshness: ReadingFreshness }) {
+  const valid = validWaterReading(reading);
   return (
-    <div className="flex flex-col items-center gap-2">
-      <svg width="160" height="130" viewBox="0 0 160 130">
-        <path d={bgPath} fill="none" stroke="#1e2a3a" strokeWidth="10" strokeLinecap="round" />
-        {fgPath && (
-          <motion.path
-            d={fgPath} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
-            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-            transition={{ duration: 1, ease: "easeOut" as const }}
-            style={{ filter: `drop-shadow(0 0 6px ${color})` }}
-          />
-        )}
-        <motion.line
-          x1={cx} y1={cy} x2={nx} y2={ny} stroke={color} strokeWidth="2.5" strokeLinecap="round"
-          animate={{ x2: nx, y2: ny }} transition={{ type: "spring", stiffness: 80, damping: 15 }}
-          style={{ filter: `drop-shadow(0 0 4px ${color})` }}
-        />
-        <circle cx={cx} cy={cy} r="5" fill={color} />
-        <foreignObject x="66" y="92" width="28" height="28">
-          <div className="flex items-center justify-center w-7 h-7 opacity-60">{icon}</div>
-        </foreignObject>
-      </svg>
-      <div className="text-center">
-        <div className="font-mono text-2xl font-bold" style={{ color }}>
-          {value.toFixed(1)}<span className="text-sm ml-1 opacity-70">{unit}</span>
-        </div>
-        <div className="text-xs font-semibold tracking-widest text-muted-foreground mt-0.5">{label}</div>
-        <div className="text-xs font-bold tracking-widest mt-1 px-2 py-0.5 rounded-full"
-          style={{ color, border: `1px solid ${color}`, background: `${color}18` }}>
-          {LEVEL_LABEL[status]}
-        </div>
-      </div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {METRICS.map((metric) => {
+        const level = valid && freshness === "fresh" ? metric.classify(reading[metric.key]) : "unknown";
+        return (
+          <Card key={metric.key}>
+            <CardContent className="p-5 space-y-2">
+              <p className="text-sm text-muted-foreground">{metric.label}</p>
+              <p className="font-mono text-3xl font-semibold" style={{ color: LEVEL_COLOR[level] }}>
+                {valid ? reading[metric.key].toFixed(metric.key === "tds" ? 0 : 2) : "—"}
+                <span className="ml-2 text-sm text-muted-foreground">{metric.unit}</span>
+              </p>
+              <p className="text-xs" style={{ color: LEVEL_COLOR[level] }}>
+                {freshness !== "fresh" ? "No current assessment" : level === "safe" ? "Within limits" : level.toUpperCase()}
+              </p>
+              <p className="text-xs text-muted-foreground">Prototype normal band: {metric.band}</p>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
 
-/** Flow diagram showing the one-way sensor data pipeline */
-function SensorFlowDiagram({ isOnline }: { isOnline: boolean }) {
-  const nodes = [
-    { label: "Sensors", icon: "📡" },
-    { label: "Arduino", icon: "⚡" },
-    { label: "Serial", icon: "🔌" },
-    { label: "Python", icon: "🐍" },
-    { label: "Cloud", icon: "☁️" },
-    { label: "Dashboard", icon: "📊" },
-  ];
+function Trends({ history, demo = false }: { history: HistoryPoint[]; demo?: boolean }) {
+  const [metricKey, setMetricKey] = useState<(typeof METRICS)[number]["key"]>("turbidity");
+  const metric = METRICS.find((item) => item.key === metricKey)!;
   return (
-    <div className="flex items-center justify-between flex-wrap gap-2 py-2">
-      {nodes.map((node, i) => (
-        <div key={node.label} className="flex items-center gap-2">
-          <div className="flex flex-col items-center gap-1">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl border-2"
-              style={{
-                borderColor: isOnline ? "oklch(0.6 0.17 145)" : "#6b7280",
-                background: "oklch(0.12 0.02 145)",
-                boxShadow: isOnline ? `0 0 10px oklch(0.6 0.17 145 / 0.4)` : "none",
-              }}>
-              {node.icon}
-            </div>
-            <span className="text-[10px] text-muted-foreground font-semibold tracking-wider text-center w-14">{node.label}</span>
-          </div>
-          {i < nodes.length - 1 && (
-            <div className="flex items-center mb-4">
-              <motion.div className="w-6 h-0.5 rounded-full" style={{ background: "oklch(0.6 0.17 145)" }}
-                animate={{ opacity: isOnline ? [0.3, 1, 0.3] : 0.2 }}
-                transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }} />
-              <div className="w-0 h-0 border-t-4 border-b-4 border-l-4 border-t-transparent border-b-transparent"
-                style={{ borderLeftColor: "oklch(0.6 0.17 145)" }} />
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
+    <Card>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3">
+        <CardTitle className="text-base">{demo ? "Scenario trace · simulated" : "Recent readings · stored"}</CardTitle>
+        <label className="text-xs text-muted-foreground flex items-center gap-2">
+          Trend
+          <select aria-label="Trend metric" className="rounded-md border border-border bg-background p-2 text-foreground" value={metricKey} onChange={(event) => setMetricKey(event.target.value as typeof metricKey)}>
+            {METRICS.map((item) => <option key={item.key} value={item.key}>{item.label}{item.unit ? ` (${item.unit})` : ""}</option>)}
+          </select>
+        </label>
+      </CardHeader>
+      <CardContent>
+        {history.length > 0 ? (
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={history} margin={{ top: 10, right: 15, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
+              <XAxis dataKey="time" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 11 }} domain={metricKey === "ph" ? [0, 14] : [0, "auto"]} width={50} />
+              <Tooltip contentStyle={{ background: "var(--card)", borderColor: "var(--border)", borderRadius: 8 }} />
+              <Line type="linear" dataKey={metricKey} name={`${metric.label}${metric.unit ? ` (${metric.unit})` : ""}`} stroke="#22c55e" strokeWidth={2} dot={history.length < 15} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : <p className="py-8 text-center text-sm text-muted-foreground">No stored readings for this device.</p>}
+      </CardContent>
+    </Card>
   );
 }
 
-function DashboardInner() {
-  const { selectedDeviceId, setSelectedDeviceId, dataMode, readings: simulatedReadings } = useProcessMode();
-  const usingHardware = dataMode === "hardware";
-  const devices = useQuery(api.devices.listDevices, {});
-
-  // Keep the dashboard and hardware safety engine on the same selected device.
-  useEffect(() => {
-    if (devices && devices.length > 0 && (!selectedDeviceId || !devices.some((d) => d.deviceId === selectedDeviceId))) {
-      setSelectedDeviceId(devices[0].deviceId);
-    }
-  }, [devices, selectedDeviceId, setSelectedDeviceId]);
-
-  const latestReading = useQuery(
-    api.devices.getLatestReading,
-    usingHardware && selectedDeviceId ? { deviceId: selectedDeviceId } : "skip"
-  );
-  const recentReadings = useQuery(
-    api.devices.getRecentReadings,
-    usingHardware && selectedDeviceId ? { deviceId: selectedDeviceId, limit: 30 } : "skip"
-  );
-
-  const selectedDevice = devices?.find((d) => d.deviceId === selectedDeviceId);
-  const isOnline = usingHardware && selectedDevice?.status === "online";
-
-  // Build chart data from recent readings (reversed to show oldest first)
-  const history: DataPoint[] = (usingHardware ? recentReadings ?? [] : [])
-    .slice()
-    .reverse()
-    .map((r) => ({
-      time: new Date(r.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-      tds: r.tds,
-      turbidity: r.turbidity,
-      ph: r.ph,
-    }));
-
-  // Current values
-  const ph = usingHardware ? latestReading?.ph ?? null : simulatedReadings.ph;
-  const tds = usingHardware ? latestReading?.tds ?? null : simulatedReadings.tds;
-  const turbidity = usingHardware ? latestReading?.turbidity ?? null : simulatedReadings.turbidity;
-  const hasReadings = usingHardware
-    ? latestReading !== null && latestReading !== undefined
-    : ph !== null && tds !== null && turbidity !== null;
-
-  // Classify safety levels
-  const tdsStatus = classifyTds(tds ?? 0);
-  const turbStatus = classifyTurbidity(turbidity ?? 0);
-  const phStatus = classifyPh(ph ?? 7);
-
-  // Overall water quality
-  const levels: SafetyLevel[] = [phStatus, tdsStatus, turbStatus];
-  const quality: SafetyLevel = levels.includes("critical") ? "critical" : levels.includes("warning") ? "warning" : "safe";
-
+function DemoDashboard() {
+  const [scenario, setScenario] = useState<DemoScenario>("normal");
+  const [control, setControl] = useState<DemoControl>({ emergency: false, pumpOn: false });
+  const [history, setHistory] = useState<HistoryPoint[]>([{ ...DEMO_SCENARIOS.normal, time: "Normal" }]);
+  const reading = DEMO_SCENARIOS[scenario];
+  const quality = waterQuality(reading, "fresh");
+  const decision = evaluateState(reading);
+  const applyScenario = (next: DemoScenario) => {
+    const nextReading = DEMO_SCENARIOS[next];
+    setScenario(next);
+    setControl((previous) => demoResponse(nextReading, previous));
+    setHistory((previous) => [...previous, { ...nextReading, time: nextReading.label.slice(4) }].slice(-30));
+  };
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header bar */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Live Dashboard</h2>
-          <p className="text-xs text-muted-foreground tracking-wider">DWMS — {usingHardware ? "Hardware readings" : "Local simulation"}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <motion.div animate={{ opacity: isOnline ? [1, 0.3, 1] : 0.3 }} transition={{ duration: 1.5, repeat: Infinity }}
-            className="w-2 h-2 rounded-full" style={{ background: isOnline ? LEVEL_COLOR[quality] : "#6b7280" }} />
-          <span className="text-xs font-bold tracking-widest" style={{ color: isOnline ? LEVEL_COLOR[quality] : "#6b7280" }}>
-            {!usingHardware ? `DEMO · WATER ${LEVEL_LABEL[quality]}` : isOnline ? `WATER ${LEVEL_LABEL[quality]}` : "OFFLINE"}
-          </span>
-        </div>
+    <div className="space-y-5">
+      <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-500">
+        <strong>SIMULATION ONLY.</strong> Fixed example readings run in this browser. No relay commands are sent and nothing is saved to the backend.
       </div>
-
-      {/* Device selector */}
-      {devices && devices.length > 1 && (
-        <Card className="p-4">
-          <div className="text-[10px] font-semibold tracking-widest text-muted-foreground mb-2">SELECT DEVICE</div>
-          <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
-            <SelectTrigger className="w-full cursor-pointer">
-              <SelectValue placeholder="Choose a device..." />
-            </SelectTrigger>
-            <SelectContent>
-              {devices.map((d) => (
-                <SelectItem key={d.deviceId} value={d.deviceId} className="cursor-pointer">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full shrink-0"
-                      style={{ background: d.status === "online" ? "#22c55e" : "#6b7280" }} />
-                    {d.name}
-                    <span className="text-muted-foreground text-xs">({d.deviceId})</span>
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Card>
-      )}
-
-      {/* Status indicator cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatusCard icon={!usingHardware ? Activity : isOnline ? Wifi : WifiOff} label={usingHardware ? "DEVICE STATUS" : "DATA SOURCE"} value={!usingHardware ? "DEMO" : isOnline ? "ONLINE" : "OFFLINE"} color={!usingHardware ? "#eab308" : isOnline ? "#22c55e" : "#6b7280"} />
-        <StatusCard icon={Droplets} label="WATER QUALITY" value={hasReadings ? LEVEL_LABEL[quality] : "—"} color={hasReadings ? LEVEL_COLOR[quality] : "#6b7280"} />
-        <StatusCard icon={Clock} label="LAST READING" value={!usingHardware ? "SIMULATED" : latestReading ? new Date(latestReading.timestamp).toLocaleTimeString() : "—"} color="#3b82f6" />
-        <StatusCard icon={Cpu} label="DEVICE" value={!usingHardware ? "Local simulation" : selectedDevice?.name ?? "None"} color="#00f5d4" />
+      <div className="flex flex-wrap gap-2" aria-label="Demo scenarios">
+        {(Object.keys(DEMO_SCENARIOS) as DemoScenario[]).map((key) => (
+          <Button key={key} size="sm" variant={scenario === key ? "default" : "outline"} onClick={() => applyScenario(key)} aria-pressed={scenario === key}>
+            {DEMO_SCENARIOS[key].label}
+          </Button>
+        ))}
       </div>
-
-      {!usingHardware && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-500">
-          Demo values are generated in this browser. They are not sensor readings and are not saved to history.
-        </div>
-      )}
-
-      {/* Gauges */}
-      {hasReadings ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { label: "TDS", value: tds ?? 0, min: 0, max: 2000, unit: "ppm", status: tdsStatus, icon: <Droplets className="w-4 h-4 text-emerald-400" /> },
-            { label: "TURBIDITY", value: turbidity ?? 0, min: 0, max: 100, unit: "NTU", status: turbStatus, icon: <Wind className="w-4 h-4 text-yellow-400" /> },
-            { label: "pH LEVEL", value: ph ?? 0, min: 0, max: 14, unit: "pH", status: phStatus, icon: <FlaskConical className="w-4 h-4 text-green-400" /> },
-          ].map((g) => (
-            <Card key={g.label} className="border-border flex items-center justify-center py-4">
-              <RadialGauge value={g.value} min={g.min} max={g.max} label={g.label} unit={g.unit} status={g.status} icon={g.icon} />
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card className="p-8 text-center space-y-3">
-          <Cpu className="w-10 h-10 text-muted-foreground mx-auto" />
-          <p className="text-sm font-bold tracking-widest text-muted-foreground">NO SENSOR DATA</p>
-          <p className="text-xs text-muted-foreground">Select Demo mode for a local simulation, or connect an Arduino and run the Python Serial Bridge for hardware readings.</p>
-        </Card>
-      )}
-
-      {/* Live Graph */}
-      {history.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-              <Activity className="w-4 h-4" /> RECENT SENSOR READINGS
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={history} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.25 0.04 145)" />
-                <XAxis dataKey="time" tick={{ fontSize: 9, fill: "oklch(0.55 0.04 145)" }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 9, fill: "oklch(0.55 0.04 145)" }} />
-                <Tooltip contentStyle={{ background: "oklch(0.14 0.02 145)", border: "1px solid oklch(0.25 0.04 145)", borderRadius: 6 }}
-                  labelStyle={{ color: "oklch(0.92 0.02 145)", fontSize: 10 }} itemStyle={{ fontSize: 11 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="tds" stroke="#22c55e" strokeWidth={2} dot={false} name="TDS (ppm)" />
-                <Line type="monotone" dataKey="turbidity" stroke="#eab308" strokeWidth={2} dot={false} name="Turbidity (NTU)" />
-                <Line type="monotone" dataKey="ph" stroke="#a855f7" strokeWidth={2} dot={false} name="pH" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* System Flow Diagram */}
+      <div role="status" className="rounded-lg border p-4 space-y-1" style={{ borderColor: LEVEL_COLOR[quality] }}>
+        <p className="text-lg font-semibold" style={{ color: LEVEL_COLOR[quality] }}>{qualityLabel(quality)}</p>
+        <p className="text-sm text-muted-foreground">{decision.reason}</p>
+      </div>
+      <SensorReadings reading={reading} freshness="fresh" />
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-            <Wifi className="w-4 h-4" /> DATA FLOW
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SensorFlowDiagram isOnline={isOnline} />
+        <CardHeader className="pb-2"><CardTitle className="text-base">Rule-based response · simulated</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="font-medium">{control.emergency ? "Emergency latched · simulated pump OFF" : `Auto · simulated pump ${control.pumpOn ? "ON" : "OFF"}`}</p>
+          <p className="text-sm text-muted-foreground">
+            {control.emergency ? "Critical readings latch a stop. Recovery readings alone do not clear it; an operator must acknowledge."
+              : control.pumpOn ? "Turbidity above 20 NTU or TDS above 1500 ppm requests the configured prototype response. Treatment effectiveness is unverified."
+              : "Normal and warning readings keep the simulated pump off. Investigate warnings before they reach the response threshold."}
+          </p>
+          {control.emergency && (
+            <Button size="sm" disabled={!!decision.emergency} onClick={() => setControl((previous) => demoResponse(reading, previous, true))}>
+              Acknowledge recovery
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => { setScenario("normal"); setControl({ emergency: false, pumpOn: false }); setHistory([{ ...DEMO_SCENARIOS.normal, time: "Normal" }]); }}>
+            Reset demo
+          </Button>
         </CardContent>
       </Card>
-
-      {/* Status Summary */}
-      {hasReadings && (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "TDS Level", value: `${(tds ?? 0).toFixed(0)} ppm`, status: tdsStatus },
-            { label: "Turbidity", value: `${(turbidity ?? 0).toFixed(2)} NTU`, status: turbStatus },
-            { label: "pH Level", value: (ph ?? 0).toFixed(2), status: phStatus },
-          ].map((item) => (
-            <div key={item.label} className="rounded-lg border p-3"
-              style={{ borderColor: LEVEL_COLOR[item.status], background: `${LEVEL_COLOR[item.status]}10` }}>
-              <div className="text-[10px] font-semibold tracking-widest text-muted-foreground">{item.label}</div>
-              <div className="font-mono font-bold text-lg mt-1" style={{ color: LEVEL_COLOR[item.status] }}>{item.value}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Warning banner */}
-      {hasReadings && quality !== "safe" && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 rounded-lg border p-3"
-          style={{ borderColor: LEVEL_COLOR[quality], background: `${LEVEL_COLOR[quality]}12` }}>
-          <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: LEVEL_COLOR[quality] }} />
-          <div>
-            <div className="text-sm font-bold" style={{ color: LEVEL_COLOR[quality] }}>
-              {quality === "critical" ? "WATER UNSAFE — CHECK SENSORS IMMEDIATELY" : "WARNING — PARAMETERS APPROACHING LIMITS"}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {quality === "critical"
-                ? "One or more readings are in the critical range. Investigate immediately."
-                : "One or more readings are outside the normal range. Monitor closely."}
-            </div>
-          </div>
-        </motion.div>
-      )}
+      <Trends history={history} demo />
     </div>
   );
 }
 
-// ── Status indicator card ──────────────────────────────────────────────────
-function StatusCard({ icon: Icon, label, value, color }: {
-  icon: React.ElementType; label: string; value: string; color: string;
-}) {
+function HardwareDashboard() {
+  const { selectedDeviceId, setSelectedDeviceId } = useProcessMode();
+  const devices = useQuery(api.devices.listDevices, {});
+  const latest = useQuery(api.devices.getLatestReading, selectedDeviceId ? { deviceId: selectedDeviceId } : "skip");
+  const recent = useQuery(api.devices.getRecentReadings, selectedDeviceId ? { deviceId: selectedDeviceId, limit: 60 } : "skip");
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (devices?.length && !devices.some((item) => item.deviceId === selectedDeviceId)) setSelectedDeviceId(devices[0].deviceId);
+  }, [devices, selectedDeviceId, setSelectedDeviceId]);
+  const device = devices?.find((item) => item.deviceId === selectedDeviceId);
+  const freshness = readingFreshness(latest?.timestamp, now);
+  const currentFreshness = freshness === "fresh" && device?.status !== "online" ? "offline" : freshness;
+  const quality = waterQuality(latest, currentFreshness);
+  const decision = latest && currentFreshness === "fresh" && validWaterReading(latest) ? evaluateState(latest) : null;
+  const history: HistoryPoint[] = (recent ?? []).slice().reverse().map((item) => ({ ...item, time: new Date(item.timestamp).toLocaleTimeString() }));
+  const age = latest ? Math.max(0, Math.floor((now - Date.parse(latest.timestamp)) / 1000)) : null;
   return (
-    <div className="rounded-lg border p-3 flex items-center gap-3" style={{ borderColor: `${color}55`, background: `${color}0d` }}>
-      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${color}18` }}>
-        <Icon className="w-4 h-4" style={{ color }} />
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex-1 min-w-48 text-sm text-muted-foreground space-y-1">
+          <span>Site / device</span>
+          <select aria-label="Site / device" className="block w-full rounded-md border border-border bg-background p-2 text-foreground" value={selectedDeviceId} onChange={(event) => setSelectedDeviceId(event.target.value)}>
+            {!devices?.length && <option value="">{devices === undefined ? "Loading devices…" : "No registered devices"}</option>}
+            {devices?.map((item) => <option key={item.deviceId} value={item.deviceId}>{item.location ? `${item.location} · ` : ""}{item.name} ({item.deviceId})</option>)}
+          </select>
+        </label>
+        <Link className="text-sm text-primary underline py-2" to="/devices">Manage devices</Link>
       </div>
-      <div className="min-w-0">
-        <div className="text-[9px] font-semibold tracking-widest text-muted-foreground truncate">{label}</div>
-        <div className="font-mono font-bold text-xs mt-0.5 truncate" style={{ color }}>{value}</div>
+      <div role="status" className="rounded-lg border p-4 space-y-2" style={{ borderColor: LEVEL_COLOR[quality] }}>
+        <p className="text-lg font-semibold" style={{ color: LEVEL_COLOR[quality] }}>{qualityLabel(quality)}</p>
+        <p className="text-sm text-muted-foreground flex items-center gap-2"><Radio className="h-4 w-4" />
+          {currentFreshness === "fresh" ? "Receiving device data" : currentFreshness === "missing" ? "No sensor data" : currentFreshness === "stale" ? "Stale data · check connection" : currentFreshness === "invalid" ? "Invalid timestamp · check device" : "Offline · check bridge and device"}
+          {age !== null && Number.isFinite(age) ? ` · last receipt ${age}s ago` : ""}
+        </p>
+        <p className="text-sm text-muted-foreground">{decision?.reason ?? "Current water quality cannot be assessed. Restore telemetry and verify sensors before starting equipment."}</p>
       </div>
+      <SensorReadings reading={latest} freshness={currentFreshness} />
+      {currentFreshness !== "fresh" && latest && <p className="text-xs text-muted-foreground">Values above are the last received readings. They are historical, not a current water-quality assessment.</p>}
+      <HardwareControlPanel />
+      <Trends history={history} />
+      <p className="text-xs text-muted-foreground">Device-ingested data indicates transport provenance. Calibration, sensor accuracy and actual pump motion require separate physical evidence.</p>
     </div>
   );
 }
 
 export default function Dashboard() {
+  const { dataMode, setDataMode } = useProcessMode();
+  const { isAuthenticated } = useConvexAuth();
   return (
-    <>
-      <Unauthenticated>
-        <div className="flex items-center justify-center h-full p-6">
-          <div className="text-center space-y-4">
-            <Droplets className="w-12 h-12 text-muted-foreground mx-auto" />
-            <p className="text-muted-foreground">Sign in to view the water quality dashboard</p>
-            <SignInButton />
-          </div>
+    <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h1 className="flex items-center gap-2 text-xl font-semibold"><Droplets className="h-5 w-5 text-primary" />Water monitoring</h1><p className="mt-1 text-sm text-muted-foreground">Readings → alerts → operational response</p></div>
+        <div className="flex gap-2" aria-label="Data mode">
+          <Button size="sm" variant={dataMode === "demo" ? "default" : "outline"} onClick={() => setDataMode("demo")} aria-pressed={dataMode === "demo"}>Local demo</Button>
+          <Button size="sm" variant={dataMode === "hardware" ? "default" : "outline"} onClick={() => setDataMode("hardware")} aria-pressed={dataMode === "hardware"}>Device data</Button>
         </div>
-      </Unauthenticated>
-      <AuthLoading>
-        <div className="p-6 space-y-4">
-          <Skeleton className="h-8 w-48" />
-          <div className="grid grid-cols-4 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16" />)}
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48" />)}
-          </div>
-        </div>
-      </AuthLoading>
-      <Authenticated>
-        <DashboardInner />
-      </Authenticated>
-    </>
+      </div>
+      {dataMode === "demo" ? <DemoDashboard /> : (
+        <>
+          <Unauthenticated><Card className="p-6 space-y-3"><p className="text-sm">Sign in to monitor registered devices and use authorized controls.</p><SignInButton /></Card></Unauthenticated>
+          <AuthLoading><p className="text-sm text-muted-foreground">Checking device access…</p></AuthLoading>
+          <Authenticated>{isAuthenticated && <HardwareDashboard />}</Authenticated>
+        </>
+      )}
+      <p className="flex items-start gap-2 text-xs text-muted-foreground"><AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />Prototype thresholds are operational examples, not a water-safety certification. pH, TDS and turbidity cannot establish microbiological safety.</p>
+    </div>
   );
 }

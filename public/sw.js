@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldwms-v2";
+const CACHE_NAME = "dwms-v3";
 const urlsToCache = ["/", "/icon/icon-192.png", "/icon/icon-512.png"];
 
 // Install event - cache core assets
