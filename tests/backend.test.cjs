@@ -43,6 +43,7 @@ function fixture({
     ],
   };
   const scheduled = [];
+  let creationTime = Date.now();
   const ctx = {
     auth: {
       getUserIdentity: async () =>
@@ -65,8 +66,12 @@ function fixture({
             .sort((a, b) => {
               const left = a.timestamp ?? a.createdAt ?? a._creationTime;
               const right = b.timestamp ?? b.createdAt ?? b._creationTime;
+              // Convex indexes append _creationTime as their final field.
+              // Multiple writes can have identical ISO millisecond timestamps.
+              const order = left < right ? -1 : left > right ? 1
+                : (a._creationTime ?? 0) - (b._creationTime ?? 0);
               return (
-                (left < right ? -1 : left > right ? 1 : 0) *
+                order *
                 (direction === "desc" ? -1 : 1)
               );
             })
@@ -99,7 +104,8 @@ function fixture({
       },
       async insert(table, value) {
         const id = `${table}:${tables[table].length + 1}`;
-        tables[table].push({ _id: id, _creationTime: Date.now(), ...value });
+        creationTime = Math.max(Date.now(), creationTime + 0.001);
+        tables[table].push({ _id: id, _creationTime: creationTime, ...value });
         return id;
       },
       async patch(id, patch) {
@@ -489,4 +495,17 @@ test("only explicit emergency acknowledgement authorizes local latch reset and s
   });
   assert.equal(f.tables.devices[0].controlMode, "emergency");
   assert.equal(f.tables.deviceCommands.at(-1).clearEmergency, false);
+});
+
+test("readings with the same receipt millisecond use creation order, matching Convex indexes", async () => {
+  const f = fixture();
+  const timestamp = stamp();
+  f.tables.sensorReadings.push(
+    { _id: "older", _creationTime: 100, deviceId: "site-a", timestamp, ...healthy, ph: 4 },
+    { _id: "newer", _creationTime: 100.001, deviceId: "site-a", timestamp, ...healthy },
+  );
+  const latest = await f.invoke("getLatestReading", { deviceId: "site-a" });
+  assert.equal(latest._id, "newer");
+  const recent = await f.invoke("getRecentReadings", { deviceId: "site-a", limit: 2 });
+  assert.deepEqual(recent.map(row => row._id), ["newer", "older"]);
 });

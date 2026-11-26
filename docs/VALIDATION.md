@@ -8,7 +8,7 @@
 |---|---|---|
 | Baseline inspection | Complete | Source audit of `d48b6784`; [AUDIT.md](AUDIT.md) |
 | Baseline GitHub CI | Passed for baseline only | [Run 36713124786](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/36713124786), 2026-09-30, `d48b6784`; baseline had no behavioral tests |
-| Local integrated suite, 2026-11-26 | Passed | `pnpm test`: 18 Node tests (13 backend, 5 monitoring) and 16 Python tests; `pnpm lint` and `pnpm build` passed |
+| Local integrated suite, 2026-11-26 | Passed | `pnpm test`: 19 Node tests (14 backend, 5 monitoring) and 16 Python tests; `pnpm lint` and `pnpm build` passed |
 | Controller host harness, 2026-11-26 | Passed locally | Actual sketch compiled/executed with mocked Arduino/LCD/serial; not an Arduino board build |
 | Convex code generation, 2026-11-26 | Passed locally | `bash scripts/prepare-convex-build.sh`, isolated local backend; not production deployment validation |
 | GitHub CI for improvement implementation | Passed | [Run 45821769699](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821769699), 2026-11-26, `69b49d4`: codegen, 18 Node + 16 Python tests, host harness, lint, build and repository scans |
@@ -42,7 +42,7 @@ g++ -std=c++11 -Wall -Wextra -I tests/firmware tests/firmware/controller_test.cp
 | Input/command parsing, failed polls, telemetry discard, ACK/status and USB reconnect | [Bridge tests](../tests/test_bridge.py) |
 | Actual sketch interlocks, lease loss, duplicate ACK and oversized serial frames | [Controller host harness](../tests/firmware/controller_test.cpp) |
 
-The first PR run ([45821619220](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821619220), `2fcc138`) failed before tests: the downloaded local Convex backend rejected the workflow's Node 20 runtime for Node actions. Selecting Node 24 resolved it in the successful run above. This record update changes documentation only.
+The first PR run ([45821619220](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821619220), `2fcc138`) failed before tests: the downloaded local Convex backend rejected the workflow's Node 20 runtime for Node actions. Selecting Node 24 resolved it in the successful run above. A later CI rerun ([45821980875](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821980875), `e4f2124`) exposed a same-millisecond ordering bug in the in-memory test adapter. The adapter now models the Convex index creation-time tiebreak and has a dedicated regression test; final CI status is available on the PR.
 
 ## Software acceptance checklist
 
