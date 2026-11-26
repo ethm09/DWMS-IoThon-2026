@@ -49,13 +49,15 @@ Before a field pilot, obtain component and maintenance quotes, select site-speci
 
 | Item | Value / status |
 |---|---|
-| Source | https://github.com/ethm09/DWMS-IoThon-2026 |
+| Source | https://github.com/ethm09/DWMS-IoThon-2026 — competition implementation on [improve/iothon-2026-focus](https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus), [Draft PR #2](https://github.com/ethm09/DWMS-IoThon-2026/pull/2); main remains unchanged |
 | Public software demo | https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site — simulated readings; no physical control |
 | Evidence / readiness | [docs/VALIDATION.md](../docs/VALIDATION.md) |
 | Architecture / setup | [Architecture](../docs/ARCHITECTURE.md) · [Setup](../docs/SETUP.md) |
 | Demo video | **Pending recording, review and hosted URL**; [storyboard](Demo-Video-Storyboard.md) |
 | Founder / project lead | Ahmed Alzahrani — confirmed; additional identities, affiliations or contact details must come from the registered account or owner |
-| Logo / screenshots / deck or other uploads | Confirm exact portal requirements before attaching; screenshots must identify simulated data |
+| Pitch deck | [Editable PPTX](DWMS-Pitch.pptx) · [PDF](DWMS-Pitch.pdf) |
+| Feasibility study | [Editable DOCX](DWMS-Feasibility.docx) · [PDF](DWMS-Feasibility.pdf) |
+| Logo / screenshots / other uploads | Confirm exact portal requirements before attaching; screenshots identify simulated data |
 | Rules / consent / eligibility / final submission | Owner must verify the actual declarations and approve the final submission |
 
 The preparation work does not authorize accepting declarations, inventing team details, or publishing an unreviewed video as physical evidence.

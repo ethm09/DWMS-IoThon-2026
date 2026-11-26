@@ -1,0 +1,68 @@
+{
+  "url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site",
+  "source_commit": "8c765c456dca80ffc1803ce14002d963fda05f2e",
+  "version": 2,
+  "http_checks": [
+    {
+      "path": "/",
+      "status": 200,
+      "bytes": 1376
+    },
+    {
+      "path": "/dashboard",
+      "status": 200,
+      "bytes": 1376
+    },
+    {
+      "path": "/historical",
+      "status": 200,
+      "bytes": 1376
+    },
+    {
+      "path": "/alerts",
+      "status": 200,
+      "bytes": 1376
+    },
+    {
+      "path": "/devices",
+      "status": 200,
+      "bytes": 1376
+    },
+    {
+      "path": "/remote-monitoring",
+      "status": 200,
+      "bytes": 1376
+    },
+    {
+      "path": "/brand/mark.svg",
+      "status": 200,
+      "bytes": 599
+    },
+    {
+      "path": "/fonts/inter.ttf",
+      "status": 200,
+      "bytes": 876576
+    },
+    {
+      "path": "/screenshots/dashboard-preview.png",
+      "status": 200,
+      "bytes": 164041
+    },
+    {
+      "path": "/site.webmanifest",
+      "status": 200,
+      "bytes": 387
+    },
+    {
+      "path": "/assets/index-DFACLyF6.js",
+      "status": 200,
+      "bytes": 1440513
+    },
+    {
+      "path": "/assets/index-Dfy_qq1-.css",
+      "status": 200,
+      "bytes": 130579
+    }
+  ],
+  "scope": "Anonymous HTTP/SPA shell/assets verification; not interactive browser or Auth0 validation"
+}

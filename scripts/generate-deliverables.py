@@ -217,13 +217,13 @@ def make_deck(desktop,mobile,args):
             txt(sl,cell,xs[j]+.13,y+.13,widths[j]-.26,.72,11.4,BLUE if j==0 else INK,j==0)
     foot(sl,['HACH','PH','CODE'])
 
-    sl=base(prs,9,'Feasibility','Qualify the parts before quoting a deployed system')
-    txt(sl,'Observed bench-kit catalog anchors • USD • single unit',.6,2.25,12,.45,17,INK,True)
+    sl=base(prs,9,'Market and business hypothesis','Start with one supervised reuse site')
+    txt(sl,'Customer: industrial utilities engineer • setup + per-site service fee',.6,2.25,12,.45,17,INK,True)
     for i,(price,label,key) in enumerate([('$39.50','pH kit SEN0161-V2','PH'),('$11.80','TDS kit SEN0244','TDS'),('$9.90','Turbidity kit SEN0189','TURB')]):
         x=.6+i*4.15; shape(sl,x,2.95,3.9,1.38,WHITE,BORDER)
         txt(sl,price,x+.2,3.13,3.5,.6,30,BLUE,True)
         txt(sl,label,x+.2,3.84,3.5,.3,12,MUTED)
-    txt(sl,'Reference items only; installed modules are unknown. These prices are not a complete BOM or supplier quote.',.6,4.57,12,.62,15,INK)
+    txt(sl,'USD catalog anchors only; not installed models, a complete BOM or quotes. Pricing and willingness to pay: TBC.',.6,4.57,12,.62,15,INK)
     txt(sl,'Qualification gap: the example TDS kit ends at 1000 ppm, below the 1500 ppm Auto trigger. The pH kit is laboratory grade.',.6,5.32,12,.62,14,AMBER,True)
     txt(sl,'Host, enclosure, power, isolation, reference standards, installation and recurring costs: TBC.',.6,6.11,12,.33,11,MUTED)
     foot(sl,['PH','TDS','TURB'])
@@ -311,7 +311,7 @@ def make_doc(args):
     bullet(doc,'Auto requests pump ON above 1500 ppm TDS or 20 NTU turbidity when critical interlocks pass. These prototype thresholds require sensor-range and process validation; pumping alone does not prove contaminant removal.')
     bullet(doc,'Receipt freshness is 10 seconds; commands expire after 20 seconds. The Arduino control lease is 15 seconds and is renewed only after a successful authenticated poll. Values are configured policies, not measured physical timing.')
     doc.add_heading('Limits that affect feasibility',level=2)
-    p(doc,'Existing Convex/Auth0/OpenAI resources are retained; hardened deployment and new-origin role checks are pending. The Uno is gateway-connected, not a standalone wireless node. Source acquisition timestamps and sequence/replay protection are absent. Range checks cannot prove that an unplugged analog probe is detected. No temperature channel, relay-contact feedback or verified treatment result is provided. Real registry/history/control reads require registered authentication. Authenticated users still share a fleet: tenant/site isolation is not implemented [S6].')
+    p(doc,'Existing Convex/Auth0/OpenAI resources are retained; hardened deployment and new-origin role checks are pending. The Uno is gateway-connected, not a standalone wireless node. Source acquisition timestamps and sequence/replay protection are absent. Range checks cannot prove that an unplugged analog probe is detected. No temperature channel, relay-contact feedback or verified treatment result is provided. The hardened source requires registered authentication for real registry/history/control reads; deployment to the existing cloud backend is pending. Authenticated users still share a fleet: tenant/site isolation is not implemented [S6].')
 
     newpage(doc,'Sensors and commissioning','Qualify real modules before enabling the process')
     p(doc,'No installed sensor model is confirmed. Catalog examples below are pricing/selection references, not an installed or qualified DWMS bill of materials.')
@@ -409,7 +409,7 @@ def make_doc(args):
 
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--evidence-commit',default='e7f7bb3'); ap.add_argument('--ci-url',default=REPO+'/actions/runs/45829367723'); ap.add_argument('--node-tests',type=int,default=33); ap.add_argument('--python-tests',type=int,default=16); ap.add_argument('--draft',action='store_true',help='Allow visibly labeled screenshot placeholders for internal review only')
+    ap=argparse.ArgumentParser(); ap.add_argument('--evidence-commit',default='8c765c4'); ap.add_argument('--ci-url',default=REPO+'/actions/runs/45872251351'); ap.add_argument('--node-tests',type=int,default=33); ap.add_argument('--python-tests',type=int,default=16); ap.add_argument('--draft',action='store_true',help='Allow visibly labeled screenshot placeholders for internal review only')
     args=ap.parse_args(); OUT.mkdir(exist_ok=True)
     svg=fitz.open(str(ROOT/'public/brand/mark.svg')); svg[0].get_pixmap(matrix=fitz.Matrix(5,5),alpha=True).save(str(BRAND_MARK)); svg.close()
     paths=[ROOT/'docs/screenshots/dashboard-desktop.png',ROOT/'docs/screenshots/dashboard-mobile.png']
