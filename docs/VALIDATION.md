@@ -11,7 +11,7 @@
 | Local integrated suite, 2026-11-26 | Passed | `pnpm test`: 18 Node tests (13 backend, 5 monitoring) and 16 Python tests; `pnpm lint` and `pnpm build` passed |
 | Controller host harness, 2026-11-26 | Passed locally | Actual sketch compiled/executed with mocked Arduino/LCD/serial; not an Arduino board build |
 | Convex code generation, 2026-11-26 | Passed locally | `bash scripts/prepare-convex-build.sh`, isolated local backend; not production deployment validation |
-| GitHub CI for improvement commit | Pending | A workflow definition is not evidence that it has passed |
+| GitHub CI for improvement implementation | Passed | [Run 45821769699](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821769699), 2026-11-26, `69b49d4`: codegen, 18 Node + 16 Python tests, host harness, lint, build and repository scans |
 | Auth0 + deployed Convex integration | Not exercised in this workspace | Requires deployment configuration and authenticated accounts |
 | Browser smoke, 2026-11-26 | Passed locally; simulated readings | Desktop and 390px mobile: all five steps, critical acknowledgement blocked, recovery acknowledgement, Device data sign-in gate and core/redirect routes; no page errors or horizontal overflow |
 | Probe calibration / physical control | Blocked | Module-specific conversions are unimplemented; relay defaults disabled |
@@ -42,6 +42,8 @@ g++ -std=c++11 -Wall -Wextra -I tests/firmware tests/firmware/controller_test.cp
 | Input/command parsing, failed polls, telemetry discard, ACK/status and USB reconnect | [Bridge tests](../tests/test_bridge.py) |
 | Actual sketch interlocks, lease loss, duplicate ACK and oversized serial frames | [Controller host harness](../tests/firmware/controller_test.cpp) |
 
+The first PR run ([45821619220](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821619220), `2fcc138`) failed before tests: the downloaded local Convex backend rejected the workflow's Node 20 runtime for Node actions. Selecting Node 24 resolved it in the successful run above. This record update changes documentation only.
+
 ## Software acceptance checklist
 
 - [x] Reject malformed JSON, missing sensors, strings/booleans/nonfinite values, negative TDS/turbidity and pH outside 0–14 (backend ingestion and bridge tests).
@@ -54,7 +56,7 @@ g++ -std=c++11 -Wall -Wextra -I tests/firmware tests/firmware/controller_test.cp
 - [x] Reject malformed bridge commands/serial frames; preserve rejected duplicate ACKs; discard oversized frames (bridge tests and controller host harness).
 - [x] Lose the communication lease on HTTP/USB failure; reconnect without replaying old measurements as fresh (bridge mocks and controller host harness; physical timing untested).
 - [x] Run deterministic dashboard scenario; confirm source and simulated response remain clearly labeled (local browser smoke, 2026-11-26).
-- [ ] Run lint/build and code generation in CI; retain the run URL and commit SHA.
+- [x] Run lint/build and code generation in CI; retain the run URL and commit SHA ([run 45821769699](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821769699), `69b49d4`).
 
 Tick only checks actually exercised, naming the test or manual record. Passing a host controller harness is not Arduino board compilation or physical validation.
 
