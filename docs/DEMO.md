@@ -1,41 +1,47 @@
 # Competition demo runbook
 
-## Reliable browser demonstration
-
-Run the [local setup](SETUP.md), open `/` and choose **Local demo**. It needs no Auth0, cloud deployment or AI key. This is a browser simulation of shared thresholds and response logic, not hardware evidence.
-
-| Step | Action | Expected visible result |
+| Demonstration | What it proves | What remains simulated |
 |---|---|---|
-| 1 | **Reset demo** / **1 · Normal** | pH 7.2, TDS 300 ppm, turbidity 2 NTU; normal threshold status |
-| 2 | **2 · Warning** | TDS 650 ppm and turbidity 8 NTU; warning before critical levels |
-| 3 | **3 · Response** | Turbidity 25 NTU; simulated Auto pump request ON |
-| 4 | **4 · Critical** | pH 4.5; simulated pump OFF and Emergency latched |
-| 5 | **5 · Recovery** | Normal readings return; Emergency remains latched |
-| 6 | **Acknowledge recovery** | Local acknowledgement clears the recovered Emergency |
+| Local dashboard | Readable readings/status/trend and repeatable rule response | All readings and output state; no backend writes |
+| Isolated connected runner | HTTP ingestion, real local Convex persistence/subscription, alerts and command lifecycle | Sensor input, test identity and controller ACK; no probes/relay |
+| Physical bench | Calibrated probes through bridge/backend/dashboard to independently observed output | Nothing may be represented as physical until its checklist gate passes |
 
-Narration: “These values are simulated. The rule response is deterministic. The live path adds device authentication, data validation, command expiry and controller acknowledgements.” Show the sensor trace and explain that a warning is a threshold crossing, not a prediction of contamination.
+## 1. Local dashboard — reliable presentation fallback
 
-The demo does not save device readings or send a relay command. Resetting returns the scenario to a repeatable state. If persistent settings opened Device data mode, switch back to Local demo.
+Run `pnpm dev`, open `/` and choose **Local demo**. No accounts, cloud or AI key are needed.
 
-## Connected demonstration — only after physical gates pass
+| Action | Expected result |
+|---|---|
+| **Reset demo** / **1 · Normal** | pH 7.2, TDS 300 ppm, turbidity 2 NTU; within prototype limits |
+| **2 · Warning** | TDS 650 ppm, turbidity 8 NTU; warning |
+| **3 · Response** | Turbidity 25 NTU; simulated Auto output ON |
+| **4 · Critical** | pH 4.5; simulated OFF, Emergency latched; acknowledgement blocked |
+| **5 · Recovery** | Normal readings return; latch remains |
+| **Acknowledge recovery** | Local recovered acknowledgement clears the latch |
 
-Prerequisites: completed calibration/relay checks in [VALIDATION.md](VALIDATION.md), a configured Convex/Auth0 deployment, a registered node, the serial bridge, an isolated bench load and an independent reference instrument. The checked-in conversion placeholder blocks this demonstration until implemented and verified.
+Say: “These readings and output are simulated. The response uses deterministic thresholds.” Show source, three readings, warning, response, critical stop and recovery. No readings enter device history and no relay command is sent.
 
-1. Choose **Device data** and the registered device. Show its ID/location, server receipt time, three probe readings and reported output state.
-2. Compare the display with independent probe references. Record the sample/reference values and timestamp; do not describe visual similarity as calibrated accuracy.
-3. Introduce an approved bench condition crossing a warning and then response threshold. Show the stored reading, rule decision, pending command, serial ACK and applied/failed command status.
-4. Introduce a critical condition. Show the Emergency latch, OFF request and independently observed bench output.
-5. Restore acceptable readings. Show that operator acknowledgement is needed before recovery.
-6. Disconnect a sensor, then USB, then network, one at a time. Show stale/unknown status, local stop/watchdog behavior and reconnection. Record observed timing; do not substitute configured timeouts for measured stop latency.
-7. If a second physical node exists, register/select it and show independent history and state. With one node, describe multi-site support as a data-model/UI capability only.
+## 2. Connected software path — isolated, injected evidence
 
-Keep a short screen recording of an actual successful rehearsal, with version, date, configuration and evidence label. If hardware is unavailable or fails, switch explicitly to Local demo and say which part is simulated; do not show simulated data as a recovered live connection.
+```bash
+pnpm install --frozen-lockfile
+pnpm demo:e2e
+```
 
-## Evidence to bring
+Run on Linux/macOS with Node.js 24, installed dependencies and network access for anonymous Convex initialization/first backend download. No Auth0, probes or deployment environment is required. The runner creates a disposable loopback backend using the real functions/schema, a synthetic operator and two test devices, then cleans up. It never uses a physical node key or production history. This is a programmatic connected-path test; it does not open a dashboard browser.
 
-- Tested commit and local/CI check results.
-- Probe models, calibration records and reference measurements.
-- Timestamped video/log of reading → rule → command → ACK → observed output.
-- Disconnect/recovery observations, known limitations and next validation steps.
+Expected checkpoints: invalid/auth rejection → real database/reactive query readings → warning notification → response command and simulated ACK → critical latched OFF → explicit recovered acknowledgement → actual scheduled stale-data OFF. Inspect the named checkpoints in its output. The reactive queries are the data path used by the dashboard; the Local demo above verifies the visual workflow separately. A subscription is not a probe measurement or proof of physical pump motion. The local test identity does not validate a real Auth0 login.
 
-A screenshot of a normal dashboard proves interface behavior only. No drinking-water compliance, treatment effectiveness, response-time target or field uptime claim follows from this demo.
+Record the runner result in the [readiness checklist](VALIDATION.md). Do not describe injected telemetry as calibrated hardware data, even if it passes the same endpoint used by the bridge.
+
+## 3. Physical end-to-end demonstration — gated
+
+Prerequisites: completed calibration/electrical gates in [VALIDATION.md](VALIDATION.md), configured Auth0/Convex, a registered physical node, bridge, isolated load and independent references. The checked-in conversion placeholder currently blocks real sensing.
+
+1. Choose **Device data** and the physical node. Show its ID/location, three live values and receipt age; compare measurements to independent references.
+2. Introduce an approved warning/response condition. Show live monitoring, saved alert, command pending → ACK/applied or failed, and independently observed output.
+3. Introduce a critical condition, observe OFF and latch, restore acceptable readings, then explicitly acknowledge recovery.
+4. Disconnect probe, USB and network separately. Show stale/unknown status and local watchdog behavior; measure actual stop/reconnect timing.
+5. Record version, probe/calibration records, raw samples, alert/command timestamps and independent output observations. Show separate histories for a second node only if one actually exists.
+
+If the physical path is unavailable, state the blocked gate and use mode 1 or 2 with its label. Do not silently substitute simulation for a failed live feed. Threshold warning is not contamination prediction; the three probes do not establish potable-water or reuse compliance.

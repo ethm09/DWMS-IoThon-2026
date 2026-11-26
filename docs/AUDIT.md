@@ -1,54 +1,30 @@
-# Competition audit and priorities
+# Audit and implementation priorities
 
-Baseline: `main` at `d48b6784ff9c89db27630e8e0fb246c42cd93fe9`. Inspection preceded changes. Work branch: `improve/iothon-2026-focus`. This audit records source findings; it is not a claim that hardware or deployed services were tested.
+Inspected `main` at `d48b6784ff9c89db27630e8e0fb246c42cd93fe9` before modifying. Improvement branch: `improve/iothon-2026-focus`.
 
 ## KEEP
 
-- Existing React/Vite/TypeScript frontend, Convex storage/reactivity and Auth0 role model.
-- Device-authenticated pH/TDS/turbidity HTTP ingestion with finite/range checks; device key redaction in listings.
-- Shared threshold primitives, backend Emergency latch, fresh-data start interlocks and command expiry/acknowledgement records.
-- Device IDs, locations and indexed per-device history as the multi-site foundation.
-- Arduino/Python protocol, local interlocks, disabled calibration/relay defaults and honest limits on controller feedback.
+Existing React/Convex/Auth0 architecture; validated device-authenticated ingestion; device key redaction; shared threshold primitives; Emergency latch and acknowledged/expiring commands; per-device locations/history; calibration-disabled firmware safeguards.
 
 ## REMOVE
 
-- Dashboard's duplicate reading summaries, decorative animated pipeline and repeated status cards.
-- Operational presentation of fabricated historical readings, extra sensors, site uptime and fixed performance metrics.
-- Primary-navigation sprawl across 17 destinations. Keep monitoring, alerts, history, sites, devices, source setup and actual thresholds prominent; put ancillary tools behind a secondary entry.
-- Obsolete archive-extraction workflow: the repository already contains extracted source and no source archive.
-
-Simulated ancillary source can remain unmounted for reference. Replacing or redirecting it is justified because generated values did not describe actual monitored devices. Retain the working auth, ingestion, command, alert and registry paths.
+Duplicate readings, decorative pipeline animation and navigation sprawl; operational presentation of generated histories, unsupported sensors/site metrics and ineffective local-only threshold edits. Redirect illustrative pages to real stored history/sites while retaining source for reference. Remove the obsolete archive-extraction workflow.
 
 ## FIX
 
-| Baseline weakness | Required correction |
-|---|---|
-| Browser critical turbidity/TDS decisions differ from backend | Align rule priority and response; test boundary cases |
-| Stale persisted readings can look normal | Recalculate age while idle; show unknown/stale and suppress live-quality claims |
-| Desired output alone suppresses repeat commands | Reconcile failed/expired commands and controller-reported state |
-| Offline detection alerts but does not request OFF | Request stop; retain a local communication watchdog because cloud requests cannot reach an isolated board |
-| Bridge accepts booleans/nonfinite values, crashes on wrong JSON shape | Validate types, bounds and command structure before upload/serial output |
-| USB failure exits; lost HTTP requests have no recovery path | Reconnect with bounded backoff; do not replay old telemetry as fresh |
-| Firmware lacks communication timeout; duplicate/overflow handling weak | Add control lease, preserve failed ACK result and discard overflowing frames |
-| UI thresholds are locally editable without updating backend | Present the actual shared policy as read-only |
-| No behavioral test suite | Add deterministic backend, bridge and controller regression checks to CI |
+Browser/backend rule disagreement; stale data shown as normal; desired-state-only command suppression; offline alerts without a stop request; bridge type/JSON handling; USB recovery; firmware lease/duplicate/overflow handling; absent behavioral tests. These are targeted corrections within the existing architecture.
 
 ## VALIDATE
 
-Software: malformed/missing/disconnected sensors; abnormal and boundary readings; authorization; stale/future timestamps; Emergency latch/recovery; command rejection/expiry/mismatched ACK; reconnect and communication loss. Record exact commands/results in [VALIDATION.md](VALIDATION.md), keeping local execution separate from GitHub CI.
-
-Physical: exact conversion equations, independent calibration, drift, interference, relay polarity, inactive startup, real stop on probe/USB/network loss, feedback sensing and measured hardware-to-dashboard timing. The current sensor conversion placeholder blocks a truthful live-probe demonstration.
+The [single readiness checklist](VALIDATION.md) tracks input/auth/rule/failure tests, CI, target build, connected demonstration and remaining physical gates. Module-specific conversions are still required for actual probe data.
 
 ## COMPETITIVE ADVANTAGES
 
-The credible proposition is the combination of an understandable operator view, shared deterministic decisions, auditable command outcomes and explicit data freshness. Registry-backed sites and indexed histories support a distributed prototype. Acknowledging unknown physical state is an engineering strength, but no accuracy, latency, uptime, savings, fleet size or treatment result has been established here.
+A readable monitoring view with deterministic decisions, explicit reading age and traceable command outcomes. Registered sites and indexed histories provide a distributed prototype foundation. No measured accuracy, latency, uptime, savings or fleet-capacity advantage is claimed.
 
-## Prioritized implementation plan
+## Prioritized plan
 
-1. **P0 — correctness:** unify decisions, validate input/freshness, reconcile commands, improve disconnect handling and add regression tests. Acceptance: invalid/stale data cannot authorize start; critical readings dominate other rules; failures remain visible.
-2. **P1 — focused workflow:** simplify dashboard/navigation; replace invented history/sites with stored data; provide explicit local scenarios without Auth0/cloud setup. Acceptance: source, readings, status and next operational action are visible together.
-3. **P1 — reviewable evidence:** concise README, architecture, setup, demo, checklist and feasibility/pitch outlines. Acceptance: every claim names its evidence level or outstanding check.
-4. **P2 — verification:** run tests/lint/build; verify CI on the improvement branch/PR; perform the bench checklist before claiming physical validation.
-5. **After competition scope:** acquisition timestamps/sequence protection, retention/aggregation, site-specific policy and access, credential rotation, field enclosure/power design, load/soak testing and independent treatment validation.
-
-Major architectural replacement is unnecessary for this scope. The remaining physical and deployment blockers are explicit gates, not features to simulate as completed.
+1. **P0:** safety/ingestion/freshness/connectivity fixes with regression tests.
+2. **P1:** focused dashboard, stored history/sites and repeatable labeled demonstration.
+3. **P1:** verify exact software/target/deployment evidence, then complete calibrated bench integration.
+4. **Later:** acquisition timestamps/replay protection, site access, retention and field/load validation. No framework or architecture replacement is needed for competition readiness.

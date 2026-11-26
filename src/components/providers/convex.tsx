@@ -3,7 +3,7 @@ import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import { useMemo } from "react";
 import { auth0Configured } from "@/lib/auth-config.ts";
 
-const convexUrl = import.meta.env.VITE_CONVEX_URL ?? "http://localhost:3000";
+const convexUrl = import.meta.env.VITE_CONVEX_URL?.trim() || "http://localhost:3000";
 const convex = new ConvexReactClient(convexUrl);
 
 function useUnauthenticatedAuth() {

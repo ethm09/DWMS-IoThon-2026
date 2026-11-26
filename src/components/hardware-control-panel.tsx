@@ -69,7 +69,7 @@ export default function HardwareControlPanel() {
             {hardwareMode ? <Activity className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />}
             <div>
               <p className="text-xs font-bold tracking-wider">
-                {hardwareMode ? "PHYSICAL DEVICE" : "SIMULATION ONLY"}
+                {hardwareMode ? "REGISTERED DEVICE" : "SIMULATION ONLY"}
               </p>
               <p className="text-[10px] text-muted-foreground">
                 {hardwareMode

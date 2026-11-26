@@ -2,42 +2,26 @@
 
 **IoThon 2026:** IoT water-quality monitoring for networks, reservoirs, and treated-water reuse.
 
-DWMS is an existing React/Convex prototype focused on **pH, TDS and turbidity → threshold alerts → deterministic response → controller acknowledgement**. Operators can inspect a selected device, stored readings, data freshness and control state. Devices have separate credentials and locations.
+DWMS focuses on **pH, TDS and turbidity → threshold alerts → deterministic response → controller acknowledgement**. The existing React/Convex application provides device selection, stored trends, receipt freshness and rule-based Auto / Manual / latched Emergency control. AI assistance is optional.
 
-## Try the local demo
+## Run the local demo
 
-Requires Node.js 24 and pnpm 10; no cloud account, probes or AI key is needed for the dashboard demo.
+Use Node.js 24 and pnpm 10:
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open the printed local URL and use the dashboard's labeled simulation scenarios. Values and responses are simulated in the browser; they do not operate hardware or enter the device history. See the [demo runbook](docs/DEMO.md).
+Open the printed URL and choose **Local demo**. Its fixed scenarios need no accounts or probes; they send no hardware commands and save no device history.
 
-## What is implemented
+- **[Competition readiness checklist](docs/VALIDATION.md)** — evidence, blockers and calibration procedure.
+- **[Demo runbook](docs/DEMO.md)** — browser simulation, connected software injection and physical demonstration.
+- [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Audit and priorities](docs/AUDIT.md) · [Competition / feasibility / pitch](docs/COMPETITION.md)
 
-- Validated, device-authenticated HTTP ingestion and reactive dashboard subscriptions.
-- Warning/critical thresholds and backend Auto / Manual / latched Emergency control.
-- Short-lived commands, controller acknowledgements and explicit unknown/stale states.
-- Per-device registry, location and indexed reading history for a multi-site foundation.
-- Arduino Uno firmware and a Python USB-to-HTTPS bridge.
+## Evidence boundary
 
-The firmware is a **calibration-disabled template**: `readCalibratedSensors` needs verified module-specific conversion equations before it can produce measurements. Relay control is also disabled by default. A serial acknowledgement reports software relay state; there is no pump-motion or relay-contact feedback sensor.
-
-## Architecture
-
-```text
-pH / TDS / turbidity → Arduino Uno → USB / Python bridge → Convex
-                                                           ↕
-                                        rules / alerts / command log
-                                                           ↕
-                                                  React dashboard
-```
-
-The deterministic rules govern control. Optional AI assistance explains data and remains subject to backend authorization and interlocks. It is not required for monitoring or the demo.
-
-## Verify and connect
+The Arduino firmware is calibration-disabled: `readCalibratedSensors` still needs measured, module-specific conversion equations. Relay control remains disabled pending physical safety checks. Software tests or a board build do not establish probe accuracy, actual pump motion or water-safety compliance. Current evidence is tracked in the single checklist above.
 
 ```bash
 pnpm test
@@ -45,10 +29,4 @@ pnpm lint
 pnpm build
 ```
 
-Software tests, CI checks and physical validation are separate evidence levels. Read the [validation checklist](docs/VALIDATION.md) for scope and outstanding bench work. Prototype thresholds do not establish potable-water compliance or treatment effectiveness.
-
-- [Installation, Auth0, Convex and hardware setup](docs/SETUP.md)
-- [System architecture and limitations](docs/ARCHITECTURE.md)
-- [Audit and implementation priorities](docs/AUDIT.md)
-- [Competition evidence, feasibility study and pitch outline](docs/COMPETITION.md)
-- [Environment variable template](.env.example)
+Connected operation requires separate Convex/Auth0 configuration and the Python USB-to-HTTPS bridge. Device keys protect ingestion and controls, but registry/history queries currently permit public reads; tenant isolation is not implemented.

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "prettier-fix": "prettier --write .",
     "prettier-check": "prettier --check .",
-    "test": "node scripts/test.mjs"
+    "test": "node scripts/test.mjs",
+    "demo:e2e": "node scripts/demo-e2e.mjs"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.11.0",
@@ -88,5 +89,8 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.58.1",
     "vite": "^7.3.2"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }

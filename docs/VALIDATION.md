@@ -1,87 +1,55 @@
-# Technical validation and evidence
+# Competition readiness checklist
 
-**Evidence labels:** simulated = deliberate test/scenario data; local software = executed in a development environment; CI = linked successful GitHub workflow for a commit; physical = observed on identified probes, controller and load. These labels are not interchangeable.
+This is the single readiness record. **Simulated** means injected/scenario values; **local software** means executed application tests; **CI** means a linked workflow for its exact commit; **physical** means observed on identified probes/controller/load. Keep these labels on demo evidence.
 
-## Current evidence record
-
-| Area | Status | Evidence / limit |
+| Ready | Gate | Evidence / remaining blocker |
 |---|---|---|
-| Baseline inspection | Complete | Source audit of `d48b6784`; [AUDIT.md](AUDIT.md) |
-| Baseline GitHub CI | Passed for baseline only | [Run 36713124786](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/36713124786), 2026-09-30, `d48b6784`; baseline had no behavioral tests |
-| Local integrated suite, 2026-11-26 | Passed | `pnpm test`: 19 Node tests (14 backend, 5 monitoring) and 16 Python tests; `pnpm lint` and `pnpm build` passed |
-| Controller host harness, 2026-11-26 | Passed locally | Actual sketch compiled/executed with mocked Arduino/LCD/serial; not an Arduino board build |
-| Convex code generation, 2026-11-26 | Passed locally | `bash scripts/prepare-convex-build.sh`, isolated local backend; not production deployment validation |
-| GitHub CI for improvement implementation | Passed | [Run 45821769699](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821769699), 2026-11-26, `69b49d4`: codegen, 18 Node + 16 Python tests, host harness, lint, build and repository scans |
-| Auth0 + deployed Convex integration | Not exercised in this workspace | Requires deployment configuration and authenticated accounts |
-| Browser smoke, 2026-11-26 | Passed locally; simulated readings | Desktop and 390px mobile: all five steps, critical acknowledgement blocked, recovery acknowledgement, Device data sign-in gate and core/redirect routes; no page errors or horizontal overflow |
-| Probe calibration / physical control | Blocked | Module-specific conversions are unimplemented; relay defaults disabled |
-| Accuracy, latency, uptime, water/energy savings | Unmeasured | Do not quote figures until a reproducible measurement exists |
+| [x] | Input validation, device credentials and role checks | Recorded local `pnpm test`: 20 Node tests (15 backend, 5 monitoring), 16 Python tests. [Backend handlers](../tests/backend.test.cjs), [bridge tests](../tests/test_bridge.py); fake contexts/mocked I/O, not deployed Auth0 |
+| [x] | Shared thresholds, stale/invalid handling, Emergency recovery and command failures | Same suite plus [monitoring tests](../tests/monitoring.test.cjs) and [controller host harness](../tests/firmware/controller_test.cpp). Host harness runs actual sketch with mocked pins/LCD/serial |
+| [x] | Dashboard and repeatable simulation | Local desktop/390px smoke: five scenarios, blocked critical acknowledgement, explicit recovered acknowledgement, source labels, core routes; no page errors/overflow |
+| [ ] | Public software-demo URL | Publication verification pending; a public simulation is separate from the authenticated connected path |
+| [x] | Lint, frontend build and isolated Convex codegen | Recorded local passes: `pnpm lint`, `pnpm build`, `bash scripts/prepare-convex-build.sh` |
+| [x] | CI evidence for prior improvement commit | [Run 45821769699](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821769699), `69b49d4`, 2026-11-26: codegen, 18 Node +16 Python tests, host harness, lint/build/scans. This is not a result for later changes |
+| [ ] | Final revision CI | Verify the exact submitted commit's checks on the PR; do not transfer the prior run's pass to a new revision |
+| [x] | Arduino Uno target build | Arduino CLI 1.6.0, `arduino:avr@1.8.6`, AVR GCC 7.3.0, `LiquidCrystal I2C@1.1.2`, FQBN `arduino:avr:uno`; default calibration/relay flags `0`. Compiled, not uploaded or physically tested |
+| [x] | Connected software ingestion → reactive readings → alerts → control | [Isolated runner](../scripts/demo-e2e.mjs) exited `0`: all 9 checkpoints passed using actual HTTP/database/subscriptions/notifications/commands and scheduled stale OFF. Inputs/ACKs/operator are synthetic; no browser/probes/Auth0 validation |
+| [ ] | Auth0 / deployed role enforcement | Requires configured deployment, verified administrator and viewer/operator sessions |
+| [ ] | Calibrated probe measurements | Blocked: exact module identities, measured curves and independent calibration records are absent; conversion function is unimplemented |
+| [ ] | Physical relay/interlock/failure behavior | Relay disabled; verify polarity/startup, independent output state and probe/USB/network outage behavior before enabling a load |
+| [ ] | Multi-node / field / impact evidence | Registry-backed sites are implemented; two physical nodes, retention/load/soak testing, accuracy/latency/uptime/savings are unmeasured |
 
-Software checks to run:
+Recorded local results above are from 2026-11-26. Add the final commit and exact run/artifact when completing a pending gate. Passing software checks does not complete a physical gate.
+
+## Calibration and physical validation procedure
+
+1. **Identify the installation.** Record probe/interface models and datasheets, IDs, wiring, measured supply/ADC reference, resolution, relay polarity and firmware commit. `readVoltage` assumes 5 V; verify that assumption. Pin map: pH A0, TDS A1, turbidity A2, LCD A4/A5, LEDs D2–D4, relay D7.
+2. **Keep outputs disabled.** Leave repository calibration/relay enables at `0` and disconnect the pump/load. A qualified person must independently verify electrical wiring/polarity and authorize isolated-load commissioning before any temporary relay enable on the bench. No such physical commissioning is recorded here.
+3. **Measure raw response.** Follow each manufacturer's procedure using traceable pH buffers, conductivity/TDS references and turbidity standards bracketing the operating/alarm range. Record standard lot/expiry, operator/date, raw ADC/voltage, reference value, water temperature, stabilization and repeats. For TDS record the conductivity conversion factor and compensation assumptions; no temperature sensor is included. Do not borrow another module's coefficients.
+4. **Implement and independently check conversion.** Use the measured/module-approved equations in `readCalibratedSensors`; validate against held-out references and repeats. Record residuals, uncertainty and drift against agreed reference/datasheet tolerances. Physically unplug each channel: floating analog inputs may look plausible. Demonstrate invalid detection or add verified diagnostics before enabling; range checks alone do not prove disconnection detection.
+5. **Verify physical behavior during authorized isolated-load commissioning.** Observe inactive startup/reset, sensor failure/staleness, critical input, lease loss and explicit recovered acknowledgement. Measure output independently; an ACK or high-impedance pin does not prove a relay is OFF. Keep repository relay control disabled; approve operational enable only after the physical results pass the agreed limits.
+6. **Record the complete trace.** On an approved bench setup, capture reference/acquisition → backend receipt → alert → command → ACK → independently observed output. Interrupt probe, USB and network separately, record stop/reconnect timing, then repeat. Review the site-specific response before connecting a real process.
+
+The three probes cannot establish microbiological safety or complete reuse compliance. High TDS alone does not show that the selected filter can remove dissolved solids. Select applicable site standards and a suitable response before operational use.
+
+## Reproduce software checks
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm test
 pnpm lint
 pnpm build
-```
-
-`pnpm test` uses built-in Node tests and Python unittest, with compiled TypeScript rather than a new test framework. Inspect the script and individual tests for exact coverage. Handler tests with fake contexts verify application decisions, not a deployed Convex database, Auth0 tenant or network.
-
-The separate controller host check compiles the actual sketch with mocked Arduino/LCD/serial interfaces:
-
-```bash
+bash scripts/prepare-convex-build.sh
+# Controller logic only, using host mocks:
 g++ -std=c++11 -Wall -Wextra -I tests/firmware tests/firmware/controller_test.cpp -o /tmp/dwms-controller-test
 /tmp/dwms-controller-test
 ```
 
-| Software evidence | Source |
-|---|---|
-| HTTP validation, device authorization, command lifecycle, stale stop, policy agreement | [Backend handler tests](../tests/backend.test.cjs) |
-| Freshness, invalid channels, deterministic demo and latched recovery | [Monitoring tests](../tests/monitoring.test.cjs) |
-| Input/command parsing, failed polls, telemetry discard, ACK/status and USB reconnect | [Bridge tests](../tests/test_bridge.py) |
-| Actual sketch interlocks, lease loss, duplicate ACK and oversized serial frames | [Controller host harness](../tests/firmware/controller_test.cpp) |
+Node.js 24, pnpm 10, Python 3 and `g++` cover these checks. For the actual target build, install Arduino CLI 1.6.0 and run `bash scripts/compile-arduino.sh <evidence-dir>`. The [script](../scripts/compile-arduino.sh) installs the pinned AVR core/LCD library, verifies disabled source gates and records logs/toolchain/HEX/ELF/hashes. The new CI firmware job is configured to upload that evidence; its final run remains a separate checklist gate. Keep credentials out of artifacts and recordings.
 
-The first PR run ([45821619220](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821619220), `2fcc138`) failed before tests: the downloaded local Convex backend rejected the workflow's Node 20 runtime for Node actions. Selecting Node 24 resolved it in the successful run above. A later CI rerun ([45821980875](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821980875), `e4f2124`) exposed a same-millisecond ordering bug in the in-memory test adapter. The adapter now models the Convex index creation-time tiebreak and has a dedicated regression test; final CI status is available on the PR.
+Recorded Uno build: HEX SHA-256 `0c46970a95b127e0c865749a99043bc20ea7b7e77161689333ad456d99a29009`; compiler estimates 8,232 bytes flash and 772 bytes static SRAM. These are build outputs, not measured power/memory use or physical validation. The sketch had no warnings; core/library unused-parameter warnings remained.
 
-## Software acceptance checklist
+## Remaining deployment limits
 
-- [x] Reject malformed JSON, missing sensors, strings/booleans/nonfinite values, negative TDS/turbidity and pH outside 0–14 (backend ingestion and bridge tests).
-- [x] Reject missing/wrong device credentials and unauthorized viewer/guest control (backend handler tests).
-- [x] Classify exact threshold boundaries; critical pH/turbidity overrides Auto response; browser and backend agree (backend policy tests).
-- [x] Missing/invalid/stale/future data cannot authorize a start or appear as normal live water status (backend freshness and monitoring tests).
-- [x] Preserve Emergency until fresh recovered data and operator acknowledgement (backend recovery tests and controller host harness).
-- [x] Keep pending, applied, failed, expired and mismatched acknowledgement states distinct; reconcile controller resets/failures (backend command tests).
-- [x] Bound history queries; do not manufacture samples for empty history or sites (backend query test, source review and local browser smoke).
-- [x] Reject malformed bridge commands/serial frames; preserve rejected duplicate ACKs; discard oversized frames (bridge tests and controller host harness).
-- [x] Lose the communication lease on HTTP/USB failure; reconnect without replaying old measurements as fresh (bridge mocks and controller host harness; physical timing untested).
-- [x] Run deterministic dashboard scenario; confirm source and simulated response remain clearly labeled (local browser smoke, 2026-11-26).
-- [x] Run lint/build and code generation in CI; retain the run URL and commit SHA ([run 45821769699](https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45821769699), `69b49d4`).
-
-Tick only checks actually exercised, naming the test or manual record. Passing a host controller harness is not Arduino board compilation or physical validation.
-
-## Required physical validation
-
-| Check | Record required | Current status |
-|---|---|---|
-| Probe identity and conversion | Manufacturer/model, wiring, supply/ADC reference, equations and unit conversion | Required |
-| Calibration and drift | Reference instrument/solutions, raw values, calibration points, uncertainty, temperature and repeat results | Blocked by conversion placeholder |
-| Electrical integration | Relay polarity, isolated load, inactive startup/reset, power interruption and EMI observations | Required; relay disabled |
-| Interlocks and output | Abnormal/missing/stale probe input, Emergency recovery, independent observation of output state | Required |
-| Communication failure | USB/bridge/backend/network loss, local watchdog, reconnect and observed stop timing | Required |
-| End-to-end trace | Acquisition/reference → receipt → alert → command → ACK → independent physical state | Required |
-| Treatment suitability | Site-specific process, contaminants and applicable standard; independent before/after measurements | Required; not established by pH/TDS/turbidity alone |
-| Field feasibility | Enclosure, fouling, maintenance, power autonomy, communications and longer operation | Required |
-
-The three sensors cannot establish microbiological safety or complete reuse compliance. Choose site-specific parameters and standards before interpreting a status as an operational acceptance decision.
-
-## Known blockers and limits
-
-- No verified conversion coefficients, physical probe results or relay/pump feedback sensor are provided.
-- Telemetry stores server receipt time, not acquisition time; no sequence/replay protection. Do not buffer and replay old samples as current telemetry.
-- No measured fleet capacity, retention policy, notification-fanout capacity or soak-test evidence.
-- The production frontend build reports a large JavaScript chunk; bundle-size optimization remains outside this reliability pass.
-- Device registry/history queries permit public backend reads; no tenant/site isolation is implemented. UI sign-in and role-protected controls do not change that visibility.
-- No field fail-safe certification. Software stop requests and configured watchdog durations do not prove physical isolation or stop latency.
-
-For any measured result, record commit, device/sensor IDs, configuration, procedure, reference, timestamped raw observations, failures and conclusion. Attach the resulting artifact or run URL rather than replacing the checklist with an unsupported “validated” claim.
+- Server receipt timestamps do not prove sample acquisition time. No sequence/replay protection exists; never replay old telemetry as fresh.
+- Registry/history API reads are public and have no tenant/site isolation; use nonsensitive prototype data.
+- No relay-contact/pump-motion feedback, verified treatment result, fleet capacity or field certification is provided. The frontend build also reports a large JavaScript chunk.

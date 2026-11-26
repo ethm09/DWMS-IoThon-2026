@@ -509,3 +509,28 @@ test("readings with the same receipt millisecond use creation order, matching Co
   const recent = await f.invoke("getRecentReadings", { deviceId: "site-a", limit: 2 });
   assert.deepEqual(recent.map(row => row._id), ["newer", "older"]);
 });
+
+test("critical input before recovery delivery supersedes the reset with emergency OFF", async () => {
+  for (const critical of [{ ...healthy, ph: 4.5 }, { ...healthy, turbidity: 51 }]) {
+    const f = fixture({ controlMode: "emergency" });
+    await f.ingest(healthy);
+    await f.invoke("acknowledgeDeviceEmergency", { deviceId: "site-a" });
+    const reset = f.tables.deviceCommands.at(-1);
+    assert.equal(reset.status, "pending");
+    assert.equal(reset.clearEmergency, true);
+
+    // A new critical sample arrives before the controller receives the reset.
+    await f.ingest(critical);
+    const stop = await f.invoke("getPendingControlCommand", { deviceId: "site-a" });
+    assert.equal(reset.status, "superseded");
+    assert.equal(f.tables.devices[0].controlMode, "emergency");
+    assert.equal(f.tables.devices[0].desiredPumpState, false);
+    assert.notEqual(stop.commandId, reset.commandId);
+    assert.equal(stop.mode, "emergency");
+    assert.equal(stop.pumpOn, false);
+    assert.equal(stop.clearEmergency, false);
+    assert.deepEqual(await f.invoke("acknowledgeControlCommand", {
+      deviceId: "site-a", commandId: reset.commandId, ok: true, pumpOn: false,
+    }), { accepted: false });
+  }
+});
