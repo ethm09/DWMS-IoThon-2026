@@ -16,8 +16,8 @@ try {
     "--rootDir", ".", "--module", "commonjs", "--moduleResolution", "node",
     "--target", "ES2022", "--skipLibCheck", "--strict", "--esModuleInterop",
     "--allowJs", "convex/_generated/api.js", "convex/_generated/server.js",
-    "convex/devices.ts", "convex/http.ts", "convex/agentAnalysis.ts",
-    "src/lib/dwms-safety.ts", "src/lib/monitoring.ts"]);
+    "convex/devices.ts", "convex/http.ts", "convex/agentAnalysis.ts", "convex/chatAction.ts", "convex/auth.config.ts",
+    "src/lib/dwms-safety.ts", "src/lib/monitoring.ts", "src/lib/demo-state.ts"]);
   const tests = readdirSync("tests").filter(name => name.endsWith(".test.cjs")).map(name => join("tests", name));
   if (!tests.length) throw new Error("No JavaScript tests found");
   run(process.execPath, ["--test", ...tests], { ...process.env, DWMS_TEST_BUILD_DIR: out });

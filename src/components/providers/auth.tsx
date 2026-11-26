@@ -62,8 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         scope: "openid profile email",
         prompt: "select_account",
       }}
-      useRefreshTokens
-      cacheLocation="localstorage"
+      // Keep tokens in memory. Standard Auth0 SSO can restore a session; no
+      // persistent refresh token or tenant refresh-rotation setup is assumed.
+      cacheLocation="memory"
     >
       <Auth0SessionBridge>{children}</Auth0SessionBridge>
     </Auth0Provider>

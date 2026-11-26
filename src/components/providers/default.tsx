@@ -5,6 +5,7 @@ import { ThemeProvider } from "./theme.tsx";
 import { Toaster } from "../ui/sonner.tsx";
 import { TooltipProvider } from "../ui/tooltip.tsx";
 import { ProcessModeProvider } from "./process-mode.tsx";
+import { DemoProvider } from "./demo.tsx";
 import HardwareBridge from "../hardware-bridge.tsx";
 
 export function DefaultProviders({ children }: { children: React.ReactNode }) {
@@ -15,9 +16,11 @@ export function DefaultProviders({ children }: { children: React.ReactNode }) {
           <TooltipProvider>
             <ThemeProvider>
               <ProcessModeProvider>
-                <HardwareBridge />
-                <Toaster />
-                {children}
+                <DemoProvider>
+                  <HardwareBridge />
+                  <Toaster />
+                  {children}
+                </DemoProvider>
               </ProcessModeProvider>
             </ThemeProvider>
           </TooltipProvider>

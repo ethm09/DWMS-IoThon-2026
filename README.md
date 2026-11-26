@@ -1,12 +1,16 @@
-# DWMS — water-quality monitoring
+# DWMS · Water Intelligence
 
-**IoThon 2026:** IoT water-quality monitoring for networks, reservoirs, and treated-water reuse.
+**Monitor. Detect. Respond.**
 
-DWMS focuses on **pH, TDS and turbidity → threshold alerts → deterministic response → controller acknowledgement**. The existing React/Convex application provides device selection, stored trends, receipt freshness and rule-based Auto / Manual / latched Emergency control. AI assistance is optional.
+A focused IoThon 2026 prototype for water-quality monitoring across networks, reservoirs and treated-water reuse. DWMS brings pH, TDS and turbidity readings, data freshness, threshold alerts and traceable device response into one operator workflow. Flow is demo-only. AI assistance is optional and explanation-only.
 
-[Public software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site) — synthetic browser scenarios, no login or relay operation.
+**[Open the software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site)** · [Readiness and evidence](docs/VALIDATION.md) · [Demo runbook](docs/DEMO.md)
 
-## Run the local demo
+![DWMS overview showing the three water-quality readings and demo-only flow in Simulation mode](docs/screenshots/dashboard-desktop.png)
+
+Actual application screenshot using synthetic browser values; no physical output is connected.
+
+## Run locally
 
 Use Node.js 24 and pnpm 10:
 
@@ -15,20 +19,25 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open the printed URL and choose **Local demo**. Its fixed scenarios need no accounts or probes; they send no hardware commands and save no device history.
-
-- **[Competition readiness checklist](docs/VALIDATION.md)** — evidence, blockers and calibration procedure.
-- **[Demo runbook](docs/DEMO.md)** — browser simulation, connected software injection and physical demonstration.
-- [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Audit and priorities](docs/AUDIT.md) · [Competition / feasibility / pitch](docs/COMPETITION.md)
-
-## Evidence boundary
-
-The Arduino firmware is calibration-disabled: `readCalibratedSensors` still needs measured, module-specific conversion equations. Relay control remains disabled pending physical safety checks. Software tests or a board build do not establish probe accuracy, actual pump motion or water-safety compliance. Current evidence is tracked in the single checklist above.
+Choose Simulation for the public browser demonstration. It requires no login, changes no physical output and does not write device history. Connected operation uses the existing React/TypeScript + Convex architecture with Auth0 identities and a Python/USB Arduino bridge; see [setup](docs/SETUP.md).
 
 ```bash
 pnpm test
+pnpm demo:e2e
 pnpm lint
 pnpm build
 ```
 
-Connected operation requires separate Convex/Auth0 configuration and the Python USB-to-HTTPS bridge. Device keys protect ingestion and controls, but registry/history queries currently permit public reads; tenant isolation is not implemented.
+The integration runner uses a disposable local backend with synthetic readings/operator/ACKs. Its results, CI and Uno target compilation are software evidence. Probe conversion/calibration and physical relay commissioning remain incomplete; repository relay control stays disabled. A software acknowledgement does not prove pump motion or water safety.
+
+## Review the project
+
+- [Architecture](docs/ARCHITECTURE.md): three physical channel design and acknowledged command path.
+- [Single readiness record](docs/VALIDATION.md): Implemented, Software verified, Simulation verified, Physically validated, Pending and Blocked evidence; calibration and hardware information required.
+- [Audit and priorities](docs/AUDIT.md): retained functionality and focused reliability changes.
+- [Pilot and competitive context](docs/COMPETITION.md): proposed utilities-engineer pilot, primary-source competitors and feasibility.
+- [English submission draft](deliverables/IoThon-Submission.md) · [100-second video storyboard](deliverables/Demo-Video-Storyboard.md).
+- Pitch: [editable PPTX](deliverables/DWMS-Pitch.pptx) · [PDF](deliverables/DWMS-Pitch.pdf). Feasibility: [editable DOCX](deliverables/DWMS-Feasibility.docx) · [PDF](deliverables/DWMS-Feasibility.pdf).
+- Actual application captures: [desktop](docs/screenshots/dashboard-desktop.png) · [mobile](docs/screenshots/dashboard-mobile.png).
+
+Founder and Project Lead: **Ahmed Alzahrani**. Original contributor history and the [MIT license](LICENSE) are preserved. DWMS retains its formal expansion, Defense Water Monitoring System; Water Intelligence is the display brand.

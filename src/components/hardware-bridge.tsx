@@ -9,15 +9,17 @@
 import { useEffect, useRef } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
+import { useUserRole } from "@/hooks/use-user-role";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 
 export default function HardwareBridge() {
-  const { dataMode, selectedDeviceId, setSensorData, syncHardwareControlState } = useProcessMode();
+  const { dataMode, selectedDeviceId, setSelectedDeviceId, clearEventLog, setSensorData, syncHardwareControlState } = useProcessMode();
 
   const { isAuthenticated } = useConvexAuth();
 
-  // Only subscribe when in hardware mode and a device is selected
-  const shouldSubscribe = isAuthenticated && dataMode === "hardware" && !!selectedDeviceId;
+  const { user } = useUserRole();
+  // Registration must finish before protected device queries start.
+  const shouldSubscribe = !!user && isAuthenticated && dataMode === "hardware" && !!selectedDeviceId;
 
   const latestReading = useQuery(
     api.devices.getLatestReading,
@@ -27,6 +29,15 @@ export default function HardwareBridge() {
     api.devices.getControlState,
     shouldSubscribe ? { deviceId: selectedDeviceId } : "skip",
   );
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Real selections/activity must not survive logout, including when the
+      // operator switched to simulation before signing out.
+      if (selectedDeviceId) setSelectedDeviceId("");
+      clearEventLog();
+    }
+  }, [isAuthenticated, dataMode, selectedDeviceId, setSelectedDeviceId, clearEventLog]);
 
   // Track last timestamp to avoid re-processing the same reading
   const lastTimestamp = useRef<string>("");

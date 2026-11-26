@@ -193,10 +193,11 @@ async function requireAdmin(ctx: MutationCtx) {
   return user;
 }
 
-// List all registered devices (public read — guests can view)
+// Shared prototype fleet: only authenticated, registered users may read device data.
 export const listDevices = query({
   args: {},
   handler: async (ctx): Promise<Array<Omit<Doc<"devices">, "apiKey">>> => {
+    await getCurrentUserOrThrow(ctx);
     const devices = await ctx.db.query("devices").collect();
     return devices.map((device) => {
       const { apiKey, ...publicDevice } = device;
@@ -206,10 +207,11 @@ export const listDevices = query({
   },
 });
 
-// Public dashboard state; API keys are never returned from this query.
+// Authenticated dashboard state; API keys are never returned from this query.
 export const getControlState = query({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await getCurrentUserOrThrow(ctx);
     const device = await ctx.db
       .query("devices")
       .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
@@ -574,10 +576,11 @@ export const deleteDevice = mutation({
   },
 });
 
-// Get latest sensor reading for a device (public)
+// Get latest sensor reading for an authenticated registered user.
 export const getLatestReading = query({
   args: { deviceId: v.string() },
   handler: async (ctx, args): Promise<Doc<"sensorReadings"> | null> => {
+    await getCurrentUserOrThrow(ctx);
     return await ctx.db
       .query("sensorReadings")
       .withIndex("by_deviceId_timestamp", (q) =>
@@ -588,10 +591,11 @@ export const getLatestReading = query({
   },
 });
 
-// Get recent readings for a device (public)
+// Get bounded recent readings for an authenticated registered user.
 export const getRecentReadings = query({
   args: { deviceId: v.string(), limit: v.optional(v.number()) },
   handler: async (ctx, args): Promise<Doc<"sensorReadings">[]> => {
+    await getCurrentUserOrThrow(ctx);
     return await ctx.db
       .query("sensorReadings")
       .withIndex("by_deviceId_timestamp", (q) =>

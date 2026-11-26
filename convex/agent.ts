@@ -43,7 +43,10 @@ export const createRun = mutation({
       });
     }
     if (args.selectedDeviceId && args.selectedDeviceId.length > 128) {
-      throw new ConvexError({ code: "BAD_REQUEST", message: "Invalid device ID." });
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Invalid device ID.",
+      });
     }
 
     const startedAt = new Date().toISOString();
@@ -71,7 +74,10 @@ export const getRun = query({
     const user = await getCurrentUserOrThrow(ctx);
     const run = await ctx.db.get(args.runId);
     if (!run || run.userId !== user._id) {
-      throw new ConvexError({ code: "NOT_FOUND", message: "Agent run not found." });
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Agent run not found.",
+      });
     }
     return {
       _id: run._id,
@@ -92,17 +98,24 @@ export const cancelPendingAction = mutation({
     const user = await getCurrentUserOrThrow(ctx);
     const run = await ctx.db.get(args.runId);
     if (!run || run.userId !== user._id) {
-      throw new ConvexError({ code: "NOT_FOUND", message: "Agent run not found." });
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Agent run not found.",
+      });
     }
     if (run.status !== "awaiting_confirmation" || !run.pendingAction) {
-      throw new ConvexError({ code: "INVALID_ACTION", message: "No pending action is available." });
+      throw new ConvexError({
+        code: "INVALID_ACTION",
+        message: "No pending action is available.",
+      });
     }
 
     const now = new Date().toISOString();
     await ctx.db.patch(args.runId, {
       status: "blocked",
       pendingAction: undefined,
-      result: "Operator dismissed the pump proposal. No hardware command was created.",
+      result:
+        "Operator dismissed the pump proposal. No hardware command was created.",
       completedAt: now,
     });
     await ctx.db.insert("agentRunEvents", {
@@ -110,7 +123,8 @@ export const cancelPendingAction = mutation({
       userId: user._id,
       state: "blocked",
       label: "Proposal dismissed",
-      summary: "Operator dismissed the proposal before a device command was created.",
+      summary:
+        "Operator dismissed the proposal before a device command was created.",
       createdAt: now,
     });
     return true;
@@ -123,7 +137,10 @@ export const getRunEvents = query({
     const user = await getCurrentUserOrThrow(ctx);
     const run = await ctx.db.get(args.runId);
     if (!run || run.userId !== user._id) {
-      throw new ConvexError({ code: "NOT_FOUND", message: "Agent run not found." });
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Agent run not found.",
+      });
     }
     return await ctx.db
       .query("agentRunEvents")
@@ -141,7 +158,10 @@ export const submitExperienceFeedback = mutation({
   handler: async (ctx, args) => {
     const user = await getCurrentUserOrThrow(ctx);
     if (user.role !== "admin" && user.role !== "operator") {
-      throw new ConvexError({ code: "FORBIDDEN", message: "Operator access required." });
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Operator access required.",
+      });
     }
     const feedback = args.feedback.trim();
     if (!feedback || feedback.length > 1000) {
@@ -152,7 +172,10 @@ export const submitExperienceFeedback = mutation({
     }
     const experience = await ctx.db.get(args.experienceId);
     if (!experience) {
-      throw new ConvexError({ code: "NOT_FOUND", message: "Experience not found." });
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Experience not found.",
+      });
     }
     await ctx.db.patch(args.experienceId, { operatorFeedback: feedback });
   },
@@ -166,11 +189,16 @@ export const getRunForExecution = internalQuery({
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tokenIdentifier))
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", args.tokenIdentifier),
+      )
       .unique();
     const run = await ctx.db.get(args.runId);
     if (!user || !run || run.userId !== user._id) {
-      throw new ConvexError({ code: "NOT_FOUND", message: "Agent run not found." });
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Agent run not found.",
+      });
     }
     return {
       run,
@@ -183,9 +211,12 @@ export const claimRun = internalMutation({
   args: { runId: v.id("agentRuns"), userId: v.id("users") },
   handler: async (ctx, args) => {
     const run = await ctx.db.get(args.runId);
-    if (!run || run.userId !== args.userId || run.status !== "running") return false;
+    if (!run || run.userId !== args.userId || run.status !== "running")
+      return false;
     if (run.executionClaimedAt) return false;
-    await ctx.db.patch(args.runId, { executionClaimedAt: new Date().toISOString() });
+    await ctx.db.patch(args.runId, {
+      executionClaimedAt: new Date().toISOString(),
+    });
     return true;
   },
 });
@@ -220,20 +251,17 @@ export const appendEvent = internalMutation({
   },
 });
 
+// Retained for compatibility with old deployments; proposals are disabled.
 export const setPendingAction = internalMutation({
   args: {
     runId: v.id("agentRuns"),
     userId: v.id("users"),
     action: pendingAction,
   },
-  handler: async (ctx, args) => {
-    const run = await ctx.db.get(args.runId);
-    if (!run || run.userId !== args.userId || run.status !== "running") {
-      throw new ConvexError({ code: "INVALID_RUN", message: "This run cannot accept an action." });
-    }
-    await ctx.db.patch(args.runId, {
-      status: "awaiting_confirmation",
-      pendingAction: args.action,
+  handler: async () => {
+    throw new ConvexError({
+      code: "READ_ONLY_ASSISTANT",
+      message: "The assistant cannot propose hardware commands.",
     });
   },
 });
@@ -253,22 +281,11 @@ export const saveRunResult = internalMutation({
 
 export const claimPendingAction = internalMutation({
   args: { runId: v.id("agentRuns"), userId: v.id("users") },
-  handler: async (ctx, args) => {
-    const run = await ctx.db.get(args.runId);
-    if (
-      !run ||
-      run.userId !== args.userId ||
-      run.status !== "awaiting_confirmation" ||
-      !run.pendingAction
-    ) {
-      throw new ConvexError({ code: "INVALID_ACTION", message: "No pending action is available." });
-    }
-    const action = run.pendingAction;
-    await ctx.db.patch(args.runId, {
-      status: "running",
-      pendingAction: undefined,
+  handler: async () => {
+    throw new ConvexError({
+      code: "READ_ONLY_ASSISTANT",
+      message: "The assistant cannot execute hardware commands.",
     });
-    return action;
   },
 });
 
@@ -276,7 +293,11 @@ export const finishRun = internalMutation({
   args: {
     runId: v.id("agentRuns"),
     userId: v.id("users"),
-    status: v.union(v.literal("completed"), v.literal("blocked"), v.literal("failed")),
+    status: v.union(
+      v.literal("completed"),
+      v.literal("blocked"),
+      v.literal("failed"),
+    ),
     result: v.string(),
   },
   handler: async (ctx, args) => {

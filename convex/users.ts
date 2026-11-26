@@ -59,9 +59,8 @@ export const updateCurrentUser = mutation({
       )
       .unique();
     if (user !== null) {
-      const initialAdminEmail = process.env.DWMS_INITIAL_ADMIN_EMAIL
-        ?.trim()
-        .toLowerCase();
+      const initialAdminEmail =
+        process.env.DWMS_INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
       if (
         initialAdminEmail &&
         identity.emailVerified === true &&
@@ -76,11 +75,22 @@ export const updateCurrentUser = mutation({
     // Auth0 issues a new tokenIdentifier. Link an existing role record only
     // when the identity provider confirms ownership of the same email address.
     if (identity.email) {
+      const normalizedEmail = identity.email.trim().toLowerCase();
       const matchingUsers = await ctx.db
         .query("users")
-        .withIndex("by_email", (q) => q.eq("email", identity.email!))
+        .withIndex("by_email", (q) => q.eq("email", normalizedEmail))
         .take(2);
 
+      // Preserve links for existing records saved before normalized storage.
+      if (normalizedEmail !== identity.email) {
+        const legacy = await ctx.db
+          .query("users")
+          .withIndex("by_email", (q) => q.eq("email", identity.email!))
+          .take(2);
+        for (const record of legacy)
+          if (!matchingUsers.some((match) => match._id === record._id))
+            matchingUsers.push(record);
+      }
       if (matchingUsers.length > 1) {
         throw new ConvexError({
           code: "AMBIGUOUS_IDENTITY",
@@ -102,7 +112,13 @@ export const updateCurrentUser = mutation({
         await ctx.db.patch(existingUser._id, {
           tokenIdentifier: identity.tokenIdentifier,
           name: identity.name ?? existingUser.name,
-          email: identity.email,
+          email: identity.email?.trim().toLowerCase(),
+          role:
+            identity.emailVerified === true &&
+            normalizedEmail ===
+              process.env.DWMS_INITIAL_ADMIN_EMAIL?.trim().toLowerCase()
+              ? "admin"
+              : existingUser.role,
         });
         return existingUser._id;
       }
@@ -110,9 +126,8 @@ export const updateCurrentUser = mutation({
 
     // Only a verified, explicitly configured owner can bootstrap admin access.
     // New accounts otherwise start as viewers, even when the database is empty.
-    const initialAdminEmail = process.env.DWMS_INITIAL_ADMIN_EMAIL
-      ?.trim()
-      .toLowerCase();
+    const initialAdminEmail =
+      process.env.DWMS_INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
     const isInitialAdmin =
       !!initialAdminEmail &&
       identity.emailVerified === true &&
@@ -120,7 +135,7 @@ export const updateCurrentUser = mutation({
     const role = isInitialAdmin ? ("admin" as const) : ("viewer" as const);
     return await ctx.db.insert("users", {
       name: identity.name,
-      email: identity.email,
+      email: identity.email?.trim().toLowerCase(),
       tokenIdentifier: identity.tokenIdentifier,
       role,
     });
@@ -171,12 +186,22 @@ export const updateUserRole = mutation({
       });
     }
 
-    // The first user ever registered is the system owner and cannot be changed.
-    const firstUser = await ctx.db.query("users").order("asc").first();
-    if (firstUser && firstUser._id === args.userId) {
+    const target = await ctx.db.get(args.userId);
+    if (!target)
+      throw new ConvexError({ code: "NOT_FOUND", message: "User not found" });
+    // Registration order does not establish ownership. Only the explicitly
+    // configured bootstrap administrator retains protected admin access.
+    const ownerEmail =
+      process.env.DWMS_INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
+    if (
+      ownerEmail &&
+      target.email?.trim().toLowerCase() === ownerEmail &&
+      target.role === "admin" &&
+      args.role !== "admin"
+    ) {
       throw new ConvexError({
         code: "FORBIDDEN",
-        message: "Cannot change the system owner's role",
+        message: "Cannot remove the configured owner's administrator access",
       });
     }
 

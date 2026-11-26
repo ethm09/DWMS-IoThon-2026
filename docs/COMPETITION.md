@@ -1,35 +1,35 @@
-# Competition brief
+# Competition and pilot brief
 
-**Challenge:** IoT water-quality monitoring for networks, reservoirs, and treated-water reuse.
+**DWMS · Water Intelligence — Monitor. Detect. Respond.**
 
-DWMS connects pH/TDS/turbidity monitoring with threshold alerts and traceable rule-based response. Evidence and unfinished gates are maintained only in [VALIDATION.md](VALIDATION.md).
+DWMS gives an operator one view of three water-quality readings, data age, threshold alerts and traceable response. Its competition strength is a focused, reproducible monitoring-to-response prototype. Evidence belongs in [VALIDATION.md](VALIDATION.md), English form content in [the submission draft](../deliverables/IoThon-Submission.md), and video shots in [the storyboard](../deliverables/Demo-Video-Storyboard.md).
 
-| Strength | Credible software advantage | Claim boundary |
+## First proposed pilot
+
+**User/owner:** an industrial utilities engineer responsible for a treated-water reuse buffer tank feeding a nonpotable process. No pilot partner is confirmed. Begin with observation and an isolated indicator, not unattended process control. The engineer approves parameters, sampling location, thresholds, escalation and the eventual physical action; pH/TDS/turbidity alone cannot establish reuse suitability.
+
+The testable value proposition is quicker inspection of a change and a clearer response record than the pilot's current workflow. Establish that workflow before claiming improvement. Track sample completeness, false/missed alerts, operator acknowledgement, maintenance effort and cost; measure physical timing and any water/energy savings independently.
+
+## Competitive context — primary sources
+
+| Existing product | Published capability | Implication for DWMS |
 |---|---|---|
-| Real-time monitoring | Validated ingestion and reactive selected-device readings | Physical delay/accuracy unmeasured |
-| Early anomaly detection | Warning bands before critical thresholds | Threshold detection; no predictive accuracy claim |
-| Rule-based response | Shared policy, interlocks and latched recovery | Physical output/treatment needs validation |
-| Connectivity | Stale/unknown states, command ACK/expiry and local watchdog | No field uptime guarantee |
-| Multi-site monitoring | Registered locations and per-device history/control | Physical node count and fleet capacity need evidence |
-| Hardware integration | Uno → serial/Python → HTTPS/Convex → dashboard + ACK path | Compile/injected evidence does not prove calibrated sensing |
+| [Hach SC4500 / Claros](https://my.hach.com/digital-controllers-transmitters/sc4500-analog-controller/family?productCategoryId=66362165813) | Analog/digital sensor integration, local SCADA/PLC communication and optional cloud connectivity | Connected instruments and remote oversight are established capabilities |
+| [Endress+Hauser Netilion Water](https://www.endress.com/en/field-instruments-overview/netilion-iiot/netilion-water) | Consolidated multi-asset measurements, dashboards and configurable limit monitoring | Distributed visibility and deviation alerts are established capabilities |
 
-## Feasibility study outline
+Sources checked 2026-11-26. This is a category comparison, not hands-on product benchmarking. DWMS does not claim superior price, accuracy, reliability, certification or uniqueness. Its reviewable contribution is explicit data freshness, shared deterministic decisions and acknowledged command outcomes in a small prototype.
 
-1. Select one pilot site/operator and applicable standards; define missing parameters beyond the three probes.
-2. Identify exact sensors, calibration/cleaning needs, enclosure, power and bridge-host/network requirements. Approve the control action for that process.
-3. Obtain dated supplier quotes for probes, controller, LCD/relay/isolation, host, enclosure/power, installation and reference instruments. Include cleaning/replacement and cloud/network recurring cost from measured use; do not invent totals.
-4. Measure baseline versus pilot alert/acknowledgement time, sample completeness, false/missed alerts, maintenance effort and cost. Meter water/energy independently if claiming savings.
-5. Gate conversion/calibration → isolated-load faults → two-node pilot → field observation. Name owners and acceptance criteria before tests; review access, retention, credential lifecycle and scale.
+## Six strengths to demonstrate
 
-## Pitch deck outline
+1. Current pH/TDS/turbidity readings, with source and receipt age.
+2. Warning thresholds before critical levels; no predictive-detection claim.
+3. Rule-based response, latched stop and explicit recovered acknowledgement.
+4. Visible stale/unknown state, command expiry/ACK and local communication lease.
+5. Registered sites and independent device history; physical fleet capacity unproven.
+6. Reproducible bridge/backend/controller software path; calibrated physical integration remains gated. Flow is demo-only.
 
-1. Concrete operator problem and sourced pilot evidence.
-2. Focused dashboard: source, three readings, status and action.
-3. One reading and acknowledged command through the architecture.
-4. [Demo](DEMO.md): warning → response → critical stop → recovered acknowledgement, with evidence labels.
-5. Reliability evidence and unresolved physical gates from the readiness checklist.
-6. Registered sites; distinguish software support from physical node count.
-7. Quoted costs, maintenance plan and measured-impact pilot design.
-8. Readiness, next validation gate and pilot request.
+## Feasibility and pitch outline
 
-Keep AI secondary. No unmeasured performance, compliance, autonomous-treatment or competitor-uniqueness claims belong in the pitch.
+Confirm models/calibration, electrical commissioning, enclosure/power and host/network needs; obtain dated component/installation/maintenance quotes; agree pilot acceptance criteria; then progress from calibrated bench to isolated-load faults, two nodes and supervised field observation. Costs, dates and impact targets remain pending actual quotes and the pilot owner's agreement.
+
+Pitch: operator problem → focused interface → three-channel architecture → labeled demo → evidence and gaps → proposed pilot/quoted economics → next validation gate. Keep AI secondary and use only the evidence categories in the readiness record.

@@ -13,6 +13,6 @@ export default function About() {
     </ul>
     <p className="text-sm">AI assistance is optional. Backend authorization and deterministic interlocks govern every physical command.</p>
     <p className="text-sm">These three sensors do not establish potable-water safety. Site thresholds and treatment procedures require qualified review.</p>
-    <div className="flex flex-wrap gap-4 text-sm underline"><Link to="/">Dashboard demo</Link><Link to="/thresholds">Safety rules</Link><a href="https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus/docs">Architecture and validation</a></div>
+    <div className="flex flex-wrap gap-4 text-sm underline"><Link to="/dashboard">Dashboard demo</Link><Link to="/thresholds">Safety rules</Link><a href="https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus/docs">Architecture and validation</a></div>
   </div>;
 }

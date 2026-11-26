@@ -1,245 +1,44 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { useAction, useMutation, useQuery } from "convex/react";
-import { Authenticated } from "convex/react";
+import { useRef, useState, useEffect } from "react";
+import { Authenticated, useAction, useMutation } from "convex/react";
+import { Brain, Send, X } from "lucide-react";
 import { api } from "@/convex/_generated/api.js";
-import type { Id } from "@/convex/_generated/dataModel.js";
-import { Brain, X, Send, Sparkles } from "lucide-react";
-import { useProcessMode } from "@/hooks/use-process-mode.ts";
-import { cn } from "@/lib/utils.ts";
+import { useProcessMode } from "@/hooks/use-process-mode";
+import { Button } from "@/components/ui/button";
 
-type Msg = { role: "user" | "assistant"; content: string };
-
-const WELCOME =
-  "I can explain the readings available to DWMS and its prototype threshold rules. AI-generated responses can be wrong; they are not a safety certification or a control command. Verify conditions with approved instruments and site procedures.";
-
-const SUGGESTED = [
-  "What is DWMS?",
-  "Is the water quality safe?",
-  "Why did the pump start?",
-  "What should I fix?",
-  "Explain the latest sensor reading.",
-  "Why did shutdown happen?",
-];
-
-function EthmAssistantInner() {
-  const {
-    assistantOpen, setAssistantOpen,
-  } = useProcessMode();
-
-  const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: WELCOME }]);
+type Message = { role: "user" | "assistant"; content: string };
+function Assistant() {
+  const { assistantOpen, setAssistantOpen, selectedDeviceId } = useProcessMode();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
-  const [activeRunId, setActiveRunId] = useState<Id<"agentRuns"> | null>(null);
+  const [status, setStatus] = useState("On demand");
   const createRun = useMutation(api.agent.createRun);
-  const runAgent = useAction(api.chatAction.run);
-  const confirmPumpAction = useAction(api.chatAction.confirmPumpAction);
-  const cancelPendingAction = useMutation(api.agent.cancelPendingAction);
-  const activeRun = useQuery(
-    api.agent.getRun,
-    activeRunId ? { runId: activeRunId } : "skip",
-  );
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, pending]);
-
-  const send = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || pending || activeRun?.pendingAction) return;
-      const next: Msg[] = [...messages, { role: "user", content: trimmed }];
-      setMessages(next);
-      setInput("");
-      setPending(true);
-      try {
-        const runId = await createRun({ objective: trimmed });
-        setActiveRunId(runId);
-        const res = await runAgent({
-          runId,
-          messages: next.filter((m) => m.content !== WELCOME),
-        });
-        setMessages((prev) => [...prev, { role: "assistant", content: res.text }]);
-      } catch {
-        setMessages((prev) => [...prev, { role: "assistant", content: "Ethm AI is temporarily offline. Please try again." }]);
-      } finally {
-        setPending(false);
-      }
-    },
-    [messages, pending, activeRun?.pendingAction, createRun, runAgent]
-  );
-
-  const confirmProposal = useCallback(async () => {
-    if (!activeRunId || !activeRun?.pendingAction || pending) return;
-    setPending(true);
+  const run = useAction(api.chatAction.run);
+  const scroll = useRef<HTMLDivElement>(null);
+  useEffect(() => { scroll.current?.scrollTo({ top: scroll.current.scrollHeight }); }, [messages, pending]);
+  async function send(question: string) {
+    if (!question.trim() || pending) return;
+    const next: Message[] = [...messages, { role: "user", content: question.trim() }];
+    setMessages(next); setInput(""); setPending(true); setStatus("Checking available data");
     try {
-      const result = await confirmPumpAction({ runId: activeRunId });
-      setMessages((prev) => [...prev, { role: "assistant", content: result.text }]);
+      const runId = await createRun({ objective: question.trim(), selectedDeviceId: selectedDeviceId || undefined });
+      const result = await run({ runId, messages: next });
+      setMessages(current => [...current, { role: "assistant", content: result.text }]);
+      setStatus(/not configured|could not complete|failed/i.test(result.text) ? "Service unavailable" : "Response received");
     } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "DWMS could not confirm the proposal. Check the current device state; no successful action is claimed." }]);
-    } finally {
-      setPending(false);
-    }
-  }, [activeRunId, activeRun?.pendingAction, pending, confirmPumpAction]);
-
-  const dismissProposal = useCallback(async () => {
-    if (!activeRunId || !activeRun?.pendingAction || pending) return;
-    setPending(true);
-    try {
-      await cancelPendingAction({ runId: activeRunId });
-      setMessages((prev) => [...prev, { role: "assistant", content: "Proposal dismissed. No device command was created." }]);
-    } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "The proposal could not be dismissed. No hardware action is claimed." }]);
-    } finally {
-      setPending(false);
-    }
-  }, [activeRunId, activeRun?.pendingAction, pending, cancelPendingAction]);
-
-  return (
-    <>
-      {/* Floating "Ask Ethm AI" button */}
-      <AnimatePresence>
-        {!assistantOpen && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            onClick={() => setAssistantOpen(true)}
-            className="fixed bottom-4 right-4 z-[9990] flex items-center gap-2 px-4 py-3 rounded-full cursor-pointer shadow-lg font-bold tracking-wider text-xs"
-            style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "white", boxShadow: "0 0 24px #22c55e66" }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.96 }}
-          >
-            <Brain className="w-4 h-4" />
-            Ask Ethm AI
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Chat panel */}
-      <AnimatePresence>
-        {assistantOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", damping: 26, stiffness: 320 }}
-            className="fixed bottom-4 right-4 z-[9991] w-[calc(100vw-2rem)] sm:w-96 flex flex-col rounded-2xl border overflow-hidden"
-            style={{ height: "min(600px, 80vh)", background: "oklch(0.11 0.018 145)", borderColor: "#22c55e55", boxShadow: "0 0 40px #22c55e22" }}
-          >
-            {/* Header */}
-            <div className="px-4 py-3 flex items-center gap-3 border-b shrink-0" style={{ borderColor: "#22c55e33", background: "oklch(0.13 0.02 145)" }}>
-              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border" style={{ borderColor: "#22c55e", background: "#22c55e18" }}>
-                <Brain className="w-4 h-4" style={{ color: "#22c55e" }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm tracking-wide" style={{ color: "#22c55e" }}>Ethm AI</div>
-                <div className="text-[10px] text-muted-foreground truncate">Explanatory assistant · not a safety controller</div>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                <span className="text-[9px] font-bold tracking-widest text-muted-foreground">ON DEMAND</span>
-              </div>
-              <button onClick={() => setAssistantOpen(false)} className="p-1 rounded hover:bg-white/10 cursor-pointer text-muted-foreground hover:text-foreground ml-1">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Messages */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
-              {messages.map((m, i) => (
-                <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-                  <div
-                    className={cn("rounded-2xl px-3 py-2 text-xs leading-relaxed max-w-[85%] whitespace-pre-wrap", m.role === "user" ? "rounded-br-sm" : "rounded-bl-sm")}
-                    style={m.role === "user"
-                      ? { background: "#22c55e", color: "white" }
-                      : { background: "oklch(0.16 0.02 145)", color: "oklch(0.9 0.02 145)", border: "1px solid oklch(0.24 0.03 145)" }}
-                  >
-                    {m.content}
-                  </div>
-                </div>
-              ))}
-              {activeRun?.pendingAction && (
-                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs space-y-2">
-                  <div className="font-semibold text-amber-300">Pump command requires your confirmation</div>
-                  <p>
-                    Ethm proposes pump {activeRun.pendingAction.pumpOn ? "ON" : "OFF"} for device {activeRun.pendingAction.deviceId}.
-                  </p>
-                  <p className="text-muted-foreground">Reason: {activeRun.pendingAction.reason}</p>
-                  <p className="text-muted-foreground">Confirming sends a request; DWMS rechecks its interlocks and waits for controller acknowledgement.</p>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => void confirmProposal()} disabled={pending} className="rounded-md bg-amber-500 px-3 py-1.5 font-medium text-black disabled:opacity-50">
-                      Confirm command
-                    </button>
-                    <button type="button" onClick={() => void dismissProposal()} disabled={pending} className="rounded-md border border-border px-3 py-1.5 disabled:opacity-50">
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              )}
-              {pending && (
-                <div className="flex justify-start">
-                  <div className="rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1" style={{ background: "oklch(0.16 0.02 145)", border: "1px solid oklch(0.24 0.03 145)" }}>
-                    {[0, 1, 2].map((i) => (
-                      <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-emerald-400" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Suggested questions (only before any user message) */}
-              {messages.length === 1 && (
-                <div className="space-y-1.5 pt-1">
-                  <div className="text-[9px] font-bold tracking-widest text-muted-foreground flex items-center gap-1 px-1">
-                    <Sparkles className="w-3 h-3" /> SUGGESTED
-                  </div>
-                  {SUGGESTED.map((q) => (
-                    <button key={q} onClick={() => void send(q)}
-                      className="w-full text-left text-xs px-3 py-2 rounded-xl cursor-pointer transition-colors hover:bg-white/5"
-                      style={{ background: "oklch(0.14 0.018 145)", border: "1px solid oklch(0.22 0.03 145)", color: "oklch(0.8 0.02 145)" }}>
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Live risk strip */}
-            <p className="px-3 py-2 text-[10px] text-muted-foreground border-t">Explanations use backend data. Check monitoring for current freshness and controller acknowledgement.</p>
-
-            {/* Input */}
-            <form
-              onSubmit={(e) => { e.preventDefault(); void send(input); }}
-              className="p-3 border-t flex items-center gap-2 shrink-0"
-              style={{ borderColor: "#22c55e33" }}
-            >
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={activeRun?.pendingAction ? "Confirm or dismiss the pump proposal first" : "Ask Ethm AI…"}
-                disabled={pending || Boolean(activeRun?.pendingAction)}
-                className="flex-1 bg-transparent border rounded-full px-3 py-2 text-xs outline-none focus:border-emerald-400 transition-colors"
-                style={{ borderColor: "oklch(0.24 0.03 145)" }}
-              />
-              <button type="submit" disabled={!input.trim() || pending}
-                className="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                style={{ background: "#22c55e", color: "white" }}>
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
+      setStatus("Service unavailable");
+      setMessages(current => [...current, { role: "assistant", content: "Ethm could not reach its data or model service. Current monitoring and deterministic response rules remain available." }]);
+    } finally { setPending(false); }
+  }
+  if (!assistantOpen) return null;
+  return <section role="dialog" aria-modal="true" aria-label="Ethm water intelligence assistant" className="fixed inset-x-3 bottom-20 z-50 flex max-h-[75vh] flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xl sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[410px]">
+    <header className="flex items-center gap-3 border-b border-border p-4"><Brain className="h-5 w-5 text-primary" /><div className="flex-1"><h2 className="font-semibold">Ethm · AI interpretation</h2><p className="text-xs text-muted-foreground" role="status">{status}</p></div><Button size="icon" variant="ghost" aria-label="Close assistant" onClick={() => setAssistantOpen(false)}><X /></Button></header>
+    <div ref={scroll} className="min-h-40 flex-1 space-y-4 overflow-y-auto p-4 text-sm">
+      {!messages.length && <><p className="leading-relaxed text-muted-foreground">Explain available readings, configured rules or recorded events. Interpretations may be wrong; Ethm cannot issue equipment commands.</p><div className="space-y-2">{["Explain the latest readings.", "Summarize recent device events.", "Why did the configured response change?"].map(question => <button className="w-full rounded-lg border border-border p-3 text-left hover:bg-accent" key={question} onClick={() => void send(question)}>{question}</button>)}</div></>}
+      {messages.map((message, index) => <div key={index} className={`rounded-xl p-3 leading-relaxed whitespace-pre-wrap ${message.role === "user" ? "ml-6 bg-primary text-white" : "mr-3 bg-muted text-foreground"}`}><span className="mb-1 block text-xs font-semibold opacity-70">{message.role === "user" ? "You" : "AI interpretation"}</span>{message.content}</div>)}
+      {pending && <p className="text-muted-foreground">Reviewing available records…</p>}
+    </div>
+    <form className="flex gap-2 border-t border-border p-3" onSubmit={event => { event.preventDefault(); void send(input); }}><input aria-label="Question for Ethm" value={input} maxLength={1000} onChange={event => setInput(event.target.value)} disabled={pending} placeholder="Ask about readings or events" className="min-w-0 flex-1 rounded-lg border border-input px-3 py-2 text-sm" /><Button type="submit" size="icon" disabled={!input.trim() || pending} aria-label="Send question"><Send /></Button></form>
+  </section>;
 }
-
-export default function EthmAssistant() {
-  // Chat requires auth (Convex action reads identity-independent but keep gated for consistency).
-  return (
-    <Authenticated>
-      <EthmAssistantInner />
-    </Authenticated>
-  );
-}
+export default function EthmAssistant() { return <Authenticated><Assistant /></Authenticated>; }

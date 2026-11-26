@@ -8,7 +8,7 @@
 
 ## 1. Local dashboard — reliable presentation fallback
 
-Open the [public software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site) or run `pnpm dev`, open `/` and choose **Local demo**. No accounts or AI key are needed.
+Open the [public software demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/dashboard) or run `pnpm dev` and open `/dashboard` in Simulation mode. `/` is the product introduction. No accounts or AI key are needed. The single site **Reservoir demo / SIMULATION-NODE-01** is synthetic; flow is a fixed demo-only value.
 
 | Action | Expected result |
 |---|---|
@@ -19,7 +19,7 @@ Open the [public software demo](https://dwms-iothon-competition-demo.merryllama4
 | **5 · Recovery** | Normal readings return; latch remains |
 | **Acknowledge recovery** | Local recovered acknowledgement clears the latch |
 
-Say: “These readings and output are simulated. The response uses deterministic thresholds.” Show source, three readings, warning, response, critical stop and recovery. No readings enter device history and no relay command is sent.
+Say: “These readings and output are simulated. The response uses deterministic thresholds.” Show the source badge, three readings, warning, response, critical stop and recovery; navigate Alerts, History and Sites to show shared browser-demo state. Sensor alerts clear on recovery, while the controller latch remains until acknowledgement. No backend device history is written and no relay command is sent.
 
 ## 2. Connected software path — isolated, injected evidence
 

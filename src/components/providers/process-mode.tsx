@@ -57,8 +57,11 @@ function loadPersisted(): PersistedState {
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     const state = { ...DEFAULT_STATE, ...parsed };
 
-    // Old saved states predate explicit hardware-output confirmation.
-    if (state.dataMode === "hardware") state.pumpStatusKnown = false;
+    // Physical telemetry is session data, never restored as a fresh measurement.
+    if (state.dataMode === "hardware") {
+      state.ph = null; state.tds = null; state.turbidity = null; state.flowRate = null;
+      state.pumpStatusKnown = false;
+    }
 
     // If in demo mode, clamp readings to safe ranges and clear any lingering
     // emergency state that was triggered by the old unclamped drift.
@@ -139,7 +142,10 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
       ...patch,
       lastUpdated: new Date().toISOString(),
     };
-    localStorage.setItem(STATE_KEY, JSON.stringify(next));
+    const stored = next.dataMode === "hardware"
+      ? { ...next, ph: null, tds: null, turbidity: null, flowRate: null, pumpStatusKnown: false }
+      : next;
+    localStorage.setItem(STATE_KEY, JSON.stringify(stored));
     setLastUpdated(next.lastUpdated);
   }, []);
 

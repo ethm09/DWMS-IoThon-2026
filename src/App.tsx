@@ -3,6 +3,7 @@ import { DefaultProviders } from "./components/providers/default.tsx";
 import { useServiceWorker } from "@/hooks/use-service-worker.ts";
 import AuthCallback from "./pages/auth/Callback.tsx";
 import AppLayout from "./pages/layout.tsx";
+import Landing from "./pages/landing/page.tsx";
 import Dashboard from "./pages/dashboard/page.tsx";
 import About from "./pages/about/page.tsx";
 import Alerts from "./pages/alerts/page.tsx";
@@ -23,11 +24,12 @@ export default function App() {
     <DefaultProviders>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Landing />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/analytics" element={<Navigate to="/historical" replace />} />
-            <Route path="/simulation" element={<Navigate to="/" replace />} />
+            <Route path="/simulation" element={<Navigate to="/dashboard" replace />} />
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/ai-decision" element={<AIDecision />} />
             <Route path="/maintenance" element={<Navigate to="/remote-monitoring" replace />} />

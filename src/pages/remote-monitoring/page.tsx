@@ -4,10 +4,14 @@ import {
   AuthLoading,
   Unauthenticated,
   useQuery,
+  useConvexAuth,
 } from "convex/react";
 import { Link } from "react-router-dom";
 import { api } from "@/convex/_generated/api.js";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
+import { useDemo } from "@/hooks/use-demo.ts";
+import { DEMO_DEVICE } from "@/lib/demo-state.ts";
+import { waterQuality } from "@/lib/monitoring.ts";
 import { SignInButton } from "@/components/ui/signin.tsx";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -117,7 +121,7 @@ function SitesInner() {
                       </TableCell>
                       <TableCell>
                         <Link
-                          to="/"
+                          to="/dashboard"
                           onClick={() => selectDevice(device.deviceId)}
                           className="text-primary underline"
                         >
@@ -142,29 +146,81 @@ function SitesInner() {
   );
 }
 
-export default function RemoteMonitoring() {
+function DemoSites() {
+  const { state } = useDemo();
+  const quality = waterQuality(state.readings, "fresh");
   return (
-    <>
-      <AuthLoading>
-        <p className="p-6" role="status">
-          Checking session…
+    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
+      <div>
+        <p className="mb-2 text-sm font-medium text-primary">Network</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Sites</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Inspect the node participating in this simulation.
         </p>
-      </AuthLoading>
-      <Unauthenticated>
-        <div className="space-y-4 p-6">
-          <h1 className="text-xl font-bold">Sites and connectivity</h1>
-          <p>Sign in to view registered sites.</p>
-          <SignInButton />
-          <p>
-            <Link to="/" className="text-primary underline">
-              Open the local demo
-            </Link>
-          </p>
-        </div>
-      </Unauthenticated>
-      <Authenticated>
-        <SitesInner />
-      </Authenticated>
-    </>
+      </div>
+      <Card>
+        <CardContent className="space-y-6 py-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">{DEMO_DEVICE.name}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {DEMO_DEVICE.location}
+              </p>
+            </div>
+            <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
+              Virtual node
+            </span>
+          </div>
+          <dl className="grid gap-5 sm:grid-cols-3">
+            <div>
+              <dt className="text-sm text-muted-foreground">Water status</dt>
+              <dd className="mt-1 font-medium">
+                {quality === "safe"
+                  ? "Within configured bands"
+                  : quality === "critical"
+                    ? "Critical"
+                    : "Warning"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Response</dt>
+              <dd className="mt-1 font-medium">
+                {state.response.emergencyLatched
+                  ? "Emergency latched"
+                  : `${state.response.mode === "auto" ? "Auto" : "Manual"} · pump ${state.response.pumpOn ? "ON" : "OFF"}`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">
+                Last scenario update
+              </dt>
+              <dd className="mt-1 font-medium">
+                {new Date(state.updatedAt).toLocaleTimeString()}
+              </dd>
+            </div>
+          </dl>
+          <Link
+            to="/dashboard"
+            className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
+          >
+            Open monitoring
+          </Link>
+        </CardContent>
+      </Card>
+      <p className="text-sm text-muted-foreground">
+        One virtual node is included. Physical multi-site capacity requires
+        connected devices and field validation.
+      </p>
+    </div>
+  );
+}
+
+export default function RemoteMonitoring() {
+  const { dataMode } = useProcessMode();
+  const { isAuthenticated } = useConvexAuth();
+  return dataMode === "hardware" && isAuthenticated ? (
+    <SitesInner />
+  ) : (
+    <DemoSites />
   );
 }

@@ -1,0 +1,45 @@
+{
+  "base": "http://127.0.0.1:5173",
+  "results": [
+    {
+      "width": 390,
+      "guest_pages": 5,
+      "scenario_flow": "PASS",
+      "shared_state": "PASS",
+      "horizontal_overflow": false,
+      "page_errors": 0
+    },
+    {
+      "width": 430,
+      "guest_pages": 5,
+      "scenario_flow": "PASS",
+      "shared_state": "PASS",
+      "horizontal_overflow": false,
+      "page_errors": 0
+    },
+    {
+      "width": 768,
+      "guest_pages": 5,
+      "scenario_flow": "PASS",
+      "shared_state": "PASS",
+      "horizontal_overflow": false,
+      "page_errors": 0
+    },
+    {
+      "width": 1024,
+      "guest_pages": 5,
+      "scenario_flow": "PASS",
+      "shared_state": "PASS",
+      "horizontal_overflow": false,
+      "page_errors": 0
+    },
+    {
+      "width": 1440,
+      "guest_pages": 5,
+      "scenario_flow": "PASS",
+      "shared_state": "PASS",
+      "horizontal_overflow": false,
+      "page_errors": 0
+    }
+  ]
+}

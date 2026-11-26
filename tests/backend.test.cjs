@@ -18,6 +18,7 @@ const stamp = (offset = 0) => new Date(Date.now() + offset).toISOString();
 function fixture({
   role = "operator",
   authenticated = true,
+  registered = true,
   ...deviceOverrides
 } = {}) {
   const tables = {
@@ -38,9 +39,16 @@ function fixture({
     deviceCommands: [],
     sensorReadings: [],
     notifications: [],
-    users: [
-      { _id: "user:1", _creationTime: 1, tokenIdentifier: "test-user", role },
-    ],
+    users: registered
+      ? [
+          {
+            _id: "user:1",
+            _creationTime: 1,
+            tokenIdentifier: "test-user",
+            role,
+          },
+        ]
+      : [],
   };
   const scheduled = [];
   let creationTime = Date.now();
@@ -68,12 +76,13 @@ function fixture({
               const right = b.timestamp ?? b.createdAt ?? b._creationTime;
               // Convex indexes append _creationTime as their final field.
               // Multiple writes can have identical ISO millisecond timestamps.
-              const order = left < right ? -1 : left > right ? 1
-                : (a._creationTime ?? 0) - (b._creationTime ?? 0);
-              return (
-                order *
-                (direction === "desc" ? -1 : 1)
-              );
+              const order =
+                left < right
+                  ? -1
+                  : left > right
+                    ? 1
+                    : (a._creationTime ?? 0) - (b._creationTime ?? 0);
+              return order * (direction === "desc" ? -1 : 1);
             })
             .map((row) => ({ ...row }));
         const query = {
@@ -501,17 +510,39 @@ test("readings with the same receipt millisecond use creation order, matching Co
   const f = fixture();
   const timestamp = stamp();
   f.tables.sensorReadings.push(
-    { _id: "older", _creationTime: 100, deviceId: "site-a", timestamp, ...healthy, ph: 4 },
-    { _id: "newer", _creationTime: 100.001, deviceId: "site-a", timestamp, ...healthy },
+    {
+      _id: "older",
+      _creationTime: 100,
+      deviceId: "site-a",
+      timestamp,
+      ...healthy,
+      ph: 4,
+    },
+    {
+      _id: "newer",
+      _creationTime: 100.001,
+      deviceId: "site-a",
+      timestamp,
+      ...healthy,
+    },
   );
   const latest = await f.invoke("getLatestReading", { deviceId: "site-a" });
   assert.equal(latest._id, "newer");
-  const recent = await f.invoke("getRecentReadings", { deviceId: "site-a", limit: 2 });
-  assert.deepEqual(recent.map(row => row._id), ["newer", "older"]);
+  const recent = await f.invoke("getRecentReadings", {
+    deviceId: "site-a",
+    limit: 2,
+  });
+  assert.deepEqual(
+    recent.map((row) => row._id),
+    ["newer", "older"],
+  );
 });
 
 test("critical input before recovery delivery supersedes the reset with emergency OFF", async () => {
-  for (const critical of [{ ...healthy, ph: 4.5 }, { ...healthy, turbidity: 51 }]) {
+  for (const critical of [
+    { ...healthy, ph: 4.5 },
+    { ...healthy, turbidity: 51 },
+  ]) {
     const f = fixture({ controlMode: "emergency" });
     await f.ingest(healthy);
     await f.invoke("acknowledgeDeviceEmergency", { deviceId: "site-a" });
@@ -521,7 +552,9 @@ test("critical input before recovery delivery supersedes the reset with emergenc
 
     // A new critical sample arrives before the controller receives the reset.
     await f.ingest(critical);
-    const stop = await f.invoke("getPendingControlCommand", { deviceId: "site-a" });
+    const stop = await f.invoke("getPendingControlCommand", {
+      deviceId: "site-a",
+    });
     assert.equal(reset.status, "superseded");
     assert.equal(f.tables.devices[0].controlMode, "emergency");
     assert.equal(f.tables.devices[0].desiredPumpState, false);
@@ -529,8 +562,79 @@ test("critical input before recovery delivery supersedes the reset with emergenc
     assert.equal(stop.mode, "emergency");
     assert.equal(stop.pumpOn, false);
     assert.equal(stop.clearEmergency, false);
-    assert.deepEqual(await f.invoke("acknowledgeControlCommand", {
-      deviceId: "site-a", commandId: reset.commandId, ok: true, pumpOn: false,
-    }), { accepted: false });
+    assert.deepEqual(
+      await f.invoke("acknowledgeControlCommand", {
+        deviceId: "site-a",
+        commandId: reset.commandId,
+        ok: true,
+        pumpOn: false,
+      }),
+      { accepted: false },
+    );
+  }
+});
+
+test("live registry, telemetry and command state require an authenticated registered account", async () => {
+  const reads = [
+    ["listDevices", {}],
+    ["getLatestReading", { deviceId: "site-a" }],
+    ["getRecentReadings", { deviceId: "site-a", limit: 200 }],
+    ["getControlState", { deviceId: "site-a" }],
+  ];
+  for (const options of [{ authenticated: false }, { registered: false }]) {
+    const blocked = fixture(options);
+    for (const [name, args] of reads) {
+      await assert.rejects(blocked.invoke(name, args), (error) => {
+        assert.ok(
+          ["UNAUTHENTICATED", "NOT_FOUND", "FORBIDDEN"].includes(
+            error.data?.code,
+          ),
+        );
+        return true;
+      });
+    }
+  }
+  // Each registered role can observe this deployment; only operator/admin roles
+  // are authorized for control mutations. Guest demo values remain browser-local.
+  for (const role of ["viewer", "operator", "admin"]) {
+    const allowed = fixture({ role });
+    await allowed.ingest(healthy);
+    for (const [name, args] of reads) {
+      const value = await allowed.invoke(name, args);
+      assert.ok(value !== null);
+    }
+    assert.equal(
+      (await allowed.invoke("listDevices", {}))[0].apiKey,
+      undefined,
+    );
+  }
+});
+
+test("the legacy AI confirmation endpoint cannot enqueue actuator commands", async () => {
+  const chat = require(path.join(build, "convex/chatAction.js"));
+  for (const identity of [null, { tokenIdentifier: "test-user" }]) {
+    const calls = [];
+    const ctx = {
+      auth: { getUserIdentity: async () => identity },
+      runQuery: async (...args) => {
+        calls.push(["query", ...args]);
+        throw new Error("AI endpoint must not access control state");
+      },
+      runMutation: async (...args) => {
+        calls.push(["mutation", ...args]);
+        throw new Error("AI endpoint must not enqueue actuator commands");
+      },
+    };
+    await assert.rejects(
+      chat.confirmPumpAction._handler(ctx, { runId: "agentRuns:legacy" }),
+      (error) => {
+        assert.equal(
+          error.data?.code,
+          identity ? "READ_ONLY_ASSISTANT" : "UNAUTHENTICATED",
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(calls, []);
   }
 });

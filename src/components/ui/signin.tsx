@@ -84,13 +84,7 @@ export const SignInButton = forwardRef<HTMLButtonElement, SignInButtonProps>(
         // Run custom onClick first
         onClick?.(event);
 
-        if (!isConfigured) {
-          toast.error("Sign-in is not configured", {
-            description:
-              "Set VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID to enable sign-in.",
-          });
-          return;
-        }
+        if (!isConfigured || event.defaultPrevented) return;
 
         try {
           if (isAuthenticated) {
@@ -125,6 +119,8 @@ export const SignInButton = forwardRef<HTMLButtonElement, SignInButtonProps>(
     ) : (
       <LogIn className="size-4" />
     );
+
+    if (!isConfigured) return null;
 
     return (
       <Button

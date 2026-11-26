@@ -8,7 +8,6 @@ import {
   evaluateSafetyState as evaluateSafetyData,
   type AgentReading,
 } from "./agentAnalysis";
-import { classifyPh, classifyTurbidity } from "./safetyPolicy";
 
 async function getDevice(ctx: QueryCtx, deviceId: string) {
   return await ctx.db
@@ -58,7 +57,8 @@ export const getLatestSensorReadings = internalQuery({
       getDevice(ctx, args.deviceId),
       getLatestReading(ctx, args.deviceId),
     ]);
-    if (!device) return { available: false, reason: "Device not found.", reading: null };
+    if (!device)
+      return { available: false, reason: "Device not found.", reading: null };
     return {
       available: reading !== null,
       source: "device-ingested-hardware-data",
@@ -83,7 +83,9 @@ export const getRecentSensorReadings = internalQuery({
     const limit = Math.max(1, Math.min(50, Math.floor(args.limit)));
     const readings = await ctx.db
       .query("sensorReadings")
-      .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_timestamp", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .take(limit);
     return {
@@ -108,7 +110,9 @@ export const getDeviceStatus = internalQuery({
     const command = device.lastCommandId
       ? await ctx.db
           .query("deviceCommands")
-          .withIndex("by_commandId", (q) => q.eq("commandId", device.lastCommandId!))
+          .withIndex("by_commandId", (q) =>
+            q.eq("commandId", device.lastCommandId!),
+          )
           .unique()
       : null;
     return {
@@ -186,7 +190,8 @@ export const getSystemMode = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
     const device = await getDevice(ctx, args.deviceId);
-    if (!device) return { available: false, mode: "unknown", reason: "Device not found." };
+    if (!device)
+      return { available: false, mode: "unknown", reason: "Device not found." };
     return {
       available: true,
       deviceId: device.deviceId,
@@ -208,13 +213,15 @@ export const getDataMode = internalQuery({
       return {
         mode: "UNKNOWN",
         deviceStatus: device.status,
-        reason: "No persisted hardware reading is available; demo state is browser-local and is not used by Ethm.",
+        reason:
+          "No persisted hardware reading is available; demo state is browser-local and is not used by Ethm.",
       };
     }
     const ageMs = Math.max(0, Date.now() - Date.parse(reading.timestamp));
     return {
       mode: "HARDWARE",
-      freshness: ageMs <= 10_000 && device.status === "online" ? "LIVE" : "STALE",
+      freshness:
+        ageMs <= 10_000 && device.status === "online" ? "LIVE" : "STALE",
       ageMs,
       deviceStatus: device.status,
       readingTimestamp: reading.timestamp,
@@ -249,7 +256,9 @@ export const analyzeSensorTrends = internalQuery({
     const limit = Math.max(3, Math.min(50, Math.floor(args.limit)));
     const readings = await ctx.db
       .query("sensorReadings")
-      .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_timestamp", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .take(limit);
     return analyzeTrendData(readings.map(toAgentReading));
@@ -262,7 +271,9 @@ export const getRecentEvents = internalQuery({
     const limit = Math.max(1, Math.min(30, Math.floor(args.limit)));
     const events = await ctx.db
       .query("deviceCommands")
-      .withIndex("by_deviceId_createdAt", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_createdAt", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .take(limit);
     return events.map((event) => ({
@@ -284,7 +295,9 @@ export const getRelevantExperiences = internalQuery({
     const limit = Math.max(1, Math.min(8, Math.floor(args.limit)));
     const experiences = await ctx.db
       .query("agentExperiences")
-      .withIndex("by_deviceId_createdAt", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_createdAt", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .take(limit);
     return experiences.map((experience) => ({
@@ -303,62 +316,12 @@ export const getRelevantExperiences = internalQuery({
   },
 });
 
+// Compatibility-only guard: the assistant has no actuator/proposal capability.
 export const preflightPumpControl = internalQuery({
   args: { deviceId: v.string(), pumpOn: v.boolean() },
-  handler: async (ctx, args) => {
-    const device = await getDevice(ctx, args.deviceId);
-    if (!device) return { allowed: false, reason: "Device not found." };
-    const reading = await getLatestReading(ctx, args.deviceId);
-    if (!reading) return { allowed: false, reason: "No sensor reading is available." };
-    const readingAgeMs = Date.now() - Date.parse(reading.timestamp);
-    if (
-      device.status !== "online" ||
-      !Number.isFinite(readingAgeMs) ||
-      readingAgeMs < 0 ||
-      readingAgeMs > 10_000
-    ) {
-      return {
-        allowed: false,
-        reason: "A current online device and sensor reading no older than 10 seconds are required.",
-      };
-    }
-    const mode = device.controlMode ?? "auto";
-    if (mode !== "manual") {
-      return {
-        allowed: false,
-        reason: `Device is in ${mode.toUpperCase()} mode. Ethm cannot override the backend control mode.`,
-      };
-    }
-    if (device.desiredPumpState === args.pumpOn) {
-      return {
-        allowed: false,
-        reason: `The backend already requests the pump to be ${args.pumpOn ? "on" : "off"}.`,
-      };
-    }
-    if (args.pumpOn && (classifyPh(reading.ph) === "critical" || classifyTurbidity(reading.turbidity) === "critical")) {
-      return {
-        allowed: false,
-        reason: "The safety interlock blocks pump start while pH or turbidity is critical.",
-      };
-    }
-    if (device.lastCommandId) {
-      const latestCommand = await ctx.db
-        .query("deviceCommands")
-        .withIndex("by_commandId", (q) => q.eq("commandId", device.lastCommandId!))
-        .unique();
-      if (latestCommand?.status === "pending") {
-        return { allowed: false, reason: "A previous pump command is still awaiting controller acknowledgement." };
-      }
-    }
-    return {
-      allowed: true,
-      deviceId: device.deviceId,
-      deviceStatus: device.status,
-      mode,
-      currentDesiredPumpState: device.desiredPumpState ?? false,
-      reportedPumpState: device.reportedPumpState ?? null,
-      reading: toAgentReading(reading),
-      readingAgeMs,
-    };
-  },
+  handler: async () => ({
+    allowed: false,
+    reason:
+      "The assistant is explanation-only. Use the dedicated operator control panel.",
+  }),
 });

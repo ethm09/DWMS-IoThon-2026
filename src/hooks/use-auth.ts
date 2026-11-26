@@ -25,11 +25,8 @@ export const unconfiguredAuthState: AppAuthState = {
   isLoading: false,
   error: null,
   isConfigured: false,
-  signinRedirect: async () => {
-    throw new Error(
-      "Configure VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID to sign in.",
-    );
-  },
+  // Unconfigured sign-in controls are hidden; keep accidental calls inert.
+  signinRedirect: async () => {},
   removeUser: async () => {},
 };
 

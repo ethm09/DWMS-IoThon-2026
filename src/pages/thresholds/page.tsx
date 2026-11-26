@@ -5,7 +5,7 @@ export default function ThresholdsPage() {
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-4xl">
       <h1 className="text-xl font-bold">Deterministic safety rules</h1>
-      <p className="text-sm text-muted-foreground">These are the deployed source-code defaults shared by the dashboard and backend. Site-specific limits require engineering review and a backend deployment. Browser settings cannot change them.</p>
+      <p className="text-sm text-muted-foreground">These are the source-code defaults shared by the dashboard and backend. Site-specific limits require engineering review and a backend deployment. Browser settings cannot change them.</p>
       <Card><CardHeader><CardTitle>Prototype thresholds</CardTitle></CardHeader><CardContent className="overflow-x-auto">
         <table className="w-full text-sm text-left"><thead><tr><th className="p-2">Parameter</th><th className="p-2">Normal band</th><th className="p-2">Critical</th></tr></thead>
           <tbody>

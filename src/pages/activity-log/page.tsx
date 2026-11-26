@@ -13,6 +13,7 @@ import { useProcessMode, type DwmsEvent } from "@/hooks/use-process-mode.ts";
 import { useUserRole } from "@/hooks/use-user-role.ts";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty.tsx";
 import { toast } from "sonner";
+import { RegisteredUserGate } from "@/components/registered-user-gate";
 
 // ── Event type styling ───────────────────────────────────────────────────────
 
@@ -169,7 +170,7 @@ function EventRow({ event, index }: { event: DwmsEvent; index: number }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 
-export default function ActivityLog() {
+function ActivityLogInner() {
   const { eventLog, clearEventLog } = useProcessMode();
   const { isAdmin, role } = useUserRole();
 
@@ -244,7 +245,7 @@ export default function ActivityLog() {
           `"${e.decision ?? ""}"`,
           `"${e.action ?? ""}"`,
           e.systemMode,
-          e.pumpStatus ? "ON" : "OFF",
+          e.pumpStatusKnown ? (e.pumpStatus ? "ON" : "OFF") : "UNCONFIRMED",
         ].join(",")
       ),
     ].join("\n");
@@ -460,4 +461,9 @@ export default function ActivityLog() {
       )}
     </div>
   );
+}
+
+
+export default function ActivityLog() {
+  return <RegisteredUserGate><ActivityLogInner /></RegisteredUserGate>;
 }

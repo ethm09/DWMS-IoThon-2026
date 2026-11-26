@@ -19,7 +19,7 @@ export default function AuthCallback() {
   useEffect(() => {
     if (!isConfigured) {
       setSyncError(
-        "Auth0 is not configured. Set the VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID environment variables.",
+        "Sign-in is unavailable on this installation. You can return to the local demo.",
       );
       return;
     }
@@ -37,7 +37,7 @@ export default function AuthCallback() {
 
     syncStarted.current = true;
     void updateCurrentUser()
-      .then(() => navigate("/", { replace: true }))
+      .then(() => navigate("/dashboard", { replace: true }))
       .catch((syncError: unknown) => {
         syncStarted.current = false;
         setSyncError(
@@ -57,6 +57,16 @@ export default function AuthCallback() {
     updateCurrentUser,
   ]);
 
+  useEffect(() => {
+    if (!isConfigured || isLoading || !isAuthenticated || error) return;
+    const timeout = window.setTimeout(() => {
+      setSyncError(
+        "Your session could not connect to the monitoring service. Sign in again or return to the local demo.",
+      );
+    }, 15_000);
+    return () => window.clearTimeout(timeout);
+  }, [isConfigured, isLoading, isAuthenticated, error]);
+
   if (syncError) {
     return (
       <div className="flex flex-col items-center justify-center h-svh gap-6 px-4">
@@ -71,7 +81,19 @@ export default function AuthCallback() {
           >
             Return home
           </Button>
-          <Button onClick={() => void signinRedirect()}>Try again</Button>
+          {isConfigured && (
+            <Button
+              onClick={() => {
+                setSyncError(null);
+                syncStarted.current = false;
+                void signinRedirect().catch(() =>
+                  setSyncError("Sign-in could not start. Please try again."),
+                );
+              }}
+            >
+              Try again
+            </Button>
+          )}
         </div>
       </div>
     );

@@ -166,7 +166,7 @@ async function acknowledge(commandResult, id = deviceId) {
   );
 }
 async function next(id = deviceId) {
-  const state = await publicClient.query(api.devices.getControlState, {
+  const state = await operatorClient.query(api.devices.getControlState, {
     deviceId: id,
   });
   assert.equal(state.command?.status, "pending");
@@ -235,7 +235,7 @@ try {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: "devices:listDevices",
+          path: "users:getCurrentUser",
           args: {},
           format: "json",
         }),
@@ -277,7 +277,7 @@ try {
   operatorClient = new ConvexClient(cloudUrl, { logger: false });
   operatorClient.setAdminAuth(config.adminKey, identity);
   const observations = [];
-  const unsubscribe = publicClient.onUpdate(
+  const unsubscribe = operatorClient.onUpdate(
     api.devices.getLatestReading,
     { deviceId },
     (value) => observations.push(value),
@@ -290,6 +290,18 @@ try {
       pumpOn: true,
     }),
   );
+  // The public dashboard demo must never expose the live registry or saved readings.
+  for (const [fn, args] of [
+    [api.devices.listDevices, {}],
+    [api.devices.getLatestReading, { deviceId }],
+    [api.devices.getRecentReadings, { deviceId, limit: 200 }],
+    [api.devices.getControlState, { deviceId }],
+  ]) {
+    await assert.rejects(
+      publicClient.query(fn, args),
+      /UNAUTHENTICATED|not authenticated|not logged in|sign in/i,
+    );
+  }
   await post(
     "/arduino/data",
     { ph: 7.2, tds: 300, turbidity: 2 },
@@ -313,11 +325,11 @@ try {
     400,
   );
   assert.equal(
-    await publicClient.query(api.devices.getLatestReading, { deviceId }),
+    await operatorClient.query(api.devices.getLatestReading, { deviceId }),
     null,
   );
   passed(
-    "real HTTP rejects malformed/missing/boolean readings and wrong credentials; unauthenticated control rejected",
+    "real HTTP rejects malformed/missing/boolean readings and wrong credentials; guest live-data reads and control rejected",
   );
 
   async function sample(reading) {
@@ -332,7 +344,7 @@ try {
         ),
       "reactive subscriber receiving HTTP sample",
     );
-    const stored = await publicClient.query(api.devices.getLatestReading, {
+    const stored = await operatorClient.query(api.devices.getLatestReading, {
       deviceId,
     });
     assert.deepEqual(
@@ -371,7 +383,7 @@ try {
   assert.equal(responseCommand.mode, "auto");
   await acknowledge(responseCommand);
   assert.equal(
-    (await publicClient.query(api.devices.getControlState, { deviceId }))
+    (await operatorClient.query(api.devices.getControlState, { deviceId }))
       .command.status,
     "applied",
   );
@@ -394,7 +406,8 @@ try {
   );
   await sample({ ph: 7.3, tds: 301, turbidity: 2.1 });
   assert.equal(
-    (await publicClient.query(api.devices.getControlState, { deviceId })).mode,
+    (await operatorClient.query(api.devices.getControlState, { deviceId }))
+      .mode,
     "emergency",
   );
   await assert.rejects(
@@ -411,13 +424,14 @@ try {
   assert.equal(recovery.clearEmergency, true);
   await acknowledge(recovery);
   assert.equal(
-    (await publicClient.query(api.devices.getControlState, { deviceId })).mode,
+    (await operatorClient.query(api.devices.getControlState, { deviceId }))
+      .mode,
     "auto",
   );
   passed(
     "recovered readings preserved latch; explicit synthetic-operator acknowledgement cleared it",
   );
-  const history = await publicClient.query(api.devices.getRecentReadings, {
+  const history = await operatorClient.query(api.devices.getRecentReadings, {
     deviceId,
     limit: 200,
   });
@@ -454,10 +468,10 @@ try {
   );
   await until(
     async () => {
-      const state = await publicClient.query(api.devices.getControlState, {
+      const state = await operatorClient.query(api.devices.getControlState, {
         deviceId: staleId,
       });
-      const devices = await publicClient.query(api.devices.listDevices, {});
+      const devices = await operatorClient.query(api.devices.listDevices, {});
       return (
         devices.find((device) => device.deviceId === staleId)?.status ===
           "offline" &&
