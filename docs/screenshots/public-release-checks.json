@@ -1,80 +1,77 @@
 {
-  "url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site",
-  "checked_at_utc": "2026-11-26T21:31:48.268383+00:00",
-  "source_commit": "62d673231621eb231ef430f6971c75aeb93d5dfc",
-  "version": 6,
+  "checked_at_utc": "2026-11-26T22:52:15.797485+00:00",
+  "origin": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site",
+  "source_commit": "b167a1ec7c8ba36058e1afb6177a3a5d34cfca78",
+  "site_version": 7,
   "http_checks": [
     {
       "path": "/",
       "status": 200,
-      "content_type": "text/html",
-      "bytes": 1376
+      "bytes": 1376,
+      "sha256": "9e1779a949c6a8410e9135678f665a3783fa23592b8dc4637923944525a5589f"
     },
     {
       "path": "/demo",
       "status": 200,
-      "content_type": "text/html",
-      "bytes": 1376
-    },
-    {
-      "path": "/demo/trends",
-      "status": 200,
-      "content_type": "text/html",
-      "bytes": 1376
-    },
-    {
-      "path": "/demo/alerts",
-      "status": 200,
-      "content_type": "text/html",
-      "bytes": 1376
-    },
-    {
-      "path": "/demo/devices",
-      "status": 200,
-      "content_type": "text/html",
-      "bytes": 1376
-    },
-    {
-      "path": "/demo/sites",
-      "status": 200,
-      "content_type": "text/html",
-      "bytes": 1376
-    },
-    {
-      "path": "/demo/assistant",
-      "status": 200,
-      "content_type": "text/html",
-      "bytes": 1376
+      "bytes": 1376,
+      "sha256": "9e1779a949c6a8410e9135678f665a3783fa23592b8dc4637923944525a5589f"
     },
     {
       "path": "/live",
       "status": 200,
-      "content_type": "text/html",
-      "bytes": 1376
+      "bytes": 1376,
+      "sha256": "9e1779a949c6a8410e9135678f665a3783fa23592b8dc4637923944525a5589f"
     },
     {
-      "path": "/live/events",
+      "path": "/demo/alerts",
       "status": 200,
-      "content_type": "text/html",
-      "bytes": 1376
+      "bytes": 1376,
+      "sha256": "9e1779a949c6a8410e9135678f665a3783fa23592b8dc4637923944525a5589f"
     },
     {
-      "path": "/brand/waves.svg",
+      "path": "/demo/trends",
       "status": 200,
-      "content_type": "image/svg+xml",
-      "bytes": 389
+      "bytes": 1376,
+      "sha256": "9e1779a949c6a8410e9135678f665a3783fa23592b8dc4637923944525a5589f"
+    },
+    {
+      "path": "/demo/devices",
+      "status": 200,
+      "bytes": 1376,
+      "sha256": "9e1779a949c6a8410e9135678f665a3783fa23592b8dc4637923944525a5589f"
+    },
+    {
+      "path": "/demo/sites",
+      "status": 200,
+      "bytes": 1376,
+      "sha256": "9e1779a949c6a8410e9135678f665a3783fa23592b8dc4637923944525a5589f"
+    },
+    {
+      "path": "/demo/assistant",
+      "status": 200,
+      "bytes": 1376,
+      "sha256": "9e1779a949c6a8410e9135678f665a3783fa23592b8dc4637923944525a5589f"
+    },
+    {
+      "path": "/brand/mark.svg",
+      "status": 200,
+      "bytes": 599,
+      "sha256": "9b4a569fac812704a80f482a60fd6bfc3e5130bc61213c901329503e5532e9b1"
+    },
+    {
+      "path": "/hardware/serial_bridge.py",
+      "status": 200,
+      "bytes": 10786,
+      "sha256": "292e5f240394e94a93b4c57d33cb8b6dc3cc28dfedb1d76e65ba1d5bc5ee2896",
+      "matches_release_source": true
     },
     {
       "path": "/media/dwms-software-demo.mp4",
       "status": 200,
-      "content_type": "video/mp4",
-      "bytes": 1906562
+      "bytes": 1906562,
+      "sha256": "1cec6afdaa4ab585192358730fa19196cc5fa80c58c54d479b7851937379200a",
+      "original_recording_unchanged": true
     }
   ],
-  "video": {
-    "duration_seconds": 92.75,
-    "browser_playback_verified": true,
-    "scope": "Actual silent public software recording; no physical footage"
-  },
-  "scope": "Final anonymous release delivery; interactive five-width evidence is in qa-results.json. No real Auth0 session or physical result."
+  "scope": "Actual signed-out Chromium page fetches, exact bridge and original media hashes. Plain urllib/request-context transport was unavailable; not uptime/load or authenticated session validation."
 }

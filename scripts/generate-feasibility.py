@@ -13,6 +13,7 @@ from openpyxl.comments import Comment
 from openpyxl.chart import BarChart, Reference
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
+from docx.oxml import OxmlElement
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'deliverables'
@@ -122,7 +123,7 @@ def workbook():
 def document(cache,args):
  d=Document();sec=d.sections[0];sec.header.paragraphs[0].text='DWMS  /  WATER INTELLIGENCE'
  sec.top_margin=sec.bottom_margin=Inches(.65)
- style=d.styles['Normal'];style.font.name='Inter';style.font.size=Pt(10);style.font.color.rgb=RGBColor.from_string(INK)
+ style=d.styles['Normal'];style.font.name='Inter';style.font.size=Pt(10);style.font.color.rgb=RGBColor.from_string(INK);style.paragraph_format.space_after=Pt(5);style.paragraph_format.line_spacing=1.05
  for name in ['Title','Heading 1','Heading 2']:
   d.styles[name].font.name='Inter';d.styles[name].font.color.rgb=RGBColor.from_string(NAVY)
  sec.footer.paragraphs[0].text='IoThon 2026 • Decision study • Assumptions require validation • '+REVIEW
@@ -133,7 +134,15 @@ def document(cache,args):
   for c,x in zip(t.rows[0].cells,headers):c.text=str(x)
   for row in rows:
    for c,x in zip(t.add_row().cells,row):c.text=str(x)
- def page():d.add_page_break()
+  t.rows[0]._tr.get_or_add_trPr().append(OxmlElement('w:tblHeader'))
+  for row in t.rows:
+   row._tr.get_or_add_trPr().append(OxmlElement('w:cantSplit'))
+   for cell in row.cells:
+    for para in cell.paragraphs:para.paragraph_format.space_after=Pt(3)
+ cover_complete=False
+ def page():
+  nonlocal cover_complete
+  if not cover_complete:d.add_page_break();cover_complete=True
  d.add_heading('DWMS — Water Intelligence',0);p('Monitor. Detect. Respond.');d.add_heading('Saudi pilot feasibility and commercial decision study',1)
  p('Ahmed Alzahrani — Founder and Project Lead\n'+REVIEW)
  p('Decision: proceed with software demonstration and a gated, supervised non-potable pilot design. Do not sell autonomous process control or drinking-water safety assurance before hardware, account, site and service validation.')
