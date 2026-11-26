@@ -156,7 +156,7 @@ def make_deck(desktop,mobile,args):
     picture_window(sl,desktop,.67,2.38,7.41,3.71,800)
     shape(sl,8.4,2.26,1.98,3.95,WHITE,BORDER)
     picture_window(sl,mobile,8.48,2.36,1.82,3.75,844,390)
-    for y,label,body in [(2.40,'Live','Authenticated path; rollout gated.'),(3.35,'Demo','Shared synthetic scenarios.'),(4.30,'Hardware','Recover the prior prototype.'),(5.25,'Ethm','Read-only evidence explanation.')]:
+    for y,label,body in [(2.40,'Live','Authenticated path; rollout gated.'),(3.35,'Demo','Shared synthetic scenarios.'),(4.30,'Hardware','Recover the prior prototype.'),(5.25,'Ethm','Read-only; provider credit blocked.')]:
         txt(sl,label,10.65,y,2.05,.32,15,BLUE,True)
         txt(sl,body,10.65,y+.35,2.05,.52,11,MUTED)
     txt(sl,'Cropped actual application captures • displayed scenario values are simulated.',.6,6.23,12,.28,11,MUTED)
@@ -232,7 +232,8 @@ def make_deck(desktop,mobile,args):
     txt(sl,'One supervised non-potable pilot.\nTwo identified nodes. A named operator.',.65,2.45,11.8,1.15,26,WHITE,True)
     txt(sl,'01  Calibrate against independent reference measurements\n02  Verify isolated-load safety and separate failure modes\n03  Measure completeness, alert/ACK time and maintenance effort',.7,4.04,11.6,1.43,18,'D5E9F3')
     txt(sl,'Ahmed Alzahrani, Founder and Project Lead  •  Pilot partner, budget and limits: TBC.',.7,5.96,11.6,.4,13,CYAN)
-    linktxt(sl,'Repository: '+REPO,REPO,.7,6.49,11.5,.28,10,'D5E9F3')
+    linktxt(sl,'Demo: https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo','https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo',.7,6.45,11.5,.22,10,'D5E9F3')
+    linktxt(sl,'Repository: '+REPO,REPO,.7,6.72,11.5,.19,9,'D5E9F3')
     sl.notes_slide.notes_text_frame.text='No savings without independent metering/baseline. Founder Ahmed Alzahrani confirmed; other roles TBC. Earlier hardware operation is owner-reported and unavailable; no independent physical measurements were reviewed in this work.'
     path=OUT/'DWMS-Pitch.pptx'; prs.save(path)
     return path
@@ -292,7 +293,7 @@ def make_doc(args):
     heading(doc,'Four components; distinct evidence and deployment gates.')
     p(doc,'Live monitoring, the shared Demo, Hardware integration and Ethm explanations support one operational workflow around pH, TDS and turbidity. Flow remains demo-only. This study supports a supervised reuse-buffer pilot, not a certification or measured treatment claim. The owner reports earlier physical operation; that unavailable setup has not been independently revalidated here.')
     document_table(doc,['Decision area','Current evidence','Decision'],[
-      ('Live','Protected source/tests and real isolated-backend trace; existing cloud source/allowed Auth0 URLs need rollout.','Rehearse actual sessions after deployment.'),
+      ('Live','Hardened backend deployed; anonymous reads/controls denied. Auth0 management login is blocked.','Approve Auth0 administration, then rehearse real sessions.'),
       ('Demo','Shared synthetic readings, alerts, history and operator scenarios.','Use explicit simulation labels.'),
       ('Hardware','Earlier operation is owner-reported; current template compiles with calibration/relay gates 0.','Recover original setup; audit physical results.'),
       ('Ethm','Read-only authenticated evidence explanation; server key reported configured.','Verify real data/model request; no fake replies.'),
@@ -312,7 +313,7 @@ def make_doc(args):
     bullet(doc,'Auto requests pump ON above 1500 ppm TDS or 20 NTU turbidity when critical interlocks pass. These prototype thresholds require sensor-range and process validation; pumping alone does not prove contaminant removal.')
     bullet(doc,'Receipt freshness is 10 seconds; commands expire after 20 seconds. The Arduino control lease is 15 seconds and is renewed only after a successful authenticated poll. Values are configured policies, not measured physical timing.')
     doc.add_heading('Limits that affect feasibility',level=2)
-    p(doc,'Existing Convex/Auth0/OpenAI resources are retained; hardened deployment and new-origin role checks are pending. The Uno is gateway-connected, not a standalone wireless node. Source acquisition timestamps and sequence/replay protection are absent. Range checks cannot prove that an unplugged analog probe is detected. No temperature channel, relay-contact feedback or verified treatment result is provided. The hardened source requires registered authentication for real registry/history/control reads; deployment to the existing cloud backend is pending. Authenticated users still share a fleet: tenant/site isolation is not implemented [S6].')
+    p(doc,'Existing Convex/Auth0/OpenAI resources are retained; the hardened backend is deployed; production anonymous reads and control attempts are denied. Auth0 management authorization still blocks new-origin login verification. The Uno is gateway-connected, not a standalone wireless node. Source acquisition timestamps and sequence/replay protection are absent. Range checks cannot prove that an unplugged analog probe is detected. No temperature channel, relay-contact feedback or verified treatment result is provided. Deployed real-data reads require explicit fleet approval; new and legacy unapproved viewers are denied. Private chat/alert/run records are user-owned. Approved users share a fleet; separate customer tenants are not implemented [S6]. Ethm provider verification returned credit_balance_exhausted, so model assistance is unavailable.')
 
     newpage(doc,'Sensors and commissioning','Qualify real modules before enabling the process')
     p(doc,'No installed sensor model is confirmed. Catalog examples below are pricing/selection references, not an installed or qualified DWMS bill of materials.')
@@ -404,7 +405,7 @@ def make_doc(args):
 
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--evidence-commit',default='8c765c4'); ap.add_argument('--ci-url',default=REPO+'/actions/runs/45872251351'); ap.add_argument('--node-tests',type=int,default=33); ap.add_argument('--python-tests',type=int,default=16); ap.add_argument('--draft',action='store_true',help='Allow visibly labeled screenshot placeholders for internal review only')
+    ap=argparse.ArgumentParser(); ap.add_argument('--evidence-commit',default='3fb21a9'); ap.add_argument('--ci-url',default=REPO+'/actions/runs/45895996303'); ap.add_argument('--node-tests',type=int,default=41); ap.add_argument('--python-tests',type=int,default=16); ap.add_argument('--draft',action='store_true',help='Allow visibly labeled screenshot placeholders for internal review only')
     args=ap.parse_args(); OUT.mkdir(exist_ok=True)
     svg=fitz.open(str(ROOT/'public/brand/mark.svg')); svg[0].get_pixmap(matrix=fitz.Matrix(5,5),alpha=True).save(str(BRAND_MARK)); svg.close()
     paths=[ROOT/'docs/screenshots/dashboard-desktop.png',ROOT/'docs/screenshots/dashboard-mobile.png']

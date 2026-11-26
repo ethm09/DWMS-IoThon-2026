@@ -9,9 +9,11 @@ A focused IoThon 2026 prototype for water-quality monitoring across networks, re
 | **Live** | Authenticated readings, alerts, history and authorized device controls | Backend deployed and anonymous access denied; Auth0 callback/session gate remains blocked |
 | **Demo** | Shared browser scenarios for a repeatable presentation | Synthetic readings and response; no physical action |
 | **Hardware** | Arduino/USB bridge and deterministic local interlocks | Owner reports an earlier operating prototype; it is currently unavailable for audited revalidation |
-| **Ethm** | Read-only explanation of authenticated device evidence | Read-only path; provider returned HTTP 429 and real-session rehearsal remains blocked |
+| **Ethm** | Read-only explanation of authenticated device evidence | Read-only path; provider returned `credit_balance_exhausted`; real-session rehearsal remains blocked |
 
 Competition implementation: [improvement branch](https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus) · [Draft PR #2](https://github.com/ethm09/DWMS-IoThon-2026/pull/2). Main is unchanged pending approval.
+
+[Watch the 93-second software walkthrough](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-software-demo.mp4) (silent, simulated readings; no hardware footage).
 
 **[Open Demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo)** · [Live workspace — gated](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/live) · [Readiness and evidence](docs/VALIDATION.md) · [Demo runbook](docs/DEMO.md)
 

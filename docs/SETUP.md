@@ -38,8 +38,12 @@ Callbacks include `/auth/callback`; logout/origin entries do not. Add the exact 
 
 ## Backend, Hardware and Ethm
 
-Current source `646a47d` was deployed to the existing Convex backend. Six anonymous probes—four real-data reads, pump command and agent run—were denied `UNAUTHENTICATED`; see [production checks](screenshots/production-release-checks.json). Future deployment must retain the same existing target and checks.
+Current source `3fb21a9` was deployed to the existing Convex backend. Six anonymous probes—four real-data reads, pump command and agent run—were denied `UNAUTHENTICATED`; see [production checks](screenshots/production-release-checks.json). Future deployment must retain the same existing target and checks.
 
 Use [HARDWARE.md](HARDWARE.md), the canonical recovery/calibration/commissioning guide. The owner-reported earlier prototype is unavailable; preserve its firmware/wiring before changes. The disabled repository template is not recovered historical firmware. Keep backend, bridge and firmware protocol versions coordinated.
 
 Ethm is read-only and needs approved authenticated device evidence plus an available model service. The actual backend provider check returned HTTP 429 with `credit_balance_exhausted`; Ethm remains unavailable until the provider account has usable API credit. The key remains backend-only. Do not substitute a fake model reply. Deterministic monitoring/control is separate.
+
+## Credential review
+
+The public SPA ID was confirmed against the existing Convex environment and original Vercel bundle. Backend keys were neither copied into the frontend nor committed. A limited OpenAI/private-key pattern scan of 515 historical text versions/archive entries found no matches; this is not proof that every secret type is absent. No specific credential rotation was triggered by that check. Replace any device key known to have been shared before reconnection, using the existing admin device workflow. The provider credit error requires usable account credit, not an invented replacement key.

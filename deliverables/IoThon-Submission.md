@@ -53,7 +53,7 @@ Before a field pilot, obtain component and maintenance quotes, select site-speci
 | Public software demo | https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo — simulated readings; no physical control |
 | Evidence / readiness | [docs/VALIDATION.md](../docs/VALIDATION.md) |
 | Architecture / setup | [Architecture](../docs/ARCHITECTURE.md) · [Setup](../docs/SETUP.md) |
-| Demo video | **Pending recording, review and hosted URL**; [storyboard](Demo-Video-Storyboard.md) |
+| Demo video | https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-software-demo.mp4 — 92.75-second silent recording of the actual public simulation. No physical footage; final review and portal acceptance pending. [Narration/storyboard](Demo-Video-Storyboard.md) |
 | Founder / project lead | Ahmed Alzahrani — confirmed; additional identities, affiliations or contact details must come from the registered account or owner |
 | Pitch deck | [Editable PPTX](DWMS-Pitch.pptx) · [PDF](DWMS-Pitch.pdf) |
 | Feasibility study | [Editable DOCX](DWMS-Feasibility.docx) · [PDF](DWMS-Feasibility.pdf) |
