@@ -84,6 +84,7 @@ export function canonicalDemoContext(value: unknown, now = Date.now()) {
     workspace: "DEMO" as const, dataBasis: "SIMULATED" as const,
     device: DEMO_DEVICE, scenario: currentScenario, contextAsOf: at,
     readings: state.readings,
+    units: { ph: "dimensionless", tds: "ppm", turbidity: "NTU", flowRate: "L/min (demonstration only)" },
     response: { ...state.response, physicalEquipmentConnected: false },
     activeAlerts: state.alerts.filter(alert => alert.status === "active").map(alert => ({ parameter: alert.parameter, level: alert.level, title: alert.title })),
     history: history.map(row => { const values = DEMO_SCENARIOS[row.scenario]; return { ...row, ph: values.ph, tds: values.tds, turbidity: values.turbidity, flowRate: 1.5 }; }),

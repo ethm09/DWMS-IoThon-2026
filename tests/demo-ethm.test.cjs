@@ -55,6 +55,7 @@ test("guest context rejects supplied measurements and inconsistent interlocks; o
   const canonical = policy.canonicalDemoContext(context("warning"));
   assert.equal(canonical.readings.tds, 650); assert.equal(canonical.history.length, 1); assert.equal(canonical.history[0].tds, 650);
   assert.equal(canonical.dataBasis, "SIMULATED"); assert.equal(canonical.response.physicalEquipmentConnected, false);
+  assert.deepEqual(canonical.units, { ph: "dimensionless", tds: "ppm", turbidity: "NTU", flowRate: "L/min (demonstration only)" });
   for (const bad of [context("normal", { deviceId: "operational-id" }), context("normal", { ph: 1 }), context("critical"), context("normal", { history: [{ scenario: "normal", timestamp: stamp(1000) }] }), context("normal", { history: [{ scenario: "warning", timestamp: stamp(-100) }] })]) assert.throws(() => policy.canonicalDemoContext(bad), error => error.code === "DEMO_AI_INVALID_CONTEXT");
   const recovery = policy.canonicalDemoContext(context("recovery", { history: [{ scenario: "critical", timestamp: stamp(-200) }, { scenario: "recovery", timestamp: stamp(-100) }], mode: "emergency", emergencyLatched: true }));
   assert.equal(recovery.response.emergencyLatched, true); assert.equal(recovery.response.pumpOn, false);
