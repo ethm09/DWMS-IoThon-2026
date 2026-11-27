@@ -12,11 +12,11 @@ import { Spinner } from "@/components/ui/spinner";
 
 const navigation = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { to: "/ai-decision", label: "Ethm", icon: Brain },
   { to: "/historical", label: "Trends", icon: History },
   { to: "/alerts", label: "Alerts", icon: Bell },
   { to: "/devices", label: "Devices", icon: Cpu },
   { to: "/remote-monitoring", label: "Sites", icon: MapPin },
-  { to: "/ai-decision", label: "Ethm", icon: Brain },
 ];
 
 export default function AppLayout({ workspace }: { workspace: "live" | "demo" }) {
@@ -43,12 +43,12 @@ export default function AppLayout({ workspace }: { workspace: "live" | "demo" })
           {isAdmin && <Link to={target("/admin")} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-slate-300 hover:bg-white/10"><Shield className="h-4 w-4" />Access</Link>}
         </div>}
       </nav>
-      <div className="relative overflow-hidden px-5 pb-16 pt-5 text-sm text-slate-300"><span className="relative z-10">Monitor. Detect. Respond.<br /><span className="text-xs text-slate-400">IoThon 2026 prototype</span></span><img src="/brand/waves.svg" alt="" className="absolute inset-x-0 bottom-0 h-14 w-full" /></div>
+      <div className="relative overflow-hidden px-5 pb-16 pt-5 text-sm text-slate-300"><span className="relative z-10">Monitor. Understand. Respond.<br /><span className="text-xs text-slate-400">IoThon 2026 prototype</span></span><img src="/brand/waves.svg" alt="" className="absolute inset-x-0 bottom-0 h-14 w-full" /></div>
     </aside>
     <div className="lg:pl-56">
-      <header className="relative sticky top-0 z-20 overflow-hidden bg-[#0B2039] px-4 pb-7 pt-4 text-white md:px-8">
+      <header className="relative sticky top-0 z-20 overflow-hidden bg-[#0B2039] px-4 pb-5 pt-3 text-white md:px-8">
         <div className="relative z-10 flex min-h-12 flex-wrap items-center justify-between gap-3">
-          <Link to="/" className="flex items-center gap-3" aria-label="DWMS home"><img src="/brand/mark.svg" alt="" className="h-9 w-9 lg:hidden" /><span><span className="block text-lg font-semibold tracking-tight lg:hidden">DWMS</span><span className="block text-xs text-slate-300 lg:text-sm">Water Intelligence <span className="hidden sm:inline">· Monitor. Detect. Respond.</span></span></span></Link>
+          <Link to="/" className="flex items-center gap-3" aria-label="DWMS home"><img src="/brand/mark.svg" alt="" className="h-9 w-9 lg:hidden" /><span><span className="block text-lg font-semibold tracking-tight lg:hidden">DWMS</span><span className="block text-xs text-slate-300 lg:text-sm">Water Intelligence <span className="hidden sm:inline">· Monitor. Understand. Respond.</span></span></span></Link>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3"><span className={cn("rounded-full border px-3 py-1.5 text-xs font-medium sm:text-sm", workspace === "demo" ? "border-cyan-200/30 bg-cyan-50/10 text-cyan-50" : "border-white/20 text-slate-200")}>{workspace === "demo" ? "Simulation mode" : "Live workspace"}</span>
             <Link to={workspace === "demo" ? "/live" : "/demo"} className="inline-flex min-h-10 items-center rounded-lg border border-white/20 px-3 text-xs font-medium hover:bg-white/10 sm:text-sm">{workspace === "demo" ? "Launch Live" : "Explore Demo"}</Link>
             {workspace === "live" && isConfigured && <SignInButton variant="outline" className="min-h-10 border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white" />}
@@ -57,8 +57,8 @@ export default function AppLayout({ workspace }: { workspace: "live" | "demo" })
         <img src="/brand/waves.svg" alt="" className="pointer-events-none absolute inset-x-0 bottom-0 h-5 w-full" />
       </header>
       <main id="main-content" className="min-w-0 pb-24 lg:pb-8">{!ready ? <div role="status" className="flex items-center gap-3 p-8"><Spinner />Opening workspace…</div> : workspace === "live" ? <LiveAccessState><Outlet /></LiveAccessState> : <Outlet />}</main>
-      <nav aria-label="Additional navigation" className="flex flex-wrap justify-center gap-x-6 gap-y-2 px-4 pb-28 text-sm text-muted-foreground lg:hidden"><Link to={target("/remote-monitoring")} className="py-2">Sites</Link><Link to={target("/ai-decision")} className="py-2">Ethm</Link><Link to={target("/dashboard#process")} className="py-2">Process</Link>{workspace === "live" && <><Link to={target("/activity-log")} className="py-2">Events</Link><Link to={target("/notifications")} className="py-2">Notifications & preferences</Link>{canControl && <><Link to={target("/data-source")} className="py-2">Connection</Link><Link to={target("/thresholds")} className="py-2">Safety rules</Link></>}{isAdmin && <Link to={target("/admin")} className="py-2">Access</Link>}</>}</nav>
-      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_#0B203908] lg:hidden">{navigation.slice(0,4).map(item => <NavLink key={item.to} to={target(item.to)} end={item.to === "/dashboard"} className={({isActive})=>cn("flex min-h-[68px] flex-col items-center justify-center gap-1 text-xs font-medium",isActive ? "bg-[#EAF5FA] text-primary" : "text-muted-foreground")}><item.icon className="h-5 w-5" aria-hidden="true" />{item.label}</NavLink>)}</nav>
+      <nav aria-label="Additional navigation" className="flex flex-wrap justify-center gap-x-6 gap-y-2 px-4 pb-28 text-sm text-muted-foreground lg:hidden"><Link to={target("/remote-monitoring")} className="py-2">Sites</Link><Link to={target("/dashboard#process")} className="py-2">Process</Link>{workspace === "live" && <><Link to={target("/activity-log")} className="py-2">Events</Link><Link to={target("/notifications")} className="py-2">Notifications & preferences</Link>{canControl && <><Link to={target("/data-source")} className="py-2">Connection</Link><Link to={target("/thresholds")} className="py-2">Safety rules</Link></>}{isAdmin && <Link to={target("/admin")} className="py-2">Access</Link>}</>}</nav>
+      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_#0B203908] lg:hidden">{navigation.filter(item => ["/dashboard", "/ai-decision", "/historical", "/alerts", "/devices"].includes(item.to)).map(item => <NavLink key={item.to} to={target(item.to)} end={item.to === "/dashboard"} className={({isActive})=>cn("flex min-h-[68px] flex-col items-center justify-center gap-1 text-xs font-medium",isActive ? "bg-[#EAF5FA] text-primary" : "text-muted-foreground")}><item.icon className="h-5 w-5" aria-hidden="true" />{item.label}</NavLink>)}</nav>
     </div>
   </div>;
 }

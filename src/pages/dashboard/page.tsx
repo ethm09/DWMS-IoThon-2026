@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import WaterProcessSchematic from "@/components/water-process-schematic";
 import CommandHistory from "@/components/command-history";
+import EthmIntelligencePanel from "@/components/ethm-intelligence-panel";
 import HardwareControlPanel from "@/components/hardware-control-panel.tsx";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { useDemo } from "@/hooks/use-demo";
@@ -103,10 +104,6 @@ function DemoControlPanel() {
   </Card>;
 }
 
-function AssistantPanel({ demo = false }: { demo?: boolean }) {
-  return <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm"><span className="text-muted-foreground">Ethm · {demo ? "scenario context" : "AI explanations"}</span><Link className="inline-flex min-h-10 items-center text-primary hover:underline" to="/ai-decision">{demo ? "Open context" : "Open assistant"}</Link></div>;
-}
-
 function DemoDashboard() {
   const { state, applyScenario, resetDemo } = useDemo();
   const quality = waterQuality(state.readings, "fresh");
@@ -116,8 +113,9 @@ function DemoDashboard() {
     <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex min-w-0 items-center gap-2 text-sm"><span className="h-2 w-2 shrink-0 rounded-full bg-primary" /><span className="font-medium">{DEMO_DEVICE.name}</span><span className="hidden text-xs text-muted-foreground sm:inline">{DEMO_DEVICE.deviceId}</span></div><span className="text-xs text-muted-foreground">Updated {new Date(state.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>
     <div role="status" className={`flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5 ${STATUS[severity].className}`}><div className="flex min-w-0 items-center gap-2">{severity === "safe" ? <Droplets className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}<p className="text-sm font-semibold">{state.response.emergencyLatched ? "Emergency stop latched · pump OFF" : quality === "safe" ? "Parameters within prototype limits" : quality === "warning" ? "Warning · investigate readings" : "Critical · immediate response required"}</p></div><Link className="text-xs font-medium underline underline-offset-2" to="/alerts">{activeAlerts.length} active alerts</Link></div>
     <SensorReadings reading={state.readings} freshness="fresh" history={state.history} demo />
+    <EthmIntelligencePanel readings={state.history} demo connected deviceId={DEMO_DEVICE.deviceId} deviceName={DEMO_DEVICE.name} site={DEMO_DEVICE.location} emergencyLatched={state.response.emergencyLatched} />
     <div className="rounded-lg border border-border bg-card p-3"><div className="mb-2 flex items-center justify-between"><p className="text-xs font-medium">Demo scenario</p><button type="button" onClick={resetDemo} className="flex min-h-8 items-center gap-1 text-xs text-muted-foreground hover:text-primary"><RotateCcw className="h-3 w-3" />Reset demo</button></div><div className="grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="Demo scenarios">{(Object.keys(DEMO_SCENARIOS) as DemoScenario[]).map((key) => <Button key={key} className="h-10 min-w-0 px-1 text-xs" size="sm" variant={state.scenario === key ? "default" : "outline"} onClick={() => applyScenario(key)} aria-pressed={state.scenario === key}>{DEMO_SCENARIOS[key].label}</Button>)}</div></div>
-    <div className="grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_280px]"><div className="min-w-0 space-y-3"><WaterProcessSchematic demo connected pumpOn={state.response.pumpOn} emergency={state.response.emergencyLatched} reading={state.readings} history={state.history} mode={state.response.mode} /><Trends history={state.history} demo /></div><div className="min-w-0 space-y-3"><DemoControlPanel /><Card className="gap-3 shadow-none"><CardHeader className="px-4 pb-0"><CardTitle className="text-sm">Recent activity</CardTitle></CardHeader><CardContent className="space-y-3 px-4 pb-4">{state.events.slice(0, 2).map((event) => <div key={event.id} className="border-l-2 border-primary/20 pl-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{event.type}</p><time className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{event.message}</p></div>)}</CardContent></Card><AssistantPanel demo /></div></div>
+    <div className="grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_280px]"><div className="min-w-0 space-y-3"><WaterProcessSchematic demo connected pumpOn={state.response.pumpOn} emergency={state.response.emergencyLatched} reading={state.readings} history={state.history} mode={state.response.mode} /><Trends history={state.history} demo /></div><div className="min-w-0 space-y-3"><DemoControlPanel /><Card className="gap-3 shadow-none"><CardHeader className="px-4 pb-0"><CardTitle className="text-sm">Recent activity</CardTitle></CardHeader><CardContent className="space-y-3 px-4 pb-4">{state.events.slice(0, 2).map((event) => <div key={event.id} className="border-l-2 border-primary/20 pl-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{event.type}</p><time className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{event.message}</p></div>)}</CardContent></Card></div></div>
   </div>;
 }
 
@@ -144,8 +142,9 @@ function HardwareDashboard() {
     <div className="flex flex-wrap items-center justify-between gap-3"><select aria-label="Site / device" className="min-w-48 rounded-md border border-border bg-background px-3 py-2 text-sm" value={selectedDeviceId} onChange={(event) => setSelectedDeviceId(event.target.value)}>{!devices?.length && <option value="">{devices === undefined ? "Loading devices…" : "No registered devices"}</option>}{devices?.map((item) => <option key={item.deviceId} value={item.deviceId}>{item.location ? `${item.location} · ` : ""}{item.name}</option>)}</select><Link className="text-xs text-primary hover:underline" to="/devices">Manage devices →</Link></div>
     <div role="status" className={`flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-3 ${STATUS[severity].className}`}><div><p className="text-sm font-semibold">{emergencyLatched ? "Emergency interlock active · recovery confirmation required" : quality === "safe" ? "Water parameters within prototype limits" : quality === "unknown" ? "Unknown · check device connection" : quality === "warning" ? "Warning · investigate readings" : "Critical · respond now"}</p><p className="mt-0.5 text-xs opacity-80">{decision?.reason ?? "Restore telemetry and verify sensors before starting equipment."}</p></div><span className="text-xs">{currentFreshness.toUpperCase()}{age !== null && Number.isFinite(age) ? ` · ${age}s reading age` : ""}</span></div>
     <SensorReadings reading={latest} freshness={currentFreshness} history={history} />
+    <EthmIntelligencePanel readings={history} demo={false} now={now} connected={currentFreshness === "fresh"} deviceId={selectedDeviceId || undefined} deviceName={device?.name} site={device?.location} emergencyLatched={emergencyLatched} />
     {currentFreshness !== "fresh" && latest && <p className="text-xs text-muted-foreground">Displayed values are historical. Current quality is unknown.</p>}
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"><div className="min-w-0 space-y-4"><WaterProcessSchematic demo={false} connected={currentFreshness === "fresh"} pumpOn={currentFreshness === "fresh" ? reportedPump : null} emergency={emergencyLatched} reading={latest} history={history} mode={control?.mode ?? "unknown"} /><Trends history={history} /></div><div className="space-y-4"><HardwareControlPanel /><CommandHistory compact /><AssistantPanel /></div></div>
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"><div className="min-w-0 space-y-4"><WaterProcessSchematic demo={false} connected={currentFreshness === "fresh"} pumpOn={currentFreshness === "fresh" ? reportedPump : null} emergency={emergencyLatched} reading={latest} history={history} mode={control?.mode ?? "unknown"} /><Trends history={history} /></div><div className="space-y-4"><HardwareControlPanel /><CommandHistory compact /></div></div>
   </div>;
 }
 
@@ -156,7 +155,7 @@ export default function Dashboard() {
     if (hash === "#process") document.getElementById("process")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [hash, dataMode]);
   return <div className="mx-auto min-w-0 max-w-7xl space-y-4 p-3 sm:p-4 lg:p-6">
-    <div><h1 className="text-xl font-semibold tracking-tight">Water quality overview</h1><p className="mt-1 text-xs text-muted-foreground">Readings, alerts and operational response across your water system.</p></div>
+    <div><h1 className="text-xl font-semibold tracking-tight">Water intelligence overview</h1><p className="mt-1 text-xs text-muted-foreground">Sensor evidence, Ethm intelligence and independent operational safeguards.</p></div>
     {dataMode === "hardware" ? <LiveAccessState title="Live monitoring"><HardwareDashboard /></LiveAccessState> : <DemoDashboard />}
   </div>;
 }

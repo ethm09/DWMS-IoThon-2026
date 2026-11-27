@@ -4,6 +4,7 @@ import { requireFleetAccess } from "./users";
 import type { QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { isFreshTimestamp, isValidSensorValues } from "./safetyPolicy";
+import { analyzeIntelligence } from "../src/lib/intelligence";
 import {
   analyzeSensorTrends as analyzeTrendData,
   analyzeWaterQuality as analyzeQualityData,
@@ -375,8 +376,29 @@ export const analyzeSensorTrends = internalQuery({
     const validReadings = readings.filter((reading) =>
       validHistoricalReading(reading, now),
     );
+    const device = await getDevice(ctx, args.deviceId);
+    const assessment = analyzeIntelligence(readings.map(toAgentReading), {
+      source: "LIVE",
+      now,
+      connected: !!device && deviceStatus(device, now) === "online",
+      deviceId: args.deviceId,
+      site: device?.location,
+      emergencyLatched: device?.controlMode === "emergency",
+    });
     return {
       ...analyzeTrendData(validReadings.map(toAgentReading)),
+      intelligence: {
+        source: assessment.source,
+        evidenceTimestamp: assessment.evidenceTimestamp,
+        freshness: assessment.freshness,
+        summary: assessment.summary,
+        operationalAssessment: assessment.operationalAssessment,
+        insights: assessment.insights.slice(0, 12),
+        forecasts: assessment.forecasts,
+        rejectedRows: assessment.rejectedRows,
+        duplicateRows: assessment.duplicateRows,
+        conflictingRows: assessment.conflictingRows,
+      },
       excludedInvalidCount: readings.length - validReadings.length,
       timestampNote:
         "Trend times use gateway observation or legacy server receipt, not independently established probe acquisition time.",

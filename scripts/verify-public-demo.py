@@ -135,9 +135,10 @@ def verify_viewport(browser, options, width):
         checks.append("device readings match the warning scenario")
 
         navigate("/demo/assistant")
-        expect(page.locator("main")).to_contain_text("650")
-        expect(page.locator("main")).to_contain_text("No AI model or production records")
-        checks.append("Ethm demo context uses scenario values without a model or live records")
+        expect(page.locator("main")).to_contain_text("warning")
+        expect(page.locator("main")).to_contain_text("Genuine AI · scenario data only")
+        expect(page.get_by_role("textbox", name="Question for Ethm")).to_be_visible()
+        checks.append("Ethm guest workspace identifies scenario context and keeps model submission explicit")
 
         navigate("/demo/sites")
         expect(page.locator("main")).to_contain_text("Warning")

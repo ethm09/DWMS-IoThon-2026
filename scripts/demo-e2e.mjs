@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import {
   cp,
   mkdtemp,
+  mkdir,
   readFile,
   realpath,
   rm,
@@ -182,6 +183,12 @@ try {
   await cp(join(repository, "convex"), join(project, "convex"), {
     recursive: true,
   });
+  await mkdir(join(project, "src", "lib"), { recursive: true });
+  for (const file of ["monitoring.ts", "demo-state.ts", "intelligence.ts", "dwms-safety.ts"])
+    await cp(join(repository, "src", "lib", file), join(project, "src", "lib", file));
+  await mkdir(join(project, "src", "lib"), { recursive: true });
+  for (const file of ["intelligence.ts", "monitoring.ts", "demo-state.ts", "dwms-safety.ts"])
+    await cp(join(repository, "src", "lib", file), join(project, "src", "lib", file));
   for (const file of ["package.json", "convex.json", "tsconfig.json"])
     await cp(join(repository, file), join(project, file));
   await symlink(
@@ -606,6 +613,42 @@ try {
   await post("/arduino/data", { ph: 7.2, tds: 300, turbidity: 2 }, deviceId, syntheticKey, 409);
   await post("/arduino/data", { ...gatewayFrame, sessionId: "isolated_gateway_restart", seq: 1, gatewayObservedAt: new Date().toISOString() });
   passed("gateway timestamps persisted; duplicate/conflicting/delayed/downgrade frames rejected or ignored; new gateway session reconnected without production writes");
+  const guestOrigin = "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site";
+  async function guestRequest(body, token) {
+    await guardLocalWrites();
+    return fetch(`${siteUrl}/demo/ethm/session`, {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: guestOrigin,
+        ...(token ? { "X-DWMS-Demo-Session": token } : {}) },
+      body: JSON.stringify(body), signal: AbortSignal.timeout(10_000),
+    });
+  }
+  assert.equal((await guestRequest({})).status, 503, "Guest AI defaults closed");
+  await guardLocalWrites();
+  await command(["env", "set", "DWMS_DEMO_AI_ENABLED", "true"]);
+  await command(["env", "set", "DWMS_DEMO_AI_TOKEN_BUDGET", "250000"]);
+  const guestResponse = await guestRequest({});
+  assert.equal(guestResponse.status, 200);
+  const guest = await guestResponse.json();
+  assert.match(guest.sessionToken, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal((await (await guestRequest({}, guest.sessionToken)).json()).remainingTurns, 6);
+  const { createHash } = await import("node:crypto");
+  const tokenHash = createHash("sha256").update(guest.sessionToken).digest("hex");
+  async function reserveGuest(requestId) {
+    await guardLocalWrites();
+    const response = await fetch(`${cloudUrl}/api/mutation`, {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Convex ${config.adminKey}` },
+      body: JSON.stringify({ path: "demoEthm:reserve", args: { tokenHash, requestId, expectedRevision: 0, tokens: 1200 }, format: "json" }),
+    });
+    return response.json();
+  }
+  const reservations = await Promise.all([reserveGuest("a".repeat(32)), reserveGuest("b".repeat(32))]);
+  assert.equal(reservations.filter(result => result.status === "success").length, 1, "Actual Convex mutations serialize concurrent guest reservations");
+  assert.equal(reservations.filter(result => result.status === "error" && JSON.stringify(result).includes("DEMO_AI_BUSY")).length, 1);
+  const clearedGuest = await (await guestRequest({ clearHistory: true }, guest.sessionToken)).json();
+  assert.equal(clearedGuest.remainingTurns, 5, "Clearing never refunds the consumed reservation");
+  assert.deepEqual(clearedGuest.messages, []);
+  await assert.rejects(publicClient.query(api.devices.listDevices, {}));
+  passed("isolated guest sessions default closed, resume privately and preserve quota on clear; real concurrent Convex reservations allow one pending request and no operational access");
   unsubscribe();
   console.log(
     `DWMS synthetic HTTP integration passed: ${checks.length} checkpoints. Temporary backend/data removed; no physical result claimed.`,

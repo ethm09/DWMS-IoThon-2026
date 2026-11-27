@@ -8,6 +8,7 @@ import { ProcessModeProvider } from "./process-mode.tsx";
 import { DemoProvider } from "./demo.tsx";
 import HardwareBridge from "../hardware-bridge.tsx";
 import LiveWorkspaceRecovery from "../live-workspace-recovery";
+import EthmAssistant from "../ethm-assistant";
 import { useLocation } from "react-router-dom";
 
 export function DefaultProviders({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,7 @@ export function DefaultProviders({ children }: { children: React.ReactNode }) {
                   <LiveWorkspaceRecovery>
                     {(pathname === "/live" || pathname.startsWith("/live/")) && <HardwareBridge />}
                     {children}
+                    <EthmAssistant />
                   </LiveWorkspaceRecovery>
                 </DemoProvider>
               </ProcessModeProvider>

@@ -1,5 +1,6 @@
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
-import { Activity, ChevronDown } from "lucide-react";
+import { Activity, Brain, ChevronDown } from "lucide-react";
+import { openEthmQuestion } from "@/lib/ethm-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { classifyPh, classifyTds, classifyTurbidity } from "@/lib/dwms-safety";
 import type { WaterReading } from "@/lib/monitoring";
@@ -41,7 +42,7 @@ export default function WaterProcessSchematic({ demo, connected, pumpOn, emergen
     controller: `${mode.toUpperCase()} mode${emergency ? "; emergency latched" : ""}. Arduino interlocks and deterministic backend rules govern commands. USB serial and the Python HTTPS bridge connect the controller to Convex.`,
     pump: `${outputLabel}. ${demo ? "This is the scenario response; no relay is operated." : "This state comes from controller software acknowledgement, not a pump-motion or relay-contact sensor."}`,
     filter: "Prototype treatment concept. The pump/filtration response is shown for demonstration; installed treatment equipment, removal efficiency and water-safety outcomes require physical validation.",
-    monitor: "Convex validates and stores device readings and streams dashboard updates. The small trend uses this session's recorded turbidity points. AI explanations are separate from the control loop.",
+    monitor: "Convex validates and stores device readings and streams dashboard updates. The small trend uses available recorded turbidity points. Ethm interprets monitoring evidence for operators; independent deterministic controls enforce safety.",
   };
   const activate = (node: ProcessNode) => { setSelected(node); setShowDetails(true); };
   const keyActivate = (event: KeyboardEvent<SVGGElement>, node: ProcessNode) => {
@@ -136,11 +137,11 @@ export default function WaterProcessSchematic({ demo, connected, pumpOn, emergen
   }
   return <Card id="process" className="min-w-0 gap-2 scroll-mt-24 overflow-hidden shadow-none">
     <style>{`@keyframes dwms-flow{to{stroke-dashoffset:-34}}@keyframes dwms-rotor{to{transform:rotate(360deg)}}.dwms-process-node:focus-visible>rect:first-of-type{stroke:#087EA4;stroke-width:2}.dwms-process-flow{animation:dwms-flow 1.8s linear infinite}.dwms-pump-rotor{animation:dwms-rotor 2s linear infinite}@media(prefers-reduced-motion:reduce){.dwms-process-flow,.dwms-pump-rotor{animation:none}}`}</style>
-    <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 px-4 pb-0"><CardTitle className="text-sm">Live system visualization</CardTitle><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Activity className="h-3 w-3" />{demo ? "Scenario state" : connected ? "Recent telemetry" : "Awaiting telemetry"}</span></CardHeader>
+    <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 px-4 pb-0"><CardTitle className="text-sm">Water process & intelligence</CardTitle><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Activity className="h-3 w-3" />{demo ? "Scenario state" : connected ? "Recent telemetry" : "Awaiting telemetry"}</span></CardHeader>
     <CardContent className="px-3 pb-3">
       {schematic(false)}{schematic(true)}
       <button type="button" className="flex min-h-9 w-full items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 text-left text-xs font-medium" aria-expanded={showDetails} onClick={() => setShowDetails(!showDetails)}><span>{LABELS[selected]} · details</span><ChevronDown className={`h-3.5 w-3.5 transition-transform ${showDetails ? "rotate-180" : ""}`} /></button>
-      {showDetails && <p className="px-3 pt-2 text-xs leading-relaxed text-muted-foreground">{descriptions[selected]}</p>}
+      {showDetails && <div className="space-y-2 px-3 pt-2"><p className="text-xs leading-relaxed text-muted-foreground">{descriptions[selected]}</p><button type="button" className="inline-flex min-h-10 items-center gap-2 text-xs font-medium text-primary hover:underline" onClick={() => openEthmQuestion(`Explain the ${LABELS[selected].toLowerCase()} in this workspace using available evidence. Distinguish observed state, possible causes and operator checks; do not imply unverified physical operation.`)}><Brain className="h-3.5 w-3.5" />Ask Ethm about this component</button></div>}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground"><span><span className="mr-1.5 inline-block h-0.5 w-4 bg-cyan-500 align-middle" />Conceptual water path</span><span><span className="mr-1.5 inline-block w-4 border-t border-dashed border-primary align-middle" />Telemetry / control</span><span>{demo && reading?.flowRate !== undefined ? `Example flow ${reading.flowRate.toFixed(1)} L/min` : "Measured flow unavailable"}</span></div>
     </CardContent>
   </Card>;

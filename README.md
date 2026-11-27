@@ -1,15 +1,15 @@
-# DWMS · Water Intelligence
+# DWMS · AI-Powered Water Intelligence Platform
 
-**Monitor. Detect. Respond.**
+**Monitor. Understand. Respond.**
 
-A focused IoThon 2026 prototype for water-quality monitoring across networks, reservoirs and treated-water reuse. DWMS brings pH, TDS and turbidity readings, data freshness, threshold alerts and traceable response into one workflow. Flow is demo-only.
+**Ethm is the Water Intelligence Engine at the core of DWMS.** Sensor evidence feeds transparent trend analysis and contextual AI explanations; operators make informed decisions while independent deterministic controls enforce safety. The IoThon prototype targets water networks, reservoirs and treated-water reuse. Live acquisition covers pH, TDS and turbidity; flow remains Demo-only.
 
 | Component | Purpose | Current boundary |
 |---|---|---|
 | **Live** | Authenticated readings, alerts, history and authorized device controls | Backend deployed and anonymous access denied; Auth0 callback accepted; end-user session acceptance remains blocked |
-| **Demo** | Shared browser scenarios for a repeatable presentation | Synthetic readings and response; no physical action |
+| **Demo** | Public scenarios plus genuine AI interpretation of canonical simulated evidence | Separate guest sessions and model allowance; no operational data or physical action |
 | **Hardware** | Arduino/USB bridge and deterministic local interlocks | Owner reports an earlier operating prototype; it is currently unavailable for audited revalidation |
-| **Ethm** | Read-only explanation of authenticated device evidence | Real provider connectivity verified; authenticated contextual conversation still pending |
+| **Ethm** | Contextual interpretation, reviewed references and analytical evidence reports | Real provider connectivity verified; authenticated contextual conversation still pending |
 
 Competition implementation: [improvement branch](https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus) · [Draft PR #2](https://github.com/ethm09/DWMS-IoThon-2026/pull/2). Main is unchanged pending approval.
 

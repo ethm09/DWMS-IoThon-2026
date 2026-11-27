@@ -4,6 +4,7 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { isValidSensorValues } from "./safetyPolicy";
+import { DEMO_AI_LIMITS, DemoAiError, demoOriginAllowed, validateDemoQuestion } from "./demoEthmPolicy";
 
 const http = httpRouter();
 
@@ -368,6 +369,105 @@ http.route({
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }),
+});
+
+/** The guest surface has no operational query, user identity or device command path. */
+function demoHeaders(origin: string | null) {
+  return {
+    ...(demoOriginAllowed(origin) ? { "Access-Control-Allow-Origin": origin! } : {}),
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-DWMS-Demo-Session",
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store",
+    "Vary": "Origin",
+  };
+}
+function demoResponse(request: Request, body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: demoHeaders(request.headers.get("Origin")) });
+}
+function guestError(error: unknown) {
+  if (error instanceof DemoAiError) return { code: error.code, message: error.message, status: error.status };
+  if (error instanceof ConvexError && error.data && typeof error.data === "object") {
+    const data = error.data as { code?: unknown; message?: unknown };
+    if (typeof data.code === "string" && data.code.startsWith("DEMO_AI_") && typeof data.message === "string") {
+      const status = /SESSION_(INVALID|EXPIRED)/.test(data.code) ? 401 : /UNAVAILABLE/.test(data.code) ? 503 : /BAD_REQUEST/.test(data.code) ? 400 : 429;
+      return { code: data.code, message: data.message, status };
+    }
+  }
+  return { code: "DEMO_AI_UNAVAILABLE", message: "Guest Ethm is temporarily unavailable. Scenario monitoring remains available.", status: 503 };
+}
+async function guestBody(request: Request, allowed: readonly string[]) {
+  if (!demoOriginAllowed(request.headers.get("Origin"))) throw new DemoAiError("DEMO_AI_ORIGIN_DENIED", "Use the published demonstration to access guest Ethm.", 403);
+  if (!request.headers.get("Content-Type")?.toLowerCase().startsWith("application/json")) throw new DemoAiError("DEMO_AI_BAD_REQUEST", "Use a JSON request.", 415);
+  const length = request.headers.get("Content-Length");
+  if (length !== null && (!/^\d+$/.test(length) || Number(length) > DEMO_AI_LIMITS.bodyBytes)) throw new DemoAiError("DEMO_AI_BODY_LIMIT", "The demonstration request is too large.", 413);
+  const reader = request.body?.getReader();
+  if (!reader) throw new DemoAiError("DEMO_AI_BAD_REQUEST", "Use a JSON request.");
+  const chunks: Uint8Array[] = []; let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      size += value.byteLength;
+      if (size > DEMO_AI_LIMITS.bodyBytes) { await reader.cancel(); throw new DemoAiError("DEMO_AI_BODY_LIMIT", "The demonstration request is too large.", 413); }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  let parsed: unknown;
+  try {
+    const bytes = new Uint8Array(size); let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  } catch { throw new DemoAiError("DEMO_AI_BAD_REQUEST", "Use a valid JSON request."); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || Object.keys(parsed).some(key => !allowed.includes(key))) throw new DemoAiError("DEMO_AI_BAD_REQUEST", "Use only the supported demonstration request fields.");
+  return parsed as Record<string, unknown>;
+}
+async function sessionHash(token: string) {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new DemoAiError("DEMO_AI_SESSION_INVALID", "Start a new guest conversation.", 401);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, "0")).join("");
+}
+function newSessionToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(Array.from(bytes, value => String.fromCharCode(value)).join("")).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+for (const path of ["/demo/ethm/session", "/demo/ethm/chat"]) {
+  http.route({ path, method: "OPTIONS", handler: httpAction(async (_ctx, request) => new Response(null, { status: demoOriginAllowed(request.headers.get("Origin")) ? 204 : 403, headers: demoHeaders(request.headers.get("Origin")) })) });
+}
+http.route({
+  path: "/demo/ethm/session", method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await guestBody(request, ["clearHistory"]);
+      if (body.clearHistory !== undefined && typeof body.clearHistory !== "boolean") throw new DemoAiError("DEMO_AI_BAD_REQUEST", "Use a valid conversation request.");
+      let token = request.headers.get("X-DWMS-Demo-Session");
+      if (!token && body.clearHistory === true) throw new DemoAiError("DEMO_AI_SESSION_INVALID", "Start a guest conversation before clearing it.", 401);
+      if (!token) {
+        token = newSessionToken();
+        const session = await ctx.runMutation(internal.demoEthm.createSession, { tokenHash: await sessionHash(token) });
+        return demoResponse(request, { enabled: true, ...session, sessionToken: token });
+      }
+      const tokenHash = await sessionHash(token);
+      const session = body.clearHistory === true
+        ? await ctx.runMutation(internal.demoEthm.clearHistory, { tokenHash })
+        : await ctx.runQuery(internal.demoEthm.getSession, { tokenHash });
+      return demoResponse(request, { enabled: true, expiresAt: session.expiresAt, remainingTurns: session.remainingTurns, limits: session.limits, messages: session.messages, sessionToken: token });
+    } catch (error) { const safe = guestError(error); return demoResponse(request, { error: { code: safe.code, message: safe.message } }, safe.status); }
+  }),
+});
+http.route({
+  path: "/demo/ethm/chat", method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await guestBody(request, ["question", "context", "language"]);
+      const token = request.headers.get("X-DWMS-Demo-Session");
+      if (!token) throw new DemoAiError("DEMO_AI_SESSION_INVALID", "Start a guest conversation before asking Ethm.", 401);
+      if (body.language !== undefined && body.language !== "en" && body.language !== "ar") throw new DemoAiError("DEMO_AI_BAD_REQUEST", "Choose English or Arabic.");
+      if (!body.context || typeof body.context !== "object" || Array.isArray(body.context)) throw new DemoAiError("DEMO_AI_INVALID_CONTEXT", "Use the official demonstration context.");
+      const result = await ctx.runAction(internal.demoEthmAction.respond, { tokenHash: await sessionHash(token), question: validateDemoQuestion(body.question), contextJson: JSON.stringify(body.context), ...(body.language === undefined ? {} : { language: body.language }) });
+      if (!result.ok) return demoResponse(request, { error: result.error, ...(result.remainingTurns === undefined ? {} : { remainingTurns: result.remainingTurns }) }, result.status);
+      return demoResponse(request, result);
+    } catch (error) { const safe = guestError(error); return demoResponse(request, { error: { code: safe.code, message: safe.message } }, safe.status); }
   }),
 });
 

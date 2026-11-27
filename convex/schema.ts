@@ -229,4 +229,21 @@ export default defineSchema({
     operatorFeedback: v.optional(v.string()),
     createdAt: v.string(),
   }).index("by_deviceId_createdAt", ["deviceId", "createdAt"]),
+  // Guest AI has capability-token sessions and its own finite lifetime allowance.
+  // No operational records, identities, credentials or controls are referenced.
+  demoEthmBudgets: defineTable({
+    key: v.string(), reservedTokens: v.number(), requests: v.number(), sessions: v.number(),
+    windowAt: v.number(), windowRequests: v.number(), windowSessions: v.number(),
+  }).index("by_key", ["key"]),
+  demoEthmSessions: defineTable({
+    tokenHash: v.string(), expiresAt: v.string(), turns: v.number(), reservedTokens: v.number(),
+    lastRequestAt: v.number(), revision: v.number(),
+    pendingId: v.optional(v.string()), pendingUntil: v.optional(v.number()),
+    messages: v.array(v.object({
+      role: v.union(v.literal("user"), v.literal("assistant")), content: v.string(), generatedAt: v.string(),
+      kind: v.union(v.literal("question"), v.literal("ai_interpretation"), v.literal("service_status")),
+      contextScenario: v.optional(v.string()), contextAsOf: v.optional(v.string()),
+      sources: v.optional(v.array(v.object({ id: v.string(), title: v.string(), url: v.string() }))),
+    })),
+  }).index("by_tokenHash", ["tokenHash"]),
 });

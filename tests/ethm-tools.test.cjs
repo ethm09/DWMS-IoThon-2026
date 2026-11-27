@@ -236,4 +236,7 @@ test("Ethm historical tools exclude invalid/future samples while retaining valid
   assert.equal(trends.available, true);
   assert.equal(trends.count, 3);
   assert.equal(trends.excludedInvalidCount, 2);
+  assert.equal(trends.intelligence.source, "LIVE");
+  assert.equal(trends.intelligence.freshness, "invalid");
+  assert.equal(trends.intelligence.forecasts.ph.status, "unavailable");
 });
