@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { DEMO_AI_LIMITS, demoAiConfiguration } from "./demoEthmPolicy";
 
-const publicLimits = { turns: DEMO_AI_LIMITS.sessionTurns, maxQuestionCharacters: DEMO_AI_LIMITS.questionCharacters };
+const publicLimits = { turns: DEMO_AI_LIMITS.sessionTurns, maxQuestionCharacters: DEMO_AI_LIMITS.questionCharacters, requestIntervalMs: DEMO_AI_LIMITS.requestIntervalMs };
 function fail(code: string, message: string): never { throw new ConvexError({ code, message }); }
 function enabled() { const settings = demoAiConfiguration(); if (!settings.enabled) fail("DEMO_AI_UNAVAILABLE", "Guest Ethm is temporarily unavailable. Monitoring and scenario controls remain available."); return settings; }
 const hashValid = (value: string) => /^[a-f0-9]{64}$/.test(value);
@@ -23,13 +23,14 @@ export const createSession = internalMutation({
     if (!budget) fail("DEMO_AI_UNAVAILABLE", "Guest Ethm is temporarily unavailable.");
     const reset = now - budget.windowAt >= 60_000;
     const windowSessions = reset ? 0 : budget.windowSessions;
-    if (budget.sessions >= DEMO_AI_LIMITS.globalSessions || windowSessions >= DEMO_AI_LIMITS.sessionsPerMinute) fail("DEMO_AI_RATE_LIMITED", "New guest sessions are temporarily limited. Please try again later.");
+    if (budget.sessions >= DEMO_AI_LIMITS.globalSessions) fail("DEMO_AI_BUDGET_EXHAUSTED", "The public session allowance has been used. The interactive scenarios remain available.");
+    if (windowSessions >= DEMO_AI_LIMITS.sessionsPerMinute) fail("DEMO_AI_RATE_LIMITED", "New guest sessions are temporarily limited. Please try again later.");
     const duplicate = await ctx.db.query("demoEthmSessions").withIndex("by_tokenHash", q => q.eq("tokenHash", tokenHash)).unique();
     if (duplicate) fail("DEMO_AI_BAD_REQUEST", "Invalid session request.");
     await ctx.db.patch(budget._id, { sessions: budget.sessions + 1, windowAt: reset ? now : budget.windowAt, windowSessions: windowSessions + 1, windowRequests: reset ? 0 : budget.windowRequests });
     const expiresAt = new Date(now + DEMO_AI_LIMITS.sessionTtlMs).toISOString();
     await ctx.db.insert("demoEthmSessions", { tokenHash, expiresAt, turns: 0, reservedTokens: 0, lastRequestAt: 0, revision: 0, messages: [] });
-    return { expiresAt, remainingTurns: DEMO_AI_LIMITS.sessionTurns, limits: publicLimits, messages: [] };
+    return { expiresAt, remainingTurns: DEMO_AI_LIMITS.sessionTurns, limits: publicLimits, nextRequestAt: null, messages: [] };
   },
 });
 
@@ -40,7 +41,7 @@ export const getSession = internalQuery({
     if (!hashValid(tokenHash)) fail("DEMO_AI_SESSION_INVALID", "Start a new guest conversation.");
     const session = await ctx.db.query("demoEthmSessions").withIndex("by_tokenHash", q => q.eq("tokenHash", tokenHash)).unique();
     if (!session || Date.parse(session.expiresAt) <= Date.now()) fail("DEMO_AI_SESSION_EXPIRED", "This guest conversation has expired. Start a new conversation.");
-    return { expiresAt: session.expiresAt, remainingTurns: Math.max(0, DEMO_AI_LIMITS.sessionTurns - session.turns), limits: publicLimits, messages: session.messages, revision: session.revision };
+    return { expiresAt: session.expiresAt, remainingTurns: Math.max(0, DEMO_AI_LIMITS.sessionTurns - session.turns), limits: publicLimits, nextRequestAt: session.lastRequestAt ? new Date(session.lastRequestAt + DEMO_AI_LIMITS.requestIntervalMs).toISOString() : null, messages: session.messages, revision: session.revision };
   },
 });
 
@@ -52,7 +53,7 @@ export const clearHistory = internalMutation({
     if (!session || Date.parse(session.expiresAt) <= Date.now()) fail("DEMO_AI_SESSION_EXPIRED", "This guest conversation has expired. Start a new conversation.");
     // Clearing chat never resets turns, the global allowance or a pending request.
     await ctx.db.patch(session._id, { messages: [], revision: session.revision + 1 });
-    return { expiresAt: session.expiresAt, remainingTurns: Math.max(0, DEMO_AI_LIMITS.sessionTurns - session.turns), limits: publicLimits, messages: [] };
+    return { expiresAt: session.expiresAt, remainingTurns: Math.max(0, DEMO_AI_LIMITS.sessionTurns - session.turns), limits: publicLimits, nextRequestAt: session.lastRequestAt ? new Date(session.lastRequestAt + DEMO_AI_LIMITS.requestIntervalMs).toISOString() : null, messages: [] };
   },
 });
 
@@ -73,7 +74,7 @@ export const reserve = internalMutation({
     if (requests >= DEMO_AI_LIMITS.requestsPerMinute) fail("DEMO_AI_RATE_LIMITED", "Guest Ethm is busy. Please try again in a minute.");
     await ctx.db.patch(budget._id, { reservedTokens: budget.reservedTokens + args.tokens, requests: budget.requests + 1, windowAt: reset ? now : budget.windowAt, windowRequests: requests + 1, windowSessions: reset ? 0 : budget.windowSessions });
     await ctx.db.patch(session._id, { turns: session.turns + 1, reservedTokens: session.reservedTokens + args.tokens, lastRequestAt: now, pendingId: args.requestId, pendingUntil: now + DEMO_AI_LIMITS.requestLeaseMs });
-    return { remainingTurns: DEMO_AI_LIMITS.sessionTurns - session.turns - 1, expiresAt: session.expiresAt };
+    return { remainingTurns: DEMO_AI_LIMITS.sessionTurns - session.turns - 1, expiresAt: session.expiresAt, nextRequestAt: new Date(now + DEMO_AI_LIMITS.requestIntervalMs).toISOString() };
   },
 });
 

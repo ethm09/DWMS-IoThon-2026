@@ -60,12 +60,15 @@ def verify_viewport(browser, options, width):
     page.set_default_timeout(options.timeout_ms)
     errors = []
     backend_writes = []
+    model_requests = []
     checks = []
     screenshots = []
     page.on("pageerror", lambda error: errors.append(str(error)))
 
     def record_request(request):
         path = urlparse(request.url).path
+        if request.method == "POST" and path == "/demo/ethm/chat":
+            model_requests.append(path)
         if request.method not in ("GET", "HEAD", "OPTIONS") and (
             "/arduino/" in path or "/api/mutation" in path
         ):
@@ -212,7 +215,7 @@ def verify_viewport(browser, options, width):
             capture("live-signed-out", full_page=True)
 
         page.goto(options.url + "/", wait_until="domcontentloaded")
-        expect(page.get_by_role("heading", name="Intelligent Water Monitoring. Proactive Response.", exact=True)).to_be_visible()
+        expect(page.get_by_role("heading", name=re.compile(r"AI-Powered Water.*Intelligence Platform", re.I))).to_be_visible()
         no_overflow("landing page")
         if width in (390, 1440):
             capture("landing", full_page=True)
@@ -222,10 +225,11 @@ def verify_viewport(browser, options, width):
             no_overflow(route)
         assert not errors, f"Browser runtime errors: {errors}"
         assert not backend_writes, f"Demo emitted backend mutation/ingestion traffic: {backend_writes}"
-        checks.append("no browser runtime errors or observed device/mutation writes")
-        result.update(status="passed", page_errors=[], observed_backend_writes=[])
+        assert not model_requests, "Guest navigation must not submit model questions automatically"
+        checks.append("no runtime errors, operational mutation traffic or automatic model questions")
+        result.update(status="passed", page_errors=[], observed_backend_writes=[], observed_model_requests=[])
     except Exception as error:
-        result.update(status="failed", error=str(error), page_errors=errors, observed_backend_writes=backend_writes)
+        result.update(status="failed", error=str(error), page_errors=errors, observed_backend_writes=backend_writes, observed_model_requests=model_requests)
         capture("failure", full_page=True)
     finally:
         context.close()

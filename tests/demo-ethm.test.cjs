@@ -89,13 +89,16 @@ test("serialized reservations enforce pending ownership, session quota and no-re
   const f = fixture(), tokenHash = hash("a"), requestId = "1".repeat(32);
   await f.invoke("createSession", { tokenHash });
   const reserve = { tokenHash, requestId, expectedRevision: 0, tokens: 10000 };
-  await f.invoke("reserve", reserve);
+  const held = await f.invoke("reserve", reserve);
+  const resumed = await f.invoke("getSession", { tokenHash });
+  assert.equal(resumed.nextRequestAt, held.nextRequestAt);
+  assert.ok(Date.parse(held.nextRequestAt) > Date.now());
   await assert.rejects(f.invoke("reserve", { ...reserve, requestId: "2".repeat(32) }), rejected("DEMO_AI_BUSY"));
   const before = f.tables.demoEthmBudgets[0].reservedTokens;
   await f.invoke("finish", { tokenHash, requestId, expectedRevision: 0, question: "Question", text: "Synthetic failed status", generatedAt: stamp(), contextScenario: "normal", contextAsOf: stamp(), sources: [], successful: false });
   await f.invoke("finish", { tokenHash, requestId, expectedRevision: 0, question: "Question", text: "Late duplicate", generatedAt: stamp(), contextScenario: "normal", contextAsOf: stamp(), sources: [], successful: true });
   assert.equal(f.tables.demoEthmBudgets[0].reservedTokens, before); assert.equal(f.tables.demoEthmSessions[0].messages.length, 2); assert.equal(f.tables.demoEthmSessions[0].messages[1].kind, "service_status");
-  await f.invoke("clearHistory", { tokenHash }); assert.equal(f.tables.demoEthmSessions[0].turns, 1); assert.equal(f.tables.demoEthmSessions[0].reservedTokens, before);
+  const cleared = await f.invoke("clearHistory", { tokenHash }); assert.equal(cleared.nextRequestAt, held.nextRequestAt); assert.equal(f.tables.demoEthmSessions[0].turns, 1); assert.equal(f.tables.demoEthmSessions[0].reservedTokens, before);
   f.tables.demoEthmSessions[0].lastRequestAt = 0; f.tables.demoEthmSessions[0].turns = 6;
   await assert.rejects(f.invoke("reserve", { ...reserve, expectedRevision: 2 }), rejected("DEMO_AI_SESSION_QUOTA"));
   f.tables.demoEthmSessions[0].turns = 1; f.tables.demoEthmBudgets[0].reservedTokens = 245000; f.tables.demoEthmBudgets[0].windowAt = Date.now() - 120000;
@@ -141,4 +144,6 @@ test("global mint/request throttles reset only minute buckets while lifetime res
   session.lastRequestAt = 0; session.turns = 6;
   await assert.rejects(f.invoke("reserve", { ...reservation, requestId: "6".repeat(32) }), rejected("DEMO_AI_SESSION_QUOTA"));
   assert.equal(budget.reservedTokens, 22345);
+  budget.sessions = policy.DEMO_AI_LIMITS.globalSessions; budget.windowAt = Date.now() - 61000;
+  await assert.rejects(f.invoke("createSession", { tokenHash: hash("lifetime-exhausted") }), rejected("DEMO_AI_BUDGET_EXHAUSTED"));
 }));

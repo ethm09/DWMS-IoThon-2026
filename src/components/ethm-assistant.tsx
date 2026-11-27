@@ -40,7 +40,7 @@ type FrameProps = ReturnType<typeof useConversationDraft> & {
   maxLength: number; emergency: boolean; error?: string | null;
   quota?: number | null; onSend: (question: string) => Promise<void>;
   onClear: () => Promise<void>; onReconnect?: () => void;
-  contextScenario?: string; currentContextAsOf?: string; unavailable?: boolean;
+  contextScenario?: string; currentContextAsOf?: string; unavailable?: boolean; cooldownSeconds?: number;
 };
 function ConversationFrame(props: FrameProps) {
   const { embedded, demo, messages, language, setLanguage, input, setInput, pending, clearing, open, close } = props;
@@ -56,7 +56,8 @@ function ConversationFrame(props: FrameProps) {
     return () => window.removeEventListener("keydown", escape);
   }, [open, embedded, close]);
   if (!open) return null;
-  const submit = (event: FormEvent) => { event.preventDefault(); if (!blocked) void props.onSend(input); };
+  const sendBlocked = blocked || (props.cooldownSeconds ?? 0) > 0;
+  const submit = (event: FormEvent) => { event.preventDefault(); if (!sendBlocked) void props.onSend(input); };
   return <section role={embedded ? "region" : "dialog"} aria-modal={embedded ? undefined : "false"} aria-label="Ethm water intelligence assistant" className={embedded ? "flex min-h-[32rem] max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm" : "fixed inset-x-2 bottom-[76px] z-50 flex max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[480px]"}>
     <header className="flex items-center gap-3 border-b border-border bg-[#0B2039] px-4 py-3 text-white"><Brain className="h-6 w-6 shrink-0 text-cyan-300" /><div className="min-w-0 flex-1"><h2 className="font-semibold">Ethm <span className="font-normal text-slate-300">· Water Intelligence Engine</span></h2><p className="mt-0.5 text-xs text-slate-200" role="status">{props.status}</p></div><Button className="h-11 w-11 shrink-0 text-white hover:bg-white/10 hover:text-white" size="icon" variant="ghost" aria-label="Clear saved chat" disabled={pending || clearing || !messages?.length} onClick={() => void props.onClear()}><Trash2 className="h-4 w-4" /></Button>{!embedded && <Button className="h-11 w-11 shrink-0 text-white hover:bg-white/10 hover:text-white" size="icon" variant="ghost" aria-label="Close assistant" onClick={close}><X /></Button>}</header>
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2 text-xs text-muted-foreground"><span>{demo ? "Genuine AI · scenario data only" : "AI interpretation · authorized records"}</span><div className="flex rounded-md border border-border p-0.5" role="group" aria-label="Suggested prompt language">{(["en", "ar"] as const).map(value => <button key={value} type="button" aria-pressed={language === value} className={`min-h-9 rounded px-2 ${language === value ? "bg-primary text-white" : "hover:bg-muted"}`} onClick={() => setLanguage(value)}>{value === "en" ? "English" : "العربية"}</button>)}</div><div className="flex w-full items-start gap-1.5"><Clock3 className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{props.evidence}</span></div></div>
@@ -71,7 +72,7 @@ function ConversationFrame(props: FrameProps) {
       {pending && <p role="status" className="text-muted-foreground">{language === "ar" ? "جارٍ مراجعة الأدلة المتاحة…" : "Reviewing available evidence…"}</p>}
       {props.error && <div role="alert" className="rounded-lg border border-border p-3 text-muted-foreground"><p dir="auto">{props.error}</p>{props.onReconnect && <Button variant="outline" size="sm" className="mt-2" onClick={props.onReconnect} disabled={pending || clearing}><RefreshCw className="h-3.5 w-3.5" />{language === "ar" ? "إعادة الاتصال" : "Reconnect"}</Button>}</div>}
     </div>
-    <form className="space-y-2 border-t border-border p-3" onSubmit={submit}><div className="flex items-end gap-2"><textarea ref={field} dir="auto" rows={2} aria-label="Question for Ethm" value={input} maxLength={props.maxLength} onChange={event => setInput(event.target.value)} disabled={blocked} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (!blocked) void props.onSend(input); } }} placeholder={language === "ar" ? "اسأل عن القراءات أو الحوادث…" : "Ask about readings, incidents or next checks…"} className="min-h-12 min-w-0 flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm" /><Button className="h-12 w-12 shrink-0" type="submit" size="icon" disabled={!input.trim() || blocked} aria-label="Send question"><Send /></Button></div><div className="flex flex-wrap items-start justify-between gap-2 text-xs text-muted-foreground"><span className="flex max-w-[24rem] gap-1"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />{language === "ar" ? "دعم للقرار فقط. لا يتحكم إثم بالمعدات ولا يثبت سلامة مياه الشرب." : "Decision support only. Ethm cannot control equipment or certify drinking-water safety."}</span>{typeof props.quota === "number" && <span>{language === "ar" ? `حتى ${props.quota} أسئلة متبقية` : `Up to ${props.quota} questions remaining`}</span>}</div></form>
+    <form className="space-y-2 border-t border-border p-3" onSubmit={submit}><div className="flex items-end gap-2"><textarea ref={field} dir="auto" rows={2} aria-label="Question for Ethm" value={input} maxLength={props.maxLength} onChange={event => setInput(event.target.value)} disabled={blocked} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (!sendBlocked) void props.onSend(input); } }} placeholder={language === "ar" ? "اسأل عن القراءات أو الحوادث…" : "Ask about readings, incidents or next checks…"} className="min-h-12 min-w-0 flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm" /><Button className="h-12 w-12 shrink-0" type="submit" size="icon" disabled={!input.trim() || sendBlocked} aria-label="Send question"><Send /></Button></div><div className="flex flex-wrap items-start justify-between gap-2 text-xs text-muted-foreground"><span className="flex max-w-[24rem] gap-1"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />{language === "ar" ? "دعم للقرار فقط. لا يتحكم إثم بالمعدات ولا يثبت سلامة مياه الشرب." : "Decision support only. Ethm cannot control equipment or certify drinking-water safety."}</span>{!!props.cooldownSeconds && <span role="status">{language === "ar" ? `جاهز خلال ${props.cooldownSeconds} ثوانٍ` : `Ready in ${props.cooldownSeconds}s`}</span>}{typeof props.quota === "number" && <span>{language === "ar" ? `حتى ${props.quota} أسئلة متبقية` : `Up to ${props.quota} questions remaining`}</span>}</div></form>
   </section>;
 }
 
@@ -120,8 +121,8 @@ class DemoRequestError extends Error {
   constructor(public code: string, public remainingTurns?: number) { super(code); }
 }
 type DemoSavedMessage = Omit<EthmMessage, "id">;
-type DemoSession = { sessionToken: string; expiresAt: string; remainingTurns: number; limits: { turns: number; maxQuestionCharacters: number }; messages: DemoSavedMessage[] };
-type DemoAnswer = { text: string; generatedAt: string; contextScenario: string; contextAsOf: string; remainingTurns: number; sources?: EthmMessage["sources"]; kind: string };
+type DemoSession = { sessionToken: string; expiresAt: string; remainingTurns: number; limits: { turns: number; maxQuestionCharacters: number; requestIntervalMs?: number }; nextRequestAt?: string | null; messages: DemoSavedMessage[] };
+type DemoAnswer = { text: string; generatedAt: string; contextScenario: string; contextAsOf: string; remainingTurns: number; nextRequestAt?: string; sources?: EthmMessage["sources"]; kind: string };
 function demoEndpoint(path: string) {
   const value = import.meta.env.VITE_CONVEX_SITE_URL?.trim() || import.meta.env.VITE_CONVEX_URL?.trim().replace(/\.convex\.cloud\/?$/, ".convex.site");
   if (!value) throw new DemoRequestError("DEMO_AI_UNAVAILABLE");
@@ -148,6 +149,16 @@ function DemoAssistant({ embedded }: { embedded: boolean }) {
   const [maxLength, setMaxLength] = useState(600);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const generation = useRef(0);
+  const [nextAllowedAt, setNextAllowedAt] = useState(0);
+  const [requestInterval, setRequestInterval] = useState(5000);
+  const [clock, setClock] = useState(Date.now());
+  const cooldownSeconds = Math.max(0, Math.ceil((nextAllowedAt - clock) / 1000));
+  useEffect(() => {
+    if (!draft.open || nextAllowedAt <= Date.now()) return;
+    const tick = () => { const now = Date.now(); setClock(now); if (now >= nextAllowedAt) { window.clearInterval(timer); if (token.current) setErrorCode(code => code === "DEMO_AI_RATE_LIMITED" ? null : code); } };
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [draft.open, nextAllowedAt]);
   async function loadSession() {
     if (connecting || pending || clearing) return;
     setConnecting(true); setErrorCode(null);
@@ -155,6 +166,8 @@ function DemoAssistant({ embedded }: { embedded: boolean }) {
       const session = await demoRequest<DemoSession>("session", {}, token.current);
       token.current = session.sessionToken; saveSession(session.sessionToken);
       setMessages(session.messages.map((message, index) => ({ ...message, id: `saved-${index}-${message.generatedAt ?? ""}` })));
+      setRequestInterval(Math.max(5000, Math.min(60000, session.limits.requestIntervalMs ?? 5000)));
+      setClock(Date.now()); setNextAllowedAt(session.nextRequestAt ? Date.parse(session.nextRequestAt) + 500 : 0);
       setRemaining(session.remainingTurns); setExpiresAt(session.expiresAt); setMaxLength(Math.min(600, session.limits.maxQuestionCharacters));
     } catch (failure) {
       const code = failure instanceof DemoRequestError ? failure.code : "DEMO_AI_UNAVAILABLE";
@@ -170,7 +183,8 @@ function DemoAssistant({ embedded }: { embedded: boolean }) {
   }, [draft.open]);
   async function send(question: string) {
     const objective = question.trim();
-    if (!objective || objective.length > maxLength || pending || connecting || clearing || !token.current || remaining === 0) return;
+    if (!objective || objective.length > maxLength || pending || connecting || clearing || !token.current || remaining === 0 || Date.now() < nextAllowedAt) return;
+    setClock(Date.now()); setNextAllowedAt(Date.now() + requestInterval + 500);
     const request = ++generation.current;
     const askedAt = new Date().toISOString();
     const context = demoIntelligenceContext(state);
@@ -179,11 +193,15 @@ function DemoAssistant({ embedded }: { embedded: boolean }) {
     try {
       const answer = await demoRequest<DemoAnswer>("chat", { question: objective, context, language: ethmQuestionLanguage(objective, draft.language) }, token.current);
       if (request !== generation.current) return;
+      if (answer.nextRequestAt) setNextAllowedAt(Date.parse(answer.nextRequestAt) + 500);
       setRemaining(answer.remainingTurns);
       setMessages(current => [...(current ?? []), { id: `answer-${request}`, role: "assistant", content: answer.text, generatedAt: answer.generatedAt, contextScenario: answer.contextScenario, contextAsOf: answer.contextAsOf, kind: answer.kind, sources: answer.sources }]);
     } catch (failure) {
       if (request !== generation.current) return;
+      draft.setInput(objective);
+      setMessages(current => current?.filter(message => message.id !== `question-${request}`));
       const code = failure instanceof DemoRequestError ? failure.code : "DEMO_AI_UNAVAILABLE";
+      if (code === "DEMO_AI_RATE_LIMITED") { setClock(Date.now()); setNextAllowedAt(Date.now() + requestInterval + 500); }
       if (ethmDemoQuotaExceeded(code)) setRemaining(0);
       else if (failure instanceof DemoRequestError && typeof failure.remainingTurns === "number") setRemaining(failure.remainingTurns);
       if (ethmDemoSessionInvalid(code)) { token.current = null; saveSession(null); }
@@ -201,7 +219,7 @@ function DemoAssistant({ embedded }: { embedded: boolean }) {
     finally { setClearing(false); }
   }
   const error = errorCode ? ethmDemoError(errorCode, draft.language) : null;
-  return <ConversationFrame {...draft} embedded={embedded} demo messages={messages} status={errorCode ? "Temporarily unavailable" : remaining === 0 ? "Session question limit reached" : connecting ? "Connecting private demo session" : pending ? "Analyzing official scenario evidence" : "Guest conversation · GPT-5-mini"} pending={pending || connecting} clearing={clearing} maxLength={maxLength} emergency={state.response.emergencyLatched} onSend={send} onClear={clearChat} quota={remaining} error={error} onReconnect={error && !ethmDemoQuotaExceeded(errorCode ?? undefined) ? () => void loadSession() : undefined} unavailable={!!errorCode || !token.current} contextScenario={state.scenario} currentContextAsOf={state.updatedAt} evidence={<>{state.scenario} · {timeLabel(state.updatedAt)}{expiresAt ? ` · chat session until ${new Date(expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</>} />;
+  return <ConversationFrame {...draft} embedded={embedded} demo messages={messages} status={errorCode ? "Temporarily unavailable" : remaining === 0 ? "Session question limit reached" : connecting ? "Connecting private demo session" : pending ? "Analyzing official scenario evidence" : "Guest conversation · GPT-5-mini"} pending={pending || connecting} clearing={clearing} maxLength={maxLength} emergency={state.response.emergencyLatched} onSend={send} onClear={clearChat} quota={remaining} error={error} onReconnect={error && !ethmDemoQuotaExceeded(errorCode ?? undefined) ? () => void loadSession() : undefined} cooldownSeconds={cooldownSeconds} unavailable={(!!errorCode && errorCode !== "DEMO_AI_RATE_LIMITED") || !token.current} contextScenario={state.scenario} currentContextAsOf={state.updatedAt} evidence={<>{state.scenario} · {timeLabel(state.updatedAt)}{expiresAt ? ` · chat session until ${new Date(expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</>} />;
 }
 function LiveAssistantAccess({ embedded }: { embedded: boolean }) {
   const { user, canViewFleet } = useUserRole();

@@ -451,7 +451,7 @@ http.route({
       const session = body.clearHistory === true
         ? await ctx.runMutation(internal.demoEthm.clearHistory, { tokenHash })
         : await ctx.runQuery(internal.demoEthm.getSession, { tokenHash });
-      return demoResponse(request, { enabled: true, expiresAt: session.expiresAt, remainingTurns: session.remainingTurns, limits: session.limits, messages: session.messages, sessionToken: token });
+      return demoResponse(request, { enabled: true, expiresAt: session.expiresAt, remainingTurns: session.remainingTurns, limits: session.limits, nextRequestAt: session.nextRequestAt, messages: session.messages, sessionToken: token });
     } catch (error) { const safe = guestError(error); return demoResponse(request, { error: { code: safe.code, message: safe.message } }, safe.status); }
   }),
 });
