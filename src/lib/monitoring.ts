@@ -13,10 +13,12 @@ export function readingFreshness(timestamp: string | null | undefined, now: numb
   return "fresh";
 }
 
-export function validWaterReading(reading: WaterReading | null | undefined): reading is WaterReading {
-  return !!reading && Number.isFinite(reading.ph) && reading.ph >= 0 && reading.ph <= 14
-    && Number.isFinite(reading.tds) && reading.tds >= 0
-    && Number.isFinite(reading.turbidity) && reading.turbidity >= 0;
+export function validWaterReading(value: unknown): value is WaterReading {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const reading = value as Record<string, unknown>;
+  return typeof reading.ph === "number" && Number.isFinite(reading.ph) && reading.ph >= 0 && reading.ph <= 14
+    && typeof reading.tds === "number" && Number.isFinite(reading.tds) && reading.tds >= 0
+    && typeof reading.turbidity === "number" && Number.isFinite(reading.turbidity) && reading.turbidity >= 0;
 }
 
 export function waterQuality(reading: WaterReading | null | undefined, freshness: ReadingFreshness): SafetyLevel | "unknown" {

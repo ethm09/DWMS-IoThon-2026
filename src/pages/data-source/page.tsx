@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useUserRole } from "@/hooks/use-user-role";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
@@ -18,7 +20,6 @@ import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import type { HardwareStatus } from "@/hooks/use-process-mode.ts";
-import type { DataMode } from "@/lib/dwms-safety.ts";
 
 // Status display constants
 const HW_STATUS_CONFIG: Record<HardwareStatus, { label: string; color: string; icon: typeof Wifi; description: string }> = {
@@ -43,6 +44,7 @@ const HW_STATUS_CONFIG: Record<HardwareStatus, { label: string; color: string; i
 };
 
 function DataSourceInner() {
+  const navigate = useNavigate();
   const {
     dataMode, setDataMode,
     apiUrl, setApiUrl,
@@ -68,26 +70,14 @@ function DataSourceInner() {
   const hwConfig = HW_STATUS_CONFIG[hardwareStatus];
   const HwIcon = hwConfig.icon;
 
-  // Handle mode change with safety checks
+  // A workspace change is navigation, never a simulated reading inside Live.
   const handleModeChange = useCallback((newMode: string) => {
-    if (newMode === "hardware" && hardwareStatus === "connected") {
-      // Already connected, just switch
-      setDataMode(newMode as DataMode);
-      toast.success("Switched to Real Hardware mode");
-    } else if (newMode === "hardware") {
-      // Switch with a warning
-      setDataMode(newMode as DataMode);
-      toast("Switched to Hardware mode — waiting for device data", {
-        description: "Check calibration, serial connection, device credentials and the bridge logs if no data arrives.",
-      });
-    } else {
-      // Switch to demo — safe to do unless hardware is actively connected
-      if (hardwareStatus === "connected") {
-        toast("Switched to Demo Data — hardware data will be ignored while in Demo mode");
-      }
-      setDataMode(newMode as DataMode);
+    if (newMode === "demo") {
+      navigate("/demo");
+      return;
     }
-  }, [hardwareStatus, setDataMode]);
+    setDataMode("hardware");
+  }, [navigate, setDataMode]);
 
   // Test connection by making a lightweight GET/OPTIONS to the API URL
   const handleTestConnection = useCallback(async () => {
@@ -145,7 +135,7 @@ function DataSourceInner() {
           <Settings2 className="w-5 h-5" /> DATA SOURCE
         </h1>
         <p className="text-xs text-muted-foreground mt-1 tracking-wider">
-          Configure how the system receives sensor data — Demo simulation or Real Hardware
+          Select the registered device and check its bridge connection.
         </p>
       </div>
 
@@ -178,11 +168,11 @@ function DataSourceInner() {
 
           {/* Safety note */}
           <div className="rounded-lg p-3 text-xs"
-            style={{ background: "oklch(0.1 0.03 145)", border: "1px solid oklch(0.2 0.04 145)" }}>
+            style={{ background: "var(--muted)", border: "1px solid var(--border)" }}>
             <p className="font-bold tracking-wider text-muted-foreground mb-1">SAFETY RULE</p>
             <p className="text-muted-foreground">
-              Demo mode uses simulated readings and replaces the displayed values with the simulation.
-              Choose Real Hardware to display readings received from the selected device.
+              Demo Data opens the separate public simulation workspace.
+              Live readings continue to come only from the selected registered device.
             </p>
           </div>
         </CardContent>
@@ -230,7 +220,7 @@ function DataSourceInner() {
             <span>
               Last stored hardware reading:{" "}
               {Number.isFinite(receivedAt)
-                ? `${new Date(receivedAt).toLocaleString()} (server receipt time)`
+                ? `${new Date(receivedAt).toLocaleString()} (recorded reading time)`
                 : "No selected-device hardware reading"}
             </span>
           </div>
@@ -250,7 +240,7 @@ function DataSourceInner() {
                   <p className="font-bold text-yellow-500 tracking-wider">HARDWARE UNREACHABLE</p>
                   <p className="text-muted-foreground mt-0.5">
                     No data in 30+ seconds. Hardware mode stays active and never silently switches to simulated readings.
-                    Switch to Demo mode manually if you want simulated data while hardware is offline.
+                    Open the separate Demo workspace to explore simulated scenarios.
                   </p>
                 </div>
               </motion.div>
@@ -400,8 +390,8 @@ function ModeCard({
       onClick={onClick}
       className="cursor-pointer rounded-xl border p-4 text-left transition-all relative overflow-hidden"
       style={{
-        borderColor: active ? `${color}80` : "oklch(0.26 0.04 145)",
-        background: active ? `${color}10` : "oklch(0.13 0.02 145)",
+        borderColor: active ? `${color}80` : "var(--border)",
+        background: active ? `${color}10` : "var(--card)",
       }}
     >
       {active && (
@@ -414,13 +404,13 @@ function ModeCard({
       <div className="flex items-center gap-3 mb-2">
         <div className="w-9 h-9 rounded-lg flex items-center justify-center"
           style={{
-            background: active ? `${color}20` : "oklch(0.18 0.03 145)",
-            color: active ? color : "oklch(0.55 0.04 145)",
+            background: active ? `${color}20` : "var(--muted)",
+            color: active ? color : "var(--primary)",
           }}>
           {icon}
         </div>
         <span className="text-xs font-bold tracking-widest"
-          style={{ color: active ? color : "oklch(0.75 0.02 90)" }}>
+          style={{ color: active ? color : "var(--foreground)" }}>
           {title}
         </span>
       </div>
@@ -430,6 +420,7 @@ function ModeCard({
 }
 
 export default function DataSourcePage() {
+  const { canControl } = useUserRole();
   return (
     <>
       <Unauthenticated>
@@ -449,7 +440,7 @@ export default function DataSourcePage() {
         </div>
       </AuthLoading>
       <Authenticated>
-        <DataSourceInner />
+        {canControl ? <DataSourceInner /> : <Card className="m-6 space-y-3 p-6"><p>Connection settings require operator or administrator access.</p><Link to="/live" className="text-primary underline">Open monitoring</Link></Card>}
       </Authenticated>
     </>
   );

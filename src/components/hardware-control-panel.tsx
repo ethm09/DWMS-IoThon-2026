@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { readingFreshness } from "@/lib/monitoring";
+import { readingFreshness, validWaterReading } from "@/lib/monitoring";
 import { useMutation, useQuery } from "convex/react";
 import { Activity, AlertTriangle, Loader2, Power, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api.js";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { useUserRole } from "@/hooks/use-user-role.ts";
@@ -10,7 +11,19 @@ import { Button } from "@/components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "The control request failed.";
+  if (error instanceof ConvexError && error.data && typeof error.data === "object") {
+    const messages: Record<string, string> = {
+      FORBIDDEN: "Operator or administrator access is required.",
+      UNAUTHENTICATED: "Sign in again before requesting a control change.",
+      NOT_FOUND: "This device is no longer registered. Select an available device.",
+      STALE_SENSOR_DATA: "A fresh valid reading is required before this control change.",
+      SAFETY_INTERLOCK: "The safety interlock blocks this request. Investigate the current readings.",
+      EMERGENCY_LOCKED: "Emergency remains latched. Restore valid readings and acknowledge recovery.",
+    };
+    const code = (error.data as { code?: string }).code;
+    if (code && messages[code]) return messages[code];
+  }
+  return "The control request could not be completed. Check your connection and try again.";
 }
 
 export default function HardwareControlPanel() {
@@ -54,13 +67,13 @@ export default function HardwareControlPanel() {
   const pumpOn = hardwareMode ? (readingFreshness(state?.reportedAt, now) === "fresh" ? state?.reportedPumpState ?? null : null) : localPumpStatus;
   const commandExpired = state?.command?.status === "pending" && now - Date.parse(state.command.createdAt) > 20_000;
   const waitingForCommand = state?.command?.status === "pending" && !commandExpired;
-  const connected = hardwareStatus === "connected" && readingFreshness(sensorData?.timestamp, now) === "fresh";
+  const connected = hardwareStatus === "connected" && validWaterReading(sensorData) && readingFreshness(sensorData?.timestamp, now) === "fresh";
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-bold tracking-widest">
-          <Power className="h-4 w-4 text-primary" /> FILTRATION CONTROL
+          <Power className="h-4 w-4 text-primary" /> OPERATIONAL RESPONSE
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -34,7 +34,7 @@ export const createRun = mutation({
     selectedDeviceId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUserOrThrow(ctx);
+    const user = await requireFleetAccess(ctx);
     const objective = args.objective.trim();
     if (!objective || objective.length > 1000) {
       throw new ConvexError({
@@ -56,6 +56,12 @@ export const createRun = mutation({
       selectedDeviceId: args.selectedDeviceId,
       status: "running",
       startedAt,
+    });
+    await ctx.db.insert("chatMessages", {
+      userId: user._id,
+      role: "user",
+      content: objective,
+      runId,
     });
     await ctx.db.insert("agentRunEvents", {
       runId,
@@ -302,13 +308,27 @@ export const finishRun = internalMutation({
   },
   handler: async (ctx, args) => {
     const run = await ctx.db.get(args.runId);
-    if (!run || run.userId !== args.userId) return;
+    if (!run || run.userId !== args.userId ||
+        run.status === "completed" || run.status === "blocked" || run.status === "failed") return;
+    const result = args.result.slice(0, 6000);
     await ctx.db.patch(args.runId, {
       status: args.status,
-      result: args.result.slice(0, 6000),
+      result,
       pendingAction: undefined,
       completedAt: new Date().toISOString(),
     });
+    // Persist server-produced results once, and never resurrect a cleared chat.
+    const prompt = await ctx.db.query("chatMessages")
+      .withIndex("by_runId", q => q.eq("runId", args.runId)).first();
+    if (prompt?.userId === args.userId && prompt.role === "user") {
+      await ctx.db.insert("chatMessages", {
+        userId: args.userId,
+        role: "assistant",
+        content: result,
+        runId: args.runId,
+        kind: args.status === "completed" ? "interpretation" : "service_status",
+      });
+    }
   },
 });
 
@@ -336,17 +356,18 @@ export const recordExperience = internalMutation({
         note: v.optional(v.string()),
       }),
     ),
-    confidence: v.number(),
+    confidence: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const { confidence, ...record } = args;
     await ctx.db.insert("agentExperiences", {
-      ...args,
+      ...record,
       condition: args.condition.slice(0, 500),
       strategy: args.strategy.slice(0, 500),
       toolsUsed: args.toolsUsed.slice(0, 20).map((tool) => tool.slice(0, 80)),
       actionTaken: args.actionTaken?.slice(0, 300),
       result: args.result.slice(0, 1000),
-      confidence: Math.min(1, Math.max(0, args.confidence)),
+      ...(confidence === undefined ? {} : { confidence: Math.min(1, Math.max(0, confidence)) }),
       createdAt: new Date().toISOString(),
     });
   },

@@ -3,6 +3,7 @@ import { v, ConvexError } from "convex/values";
 import { requireFleetAccess } from "./users";
 import type { QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
+import { isFreshTimestamp, isValidSensorValues } from "./safetyPolicy";
 import {
   analyzeSensorTrends as analyzeTrendData,
   analyzeWaterQuality as analyzeQualityData,
@@ -34,6 +35,76 @@ function toAgentReading(reading: Doc<"sensorReadings">): AgentReading {
   };
 }
 
+function deviceStatus(device: Doc<"devices">, now = Date.now()) {
+  return device.status === "online" && !isFreshTimestamp(device.lastSeen, now)
+    ? "offline"
+    : device.status;
+}
+
+function pumpReport(device: Doc<"devices">, now = Date.now()) {
+  return isFreshTimestamp(device.pumpReportedAt, now)
+    ? (device.reportedPumpState ?? null)
+    : null;
+}
+
+function readingDetails(reading: Doc<"sensorReadings">) {
+  const timeBasis = reading.timeBasis ?? "server_receipt";
+  return {
+    ...toAgentReading(reading),
+    timeBasis,
+    receivedAt:
+      reading.receivedAt ??
+      (timeBasis === "server_receipt" ? reading.timestamp : null),
+  };
+}
+
+function validHistoricalReading(reading: Doc<"sensorReadings">, now: number) {
+  const timestamp = Date.parse(reading.timestamp);
+  return (
+    isValidSensorValues(reading) &&
+    Number.isFinite(timestamp) &&
+    timestamp <= now
+  );
+}
+
+function readingContext(
+  device: Doc<"devices"> | null,
+  reading: Doc<"sensorReadings"> | null,
+  now = Date.now(),
+) {
+  const age = reading ? now - Date.parse(reading.timestamp) : NaN;
+  const valid =
+    reading && isValidSensorValues(reading) && Number.isFinite(age) && age >= 0;
+  const live =
+    valid &&
+    device &&
+    deviceStatus(device, now) === "online" &&
+    isFreshTimestamp(reading.timestamp, now);
+  return {
+    available: !!valid && !!device,
+    mode: valid && device ? "HARDWARE" : "UNKNOWN",
+    freshness: !reading
+      ? "UNAVAILABLE"
+      : !valid
+        ? "INVALID"
+        : live
+          ? "LIVE"
+          : "STALE",
+    ageMs: Number.isFinite(age) && age >= 0 ? age : null,
+    deviceStatus: device ? deviceStatus(device, now) : "unknown",
+    readingTimestamp: reading?.timestamp ?? null,
+    reason: !device
+      ? "Device not found."
+      : !reading
+        ? "No persisted hardware reading is available; demo state is not used by Ethm."
+        : !valid
+          ? "The persisted reading has invalid values or an invalid/future timestamp; do not treat it as current measurement evidence."
+          : live
+            ? null
+            : "Persisted reading is historical or device connectivity is stale; current conditions are unknown.",
+  };
+}
+
 export const listDevices = internalQuery({
   args: {},
   handler: async (ctx) => {
@@ -43,11 +114,12 @@ export const listDevices = internalQuery({
       deviceId: device.deviceId,
       name: device.name,
       location: device.location ?? null,
-      status: device.status,
+      status: deviceStatus(device),
       lastSeen: device.lastSeen ?? null,
       controlMode: device.controlMode ?? "auto",
       desiredPumpState: device.desiredPumpState ?? false,
-      reportedPumpState: device.reportedPumpState ?? null,
+      reportedPumpState: pumpReport(device),
+      pumpReportedAt: device.pumpReportedAt ?? null,
     }));
   },
 });
@@ -60,22 +132,12 @@ export const getLatestSensorReadings = internalQuery({
       getDevice(ctx, args.deviceId),
       getLatestReading(ctx, args.deviceId),
     ]);
-    if (!device)
-      return { available: false, reason: "Device not found.", reading: null };
+    const context = readingContext(device, reading);
     return {
-      available: reading !== null,
+      ...context,
       source: "device-ingested-hardware-data",
-      deviceId: device.deviceId,
-      deviceStatus: device.status,
-      reason: reading ? null : "No reading has been persisted for this device.",
-      reading: reading
-        ? {
-            ph: reading.ph,
-            tds: reading.tds,
-            turbidity: reading.turbidity,
-            timestamp: reading.timestamp,
-          }
-        : null,
+      deviceId: args.deviceId,
+      reading: context.available && reading ? readingDetails(reading) : null,
     };
   },
 });
@@ -92,16 +154,16 @@ export const getRecentSensorReadings = internalQuery({
       )
       .order("desc")
       .take(limit);
+    const now = Date.now();
+    const validReadings = readings.filter((reading) =>
+      validHistoricalReading(reading, now),
+    );
     return {
       deviceId: args.deviceId,
       source: "device-ingested-hardware-data",
-      count: readings.length,
-      readings: readings.map((reading) => ({
-        ph: reading.ph,
-        tds: reading.tds,
-        turbidity: reading.turbidity,
-        timestamp: reading.timestamp,
-      })),
+      count: validReadings.length,
+      excludedInvalidCount: readings.length - validReadings.length,
+      readings: validReadings.map(readingDetails),
     };
   },
 });
@@ -125,11 +187,12 @@ export const getDeviceStatus = internalQuery({
       deviceId: device.deviceId,
       name: device.name,
       location: device.location ?? null,
-      status: device.status,
+      status: deviceStatus(device),
       lastSeen: device.lastSeen ?? null,
       controlMode: device.controlMode ?? "auto",
       desiredPumpState: device.desiredPumpState ?? false,
-      reportedPumpState: device.reportedPumpState ?? null,
+      reportedPumpState: pumpReport(device),
+      pumpReportedAt: device.pumpReportedAt ?? null,
       lastControlMessage: device.lastControlMessage ?? null,
       latestCommand: command
         ? {
@@ -227,28 +290,16 @@ export const getDataMode = internalQuery({
       getDevice(ctx, args.deviceId),
       getLatestReading(ctx, args.deviceId),
     ]);
-    if (!device) return { mode: "UNKNOWN", reason: "Device not found." };
-    if (!reading) {
-      return {
-        mode: "UNKNOWN",
-        deviceStatus: device.status,
-        reason:
-          "No persisted hardware reading is available; demo state is browser-local and is not used by Ethm.",
-      };
-    }
-    const ageMs = Math.max(0, Date.now() - Date.parse(reading.timestamp));
+    const context = readingContext(device, reading);
     return {
-      mode: "HARDWARE",
-      freshness:
-        ageMs <= 10_000 && device.status === "online" ? "LIVE" : "STALE",
-      ageMs,
-      deviceStatus: device.status,
-      readingTimestamp: reading.timestamp,
+      ...context,
+      timeBasis: reading?.timeBasis ?? (reading ? "server_receipt" : null),
+      receivedAt: reading ? readingDetails(reading).receivedAt : null,
       source: "Arduino/device ingestion endpoint",
       note:
-        ageMs <= 10_000 && device.status === "online"
-          ? "Recent device-ingested reading."
-          : "Persisted device reading is historical; do not describe it as live.",
+        context.freshness === "LIVE"
+          ? "Recent device-ingested reading; gateway/receipt time is not independently established probe acquisition time or calibration evidence."
+          : context.reason,
     };
   },
 });
@@ -257,8 +308,34 @@ export const evaluateSafetyState = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
     await requireFleetAccess(ctx);
-    const reading = await getLatestReading(ctx, args.deviceId);
-    return evaluateSafetyData(reading ? toAgentReading(reading) : null);
+    const [device, reading] = await Promise.all([
+      getDevice(ctx, args.deviceId),
+      getLatestReading(ctx, args.deviceId),
+    ]);
+    const context = readingContext(device, reading);
+    if (context.freshness !== "LIVE") {
+      return {
+        ...evaluateSafetyData(null),
+        reason:
+          context.reason ??
+          "Fresh device telemetry is required for safety evaluation.",
+        deviceStatus: context.deviceStatus,
+        emergencyLatched: device?.controlMode === "emergency",
+      };
+    }
+    const result = evaluateSafetyData(reading ? toAgentReading(reading) : null);
+    if (device?.controlMode === "emergency") {
+      return {
+        ...result,
+        state: "critical" as const,
+        emergencyLatched: true,
+        pumpStartAllowed: false,
+        automaticFiltrationRequested: false,
+        reason:
+          "Emergency mode remains latched. Recovered readings alone cannot permit restart; an authorized operator must acknowledge recovery through the dedicated control panel.",
+      };
+    }
+    return { ...result, emergencyLatched: false };
   },
 });
 
@@ -266,8 +343,19 @@ export const analyzeWaterQuality = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
     await requireFleetAccess(ctx);
-    const reading = await getLatestReading(ctx, args.deviceId);
-    return analyzeQualityData(reading ? toAgentReading(reading) : null);
+    const [device, reading] = await Promise.all([
+      getDevice(ctx, args.deviceId),
+      getLatestReading(ctx, args.deviceId),
+    ]);
+    const context = readingContext(device, reading);
+    return {
+      ...analyzeQualityData(
+        context.available && reading ? toAgentReading(reading) : null,
+      ),
+      freshness: context.freshness,
+      dataNote: context.reason,
+      timeBasis: reading?.timeBasis ?? (reading ? "server_receipt" : null),
+    };
   },
 });
 
@@ -283,7 +371,16 @@ export const analyzeSensorTrends = internalQuery({
       )
       .order("desc")
       .take(limit);
-    return analyzeTrendData(readings.map(toAgentReading));
+    const now = Date.now();
+    const validReadings = readings.filter((reading) =>
+      validHistoricalReading(reading, now),
+    );
+    return {
+      ...analyzeTrendData(validReadings.map(toAgentReading)),
+      excludedInvalidCount: readings.length - validReadings.length,
+      timestampNote:
+        "Trend times use gateway observation or legacy server receipt, not independently established probe acquisition time.",
+    };
   },
 });
 
@@ -333,7 +430,6 @@ export const getRelevantExperiences = internalQuery({
       result: experience.result,
       succeeded: experience.succeeded,
       outcomeMetrics: experience.outcomeMetrics ?? null,
-      confidence: experience.confidence,
       operatorFeedback: experience.operatorFeedback ?? null,
       createdAt: experience.createdAt,
     }));

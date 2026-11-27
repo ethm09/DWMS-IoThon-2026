@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api.js";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useAuth } from "@/hooks/use-auth.ts";
+import { accountSyncErrorMessage } from "@/lib/auth-errors";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -19,12 +20,12 @@ export default function AuthCallback() {
   useEffect(() => {
     if (!isConfigured) {
       setSyncError(
-        "Sign-in is unavailable on this installation. You can return to the local demo.",
+        "Sign-in is unavailable on this installation. You can open the public demo.",
       );
       return;
     }
     if (error) {
-      setSyncError("Sign-in could not be completed. Check the application's allowed callback and try again.");
+      setSyncError("Sign-in could not be completed. Please try again or contact the platform administrator.");
       return;
     }
     if (isLoading) return;
@@ -38,11 +39,9 @@ export default function AuthCallback() {
     syncStarted.current = true;
     void updateCurrentUser()
       .then(() => navigate("/live", { replace: true }))
-      .catch(() => {
+      .catch((failure: unknown) => {
         syncStarted.current = false;
-        setSyncError(
-          "Your identity was signed in, but the monitoring account could not be registered. Please try again or contact the platform administrator.",
-        );
+        setSyncError(accountSyncErrorMessage(failure));
       });
   }, [
     error,
@@ -56,14 +55,14 @@ export default function AuthCallback() {
   ]);
 
   useEffect(() => {
-    if (!isConfigured || isLoading || !isAuthenticated || error) return;
+    if (!isConfigured || isLoading || !isAuthenticated || error || syncError) return;
     const timeout = window.setTimeout(() => {
       setSyncError(
-        "Your session could not connect to the monitoring service. Sign in again or return to the local demo.",
+        "Your session could not connect to the monitoring service. Sign in again or open the public demo.",
       );
     }, 15_000);
     return () => window.clearTimeout(timeout);
-  }, [isConfigured, isLoading, isAuthenticated, error]);
+  }, [isConfigured, isLoading, isAuthenticated, error, syncError]);
 
   if (syncError) {
     return (

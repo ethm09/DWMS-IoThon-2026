@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api.js";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Bell, BellOff, AlertCircle, AlertTriangle, Info, CheckCheck,
-  Trash2, Settings2, Volume2, VolumeX, Globe, Server,
+  Trash2, Settings2, Server,
   SlidersHorizontal, Wrench, Radio, Filter,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,8 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { Authenticated, AuthLoading } from "convex/react";
+import { useUserRole } from "@/hooks/use-user-role";
+import { filterNotificationFeed } from "@/lib/notification-feed";
 
 type NotificationLevel = "critical" | "warning" | "info";
 type NotificationCategory = "threshold" | "device" | "system" | "maintenance";
@@ -38,12 +40,25 @@ function NotificationsList() {
   const [categoryFilter, setCategoryFilter] = useState<NotificationCategory | "all">("all");
 
   const notifications = useQuery(api.notifications.list, { limit: 50 });
+  const preferences = useQuery(api.notifications.getPreferences);
+  const [pending, setPending] = useState(false);
   const markAsRead = useMutation(api.notifications.markAsRead);
   const markAllAsRead = useMutation(api.notifications.markAllAsRead);
   const dismissNotification = useMutation(api.notifications.dismiss);
   const dismissAll = useMutation(api.notifications.dismissAll);
 
-  if (notifications === undefined) {
+  const updateNotification = async (action: () => Promise<unknown>, success: (result: unknown) => string) => {
+    setPending(true);
+    try {
+      toast.success(success(await action()));
+    } catch {
+      toast.error("Could not save notification changes. Please try again.");
+    } finally {
+      setPending(false);
+    }
+  };
+
+  if (notifications === undefined || preferences === undefined) {
     return (
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -53,11 +68,7 @@ function NotificationsList() {
     );
   }
 
-  const filtered = notifications.filter((n) => {
-    if (levelFilter !== "all" && n.level !== levelFilter) return false;
-    if (categoryFilter !== "all" && n.category !== categoryFilter) return false;
-    return true;
-  });
+  const filtered = filterNotificationFeed(notifications, preferences, levelFilter, categoryFilter);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -74,24 +85,18 @@ function NotificationsList() {
           <Button
             size="sm"
             className="cursor-pointer text-xs tracking-widest gap-1"
-            style={{ background: "transparent", border: "1px solid oklch(0.25 0.04 145)", color: "oklch(0.55 0.04 145)" }}
-            onClick={async () => {
-              const count = await markAllAsRead();
-              toast.success(`Marked ${count} notifications as read`);
-            }}
-            disabled={unreadCount === 0}
+            style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--primary)" }}
+            onClick={() => void updateNotification(() => markAllAsRead(), count => `Marked ${count} notifications as read`)}
+            disabled={pending || unreadCount === 0}
           >
             <CheckCheck className="w-3.5 h-3.5" /> MARK ALL READ
           </Button>
           <Button
             size="sm"
             className="cursor-pointer text-xs tracking-widest gap-1"
-            style={{ background: "transparent", border: "1px solid oklch(0.25 0.04 145)", color: "oklch(0.55 0.04 145)" }}
-            onClick={async () => {
-              const count = await dismissAll();
-              toast.success(`Dismissed ${count} notifications`);
-            }}
-            disabled={notifications.length === 0}
+            style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--primary)" }}
+            onClick={() => void updateNotification(() => dismissAll(), count => `Dismissed ${count} notifications`)}
+            disabled={pending || notifications.length === 0}
           >
             <Trash2 className="w-3.5 h-3.5" /> DISMISS ALL
           </Button>
@@ -127,9 +132,9 @@ function NotificationsList() {
               onClick={() => setCategoryFilter(cat)}
               className="px-3 py-1 rounded-full text-[10px] font-bold tracking-widest border cursor-pointer transition-all"
               style={{
-                color: categoryFilter === cat ? "#0f172a" : "oklch(0.55 0.04 145)",
-                background: categoryFilter === cat ? "oklch(0.55 0.04 145)" : "oklch(0.55 0.04 145 / 0.1)",
-                borderColor: "oklch(0.55 0.04 145 / 0.4)",
+                color: categoryFilter === cat ? "var(--primary-foreground)" : "var(--primary)",
+                background: categoryFilter === cat ? "var(--primary)" : "var(--accent)",
+                borderColor: "var(--border)",
               }}
             >
               {label}
@@ -164,9 +169,8 @@ function NotificationsList() {
                     <EmptyMedia variant="icon"><BellOff /></EmptyMedia>
                     <EmptyTitle>No notifications</EmptyTitle>
                     <EmptyDescription>
-                      {levelFilter !== "all" || categoryFilter !== "all"
-                        ? "Try adjusting your filters"
-                        : "You're all caught up"}
+                      No saved notifications match your filters and personal
+                      feed preferences.
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -208,9 +212,9 @@ function NotificationsList() {
                         <span
                           className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded-full flex items-center gap-1"
                           style={{
-                            background: "oklch(0.15 0.04 145)",
-                            color: "oklch(0.55 0.04 145)",
-                            border: "1px solid oklch(0.25 0.04 145)",
+                            background: "var(--muted)",
+                            color: "var(--primary)",
+                            border: "1px solid var(--border)",
                           }}
                         >
                           <CatIcon className="w-2.5 h-2.5" />
@@ -235,7 +239,9 @@ function NotificationsList() {
                     <div className="flex flex-col gap-1 shrink-0">
                       {!notification.read && (
                         <button
-                          onClick={() => markAsRead({ notificationId: notification._id })}
+                          onClick={() => void updateNotification(() => markAsRead({ notificationId: notification._id }), () => "Notification marked as read")}
+                          disabled={pending}
+                          aria-label="Mark as read"
                           className="text-muted-foreground/40 hover:text-primary transition-colors cursor-pointer p-1"
                           title="Mark as read"
                         >
@@ -243,7 +249,9 @@ function NotificationsList() {
                         </button>
                       )}
                       <button
-                        onClick={() => dismissNotification({ notificationId: notification._id })}
+                        onClick={() => void updateNotification(() => dismissNotification({ notificationId: notification._id }), () => "Notification dismissed")}
+                        disabled={pending}
+                        aria-label="Dismiss notification"
                         className="text-muted-foreground/40 hover:text-red-400 transition-colors cursor-pointer p-1"
                         title="Dismiss"
                       >
@@ -264,6 +272,7 @@ function NotificationsList() {
 function PreferencesPanel() {
   const preferences = useQuery(api.notifications.getPreferences);
   const updatePreferences = useMutation(api.notifications.updatePreferences);
+  const [saving, setSaving] = useState(false);
 
   if (preferences === undefined) {
     return (
@@ -275,7 +284,7 @@ function PreferencesPanel() {
     );
   }
 
-  const handleToggle = (key: string, value: boolean) => {
+  const handleToggle = async (key: string, value: boolean) => {
     const updated = { ...preferences, [key]: value };
     // Remove _id and _creationTime if present
     const { ...clean } = updated;
@@ -290,23 +299,31 @@ function PreferencesPanel() {
       soundEnabled: clean.soundEnabled,
       browserNotifications: clean.browserNotifications,
     };
-    updatePreferences(payload);
-    toast.success("Preferences updated");
+    setSaving(true);
+    try {
+      await updatePreferences(payload);
+      toast.success("Feed preferences saved");
+    } catch {
+      toast.error("Could not save preferences. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">These preferences filter your personal notification feed. Operational alerts and recorded events remain available on the monitoring and Alerts pages.</p>
       {/* Level preferences */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-            <Filter className="w-4 h-4" /> ALERT LEVELS
+            <Filter className="w-4 h-4" /> SHOW NOTIFICATION LEVELS
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {([
             { key: "enableCritical", label: "Critical Alerts", desc: "Emergency and critical threshold breaches", color: "#ef4444" },
-            { key: "enableWarning", label: "Warning Alerts", desc: "Parameters approaching unsafe levels", color: "#eab308" },
+            { key: "enableWarning", label: "Warning Alerts", desc: "Parameters outside configured bands", color: "#eab308" },
             { key: "enableInfo", label: "Info Alerts", desc: "System status updates and informational notices", color: "#06b6d4" },
           ] as const).map((item) => (
             <div key={item.key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
@@ -319,7 +336,8 @@ function PreferencesPanel() {
               </div>
               <Switch
                 checked={preferences[item.key]}
-                onCheckedChange={(v) => handleToggle(item.key, v)}
+                onCheckedChange={(v) => void handleToggle(item.key, v)}
+                disabled={saving}
                 className="cursor-pointer"
               />
             </div>
@@ -331,12 +349,12 @@ function PreferencesPanel() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-            <Settings2 className="w-4 h-4" /> NOTIFICATION CATEGORIES
+            <Settings2 className="w-4 h-4" /> SHOW NOTIFICATION CATEGORIES
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {([
-            { key: "enableThreshold", label: "Threshold Alerts", desc: "When sensor values exceed safe limits", icon: SlidersHorizontal },
+            { key: "enableThreshold", label: "Threshold Alerts", desc: "When sensor values exceed configured prototype limits", icon: SlidersHorizontal },
             { key: "enableDevice", label: "Device Alerts", desc: "Device connectivity and hardware issues", icon: Radio },
             { key: "enableSystem", label: "System Alerts", desc: "Mode changes, shutdowns, and system events", icon: Server },
             { key: "enableMaintenance", label: "Maintenance Alerts", desc: "Manual maintenance notices; automatic reminders are not configured", icon: Wrench },
@@ -351,7 +369,8 @@ function PreferencesPanel() {
               </div>
               <Switch
                 checked={preferences[item.key]}
-                onCheckedChange={(v) => handleToggle(item.key, v)}
+                onCheckedChange={(v) => void handleToggle(item.key, v)}
+                disabled={saving}
                 className="cursor-pointer"
               />
             </div>
@@ -359,44 +378,7 @@ function PreferencesPanel() {
         </CardContent>
       </Card>
 
-      {/* Sound and browser */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-bold tracking-widest text-primary flex items-center gap-2">
-            <Volume2 className="w-4 h-4" /> DELIVERY OPTIONS
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between py-2 border-b border-border">
-            <div className="flex items-center gap-3">
-              {preferences.soundEnabled ? <Volume2 className="w-4 h-4 text-muted-foreground" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
-              <div>
-                <div className="text-xs font-bold tracking-wider">Alert Sound</div>
-                <div className="text-[10px] text-muted-foreground">Play a sound for new critical alerts</div>
-              </div>
-            </div>
-            <Switch
-              checked={preferences.soundEnabled}
-              onCheckedChange={(v) => handleToggle("soundEnabled", v)}
-              className="cursor-pointer"
-            />
-          </div>
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-3">
-              <Globe className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <div className="text-xs font-bold tracking-wider">Browser Notifications</div>
-                <div className="text-[10px] text-muted-foreground">Show desktop notifications when app is in background</div>
-              </div>
-            </div>
-            <Switch
-              checked={preferences.browserNotifications}
-              onCheckedChange={(v) => handleToggle("browserNotifications", v)}
-              className="cursor-pointer"
-            />
-          </div>
-        </CardContent>
-      </Card>
+
     </div>
   );
 }
@@ -407,12 +389,14 @@ function BroadcastPanel() {
   const [level, setLevel] = useState<NotificationLevel>("info");
   const [category, setCategory] = useState<NotificationCategory>("system");
   const broadcast = useMutation(api.notifications.broadcast);
+  const [sending, setSending] = useState(false);
 
   const handleSend = async () => {
     if (!title.trim() || !message.trim()) {
       toast.error("Title and message are required");
       return;
     }
+    setSending(true);
     try {
       const count = await broadcast({
         level,
@@ -426,6 +410,8 @@ function BroadcastPanel() {
       setMessage("");
     } catch {
       toast.error("Failed to send notification");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -466,9 +452,9 @@ function BroadcastPanel() {
                 onClick={() => setCategory(c)}
                 className="px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest border cursor-pointer transition-all"
                 style={{
-                  color: category === c ? "#0f172a" : "oklch(0.55 0.04 145)",
-                  background: category === c ? "oklch(0.55 0.04 145)" : "transparent",
-                  borderColor: "oklch(0.25 0.04 145)",
+                  color: category === c ? "var(--primary-foreground)" : "var(--primary)",
+                  background: category === c ? "var(--primary)" : "transparent",
+                  borderColor: "var(--border)",
                 }}
               >
                 {CATEGORY_CONFIG[c].label.toUpperCase()}
@@ -501,9 +487,9 @@ function BroadcastPanel() {
         <Button
           onClick={handleSend}
           className="cursor-pointer w-full tracking-widest font-bold"
-          disabled={!title.trim() || !message.trim()}
+          disabled={sending || !title.trim() || !message.trim()}
         >
-          SEND TO ALL USERS
+          {sending ? "Sending…" : "SEND NOTIFICATION"}
         </Button>
       </CardContent>
     </Card>
@@ -511,13 +497,14 @@ function BroadcastPanel() {
 }
 
 function NotificationsContent() {
+  const { isAdmin } = useUserRole();
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-lg font-bold tracking-widest text-primary uppercase">Notification Center</h2>
         <p className="text-xs text-muted-foreground tracking-wider">
-          Manage alerts, configure preferences, and broadcast notifications
+          View your saved notifications and choose personal feed preferences.
         </p>
       </div>
 
@@ -529,9 +516,9 @@ function NotificationsContent() {
           <TabsTrigger value="preferences" className="cursor-pointer text-xs tracking-widest font-bold gap-1">
             <Settings2 className="w-3.5 h-3.5" /> PREFERENCES
           </TabsTrigger>
-          <TabsTrigger value="broadcast" className="cursor-pointer text-xs tracking-widest font-bold gap-1">
+          {isAdmin && <TabsTrigger value="broadcast" className="cursor-pointer text-xs tracking-widest font-bold gap-1">
             <Radio className="w-3.5 h-3.5" /> BROADCAST
-          </TabsTrigger>
+          </TabsTrigger>}
         </TabsList>
 
         <TabsContent value="notifications" className="mt-4">
@@ -542,9 +529,9 @@ function NotificationsContent() {
           <PreferencesPanel />
         </TabsContent>
 
-        <TabsContent value="broadcast" className="mt-4">
+        {isAdmin && <TabsContent value="broadcast" className="mt-4">
           <BroadcastPanel />
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
     </div>
   );

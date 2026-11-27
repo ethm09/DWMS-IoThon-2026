@@ -140,12 +140,14 @@ export default defineSchema({
     browserNotifications: v.boolean(),
   }).index("by_userId", ["userId"]),
 
-  // S.A.M.I chat messages
+  // Private Ethm conversation; assistant results are written by backend runs.
   chatMessages: defineTable({
     userId: v.id("users"),
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
-  }).index("by_userId", ["userId"]),
+    runId: v.optional(v.id("agentRuns")),
+    kind: v.optional(v.union(v.literal("interpretation"), v.literal("service_status"))),
+  }).index("by_userId", ["userId"]).index("by_runId", ["runId"]),
 
   // Ethm operational runs contain concise status and outcome data only. They
   // deliberately do not persist model reasoning or client-supplied sensor state.
@@ -223,7 +225,7 @@ export default defineSchema({
         note: v.optional(v.string()),
       }),
     ),
-    confidence: v.number(),
+    confidence: v.optional(v.number()),
     operatorFeedback: v.optional(v.string()),
     createdAt: v.string(),
   }).index("by_deviceId_createdAt", ["deviceId", "createdAt"]),

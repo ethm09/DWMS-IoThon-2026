@@ -64,8 +64,8 @@ export function analyzeWaterQuality(reading: AgentReading | null) {
     (parameter) => parameter.level !== "safe",
   );
   const summary = outOfRange.length
-    ? `${outOfRange.length} of 3 measured parameters are outside the configured safe range.`
-    : "All three measured parameters are within the configured safe ranges.";
+    ? `${outOfRange.length} of 3 stored parameters are outside the configured operating range.`
+    : "All three stored parameters are within the configured operating ranges.";
 
   return {
     available: true,
@@ -186,7 +186,7 @@ export function analyzeSensorTrends(readings: AgentReading[]) {
 
   const changes = trends.filter((trend) => trend.direction !== "stable");
   const summary = changes.length
-    ? `Measured changes across ${ordered.length} readings: ${changes.map((trend) => `${trend.key} ${trend.direction}`).join(", ")}.`
+    ? `Recorded changes across ${ordered.length} readings: ${changes.map((trend) => `${trend.key} ${trend.direction}`).join(", ")}.`
     : `No change exceeded the configured trend noise floor across ${ordered.length} readings.`;
   return {
     available: true,

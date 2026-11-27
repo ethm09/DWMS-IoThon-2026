@@ -40,6 +40,7 @@ import {
 import { WorkspaceLink as Link } from "@/components/workspace-link";
 import { useDemo } from "@/hooks/use-demo.ts";
 import { DEMO_DEVICE } from "@/lib/demo-state.ts";
+import { validWaterReading } from "@/lib/monitoring";
 import { useUserRole } from "@/hooks/use-user-role.ts";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 
@@ -68,6 +69,7 @@ function DeviceCard({
     deviceId: device.deviceId,
   });
 
+  const validReading = validWaterReading(latestReading);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 2000);
@@ -152,15 +154,15 @@ function DeviceCard({
         <div className="space-y-2">
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: "pH", value: latestReading.ph.toFixed(2), unit: "" },
+              { label: "pH", value: validReading ? latestReading.ph.toFixed(2) : "—", unit: "" },
               {
                 label: "TDS",
-                value: latestReading.tds.toFixed(0),
+                value: validReading ? latestReading.tds.toFixed(0) : "—",
                 unit: "ppm",
               },
               {
                 label: "Turb.",
-                value: latestReading.turbidity.toFixed(2),
+                value: validReading ? latestReading.turbidity.toFixed(2) : "—",
                 unit: "NTU",
               },
             ].map((r) => (
@@ -222,6 +224,7 @@ function getWaterStatus(
   color: string;
 } {
   if (!reading) return { label: "No Data", color: "#6b7280" };
+  if (!validWaterReading(reading)) return { label: "UNKNOWN · invalid data", color: "#6b7280" };
   const age = now - Date.parse(reading.timestamp);
   if (!Number.isFinite(age) || age < 0 || age > 10_000)
     return { label: "UNKNOWN · stale data", color: "#6b7280" };
@@ -261,20 +264,21 @@ function RegisterDeviceDialog({
     try {
       const apiKey = `ldwms_${crypto.randomUUID()}`;
       const result = await registerDevice({
-        deviceId,
-        name,
+        deviceId: deviceId.trim(),
+        name: name.trim(),
         apiKey,
-        location: location || undefined,
+        location: location.trim() || undefined,
       });
       toast.success("Device registered successfully");
-      onRegistered({ deviceId, apiKey: result.apiKey });
+      onRegistered({ deviceId: deviceId.trim(), apiKey: result.apiKey });
       setOpen(false);
       setDeviceId("");
       setName("");
       setLocation("");
     } catch (err) {
       if (err instanceof ConvexError) {
-        toast.error((err.data as { message: string }).message);
+        const details = err.data as { message?: unknown };
+        toast.error(typeof details?.message === "string" ? details.message : "Device registration could not be completed.");
       } else {
         toast.error("Failed to register device");
       }
@@ -365,6 +369,16 @@ $env:DWMS_API_KEY = ${quoteForPowerShell(apiKey)}
 $env:DWMS_SERIAL_PORT = "COM3"
 python .\\serial_bridge.py`;
 
+  const copySetup = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(code);
+      toast.success("Setup snippet copied");
+    } catch {
+      toast.error("Copy failed. Select the setup snippet and copy it manually.");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -392,20 +406,19 @@ python .\\serial_bridge.py`;
           <pre
             className="text-xs font-mono rounded-lg p-4 overflow-auto max-h-96 leading-relaxed"
             style={{
-              background: "oklch(0.08 0.02 145)",
-              color: "#a8d8b9",
-              border: "1px solid oklch(0.2 0.04 145)",
+              background: "var(--muted)",
+              color: "var(--foreground)",
+              border: "1px solid var(--border)",
             }}
           >
             {code}
           </pre>
           <button
-            onClick={() => {
-              void navigator.clipboard.writeText(code);
-              toast.success("Setup snippet copied");
-            }}
+            onClick={() => void copySetup()}
+            aria-label="Copy setup snippet"
+            title="Copy setup snippet"
             className="absolute top-2 right-2 p-1.5 rounded cursor-pointer text-muted-foreground hover:text-foreground"
-            style={{ background: "oklch(0.15 0.03 145)" }}
+            style={{ background: "var(--background)" }}
           >
             <Copy className="w-3.5 h-3.5" />
           </button>
@@ -427,7 +440,9 @@ python .\\serial_bridge.py`;
               .
             </li>
             <li>
-              Upload the DWMS sketch to an Arduino Uno and connect it over USB.
+              Preserve the original running firmware and wiring before connecting
+              the Uno over USB. Do not overwrite working firmware with the
+              calibration-disabled repository scaffold.
             </li>
             <li>
               Paste the PowerShell setup snippet above in a private terminal.
@@ -446,8 +461,8 @@ python .\\serial_bridge.py`;
           <div
             className="rounded-lg p-3 mt-3 text-xs"
             style={{
-              background: "oklch(0.1 0.03 145)",
-              border: "1px solid oklch(0.2 0.04 145)",
+              background: "var(--muted)",
+              border: "1px solid var(--border)",
             }}
           >
             <p className="font-bold tracking-wider text-primary mb-1">
@@ -458,8 +473,8 @@ python .\\serial_bridge.py`;
           <div
             className="rounded-lg p-3 mt-2 text-xs"
             style={{
-              background: "oklch(0.1 0.03 145)",
-              border: "1px solid oklch(0.2 0.04 145)",
+              background: "var(--muted)",
+              border: "1px solid var(--border)",
             }}
           >
             <p className="font-bold tracking-wider text-primary mb-1">
@@ -586,8 +601,8 @@ function DeviceManagerInner() {
         <div
           className="rounded-lg p-3 space-y-1"
           style={{
-            background: "oklch(0.1 0.03 145)",
-            border: "1px solid oklch(0.2 0.04 145)",
+            background: "var(--muted)",
+            border: "1px solid var(--border)",
           }}
         >
           <div className="flex items-center gap-2">
@@ -608,8 +623,8 @@ function DeviceManagerInner() {
         <div
           className="rounded-lg p-3 text-xs"
           style={{
-            background: "oklch(0.08 0.02 145)",
-            border: "1px solid oklch(0.18 0.04 145)",
+            background: "var(--muted)",
+            border: "1px solid var(--border)",
           }}
         >
           <p className="text-muted-foreground mb-1 font-bold tracking-wider">
@@ -624,8 +639,8 @@ function DeviceManagerInner() {
         <div
           className="rounded-lg p-3 text-xs"
           style={{
-            background: "oklch(0.08 0.02 145)",
-            border: "1px solid oklch(0.18 0.04 145)",
+            background: "var(--muted)",
+            border: "1px solid var(--border)",
           }}
         >
           <p className="text-muted-foreground mb-1 font-bold tracking-wider">

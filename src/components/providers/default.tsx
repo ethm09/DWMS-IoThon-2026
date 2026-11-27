@@ -7,6 +7,7 @@ import { TooltipProvider } from "../ui/tooltip.tsx";
 import { ProcessModeProvider } from "./process-mode.tsx";
 import { DemoProvider } from "./demo.tsx";
 import HardwareBridge from "../hardware-bridge.tsx";
+import LiveWorkspaceRecovery from "../live-workspace-recovery";
 import { useLocation } from "react-router-dom";
 
 export function DefaultProviders({ children }: { children: React.ReactNode }) {
@@ -19,9 +20,11 @@ export function DefaultProviders({ children }: { children: React.ReactNode }) {
             <ThemeProvider>
               <ProcessModeProvider>
                 <DemoProvider>
-                  {(pathname === "/live" || pathname.startsWith("/live/")) && <HardwareBridge />}
                   <Toaster />
-                  {children}
+                  <LiveWorkspaceRecovery>
+                    {(pathname === "/live" || pathname.startsWith("/live/")) && <HardwareBridge />}
+                    {children}
+                  </LiveWorkspaceRecovery>
                 </DemoProvider>
               </ProcessModeProvider>
             </ThemeProvider>

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SignInButton } from "@/components/ui/signin.tsx";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import { cn } from "@/lib/utils.ts";
+import { validWaterReading } from "@/lib/monitoring";
 import { useDemo } from "@/hooks/use-demo.ts";
 import {
   classifyPh,
@@ -56,8 +57,9 @@ function DeviceAlerts() {
   const dismissAllNotifications = useMutation(api.notifications.dismissAll);
   const timestamp = reading ? Date.parse(reading.timestamp) : NaN;
   const age = now - timestamp;
+  const validReading = validWaterReading(reading);
   const fresh =
-    Number.isFinite(age) &&
+    validReading && Number.isFinite(age) &&
     age >= 0 &&
     age <= 10_000 &&
     devices?.find((device) => device.deviceId === selectedDeviceId)?.status ===
@@ -76,7 +78,9 @@ function DeviceAlerts() {
       ? "Loading selected-device status…"
       : !reading
         ? "UNKNOWN · No stored sensor reading."
-        : !fresh
+        : !validReading
+          ? "UNKNOWN · Stored sensor values are invalid."
+          : !fresh
           ? "UNKNOWN · Stored reading is stale or its timestamp is invalid."
           : levels.includes("critical")
             ? "CRITICAL · A prototype threshold is exceeded."
@@ -154,12 +158,12 @@ function DeviceAlerts() {
               </p>
               {reading && (
                 <>
-                  <p className="font-mono text-sm">
+                  {validReading && <p className="font-mono text-sm">
                     pH {reading.ph.toFixed(2)} · TDS {reading.tds.toFixed(0)}{" "}
                     ppm · Turbidity {reading.turbidity.toFixed(2)} NTU
-                  </p>
+                  </p>}
                   <p className="text-xs text-muted-foreground">
-                    Server receipt:{" "}
+                    {reading.timeBasis === "gateway_observation" ? "Gateway observation" : "Backend receipt"}:{" "}
                     {new Date(reading.timestamp).toLocaleString()}
                     {Number.isFinite(age) && age >= 0
                       ? ` · ${Math.floor(age / 1000)}s ago`

@@ -5,6 +5,17 @@ const build = process.env.DWMS_TEST_BUILD_DIR;
 const users = require(path.join(build, "convex/users.js"));
 const agent = require(path.join(build, "convex/agent.js"));
 const { auth0Issuer } = require(path.join(build, "convex/auth.config.js"));
+const { accountSyncErrorMessage } = require(path.join(build, "src/lib/auth-errors.js"));
+
+test("account-sync guidance explains verified-email and duplicate-account gates without exposing backend details", () => {
+  assert.match(accountSyncErrorMessage({ data: { code: "EMAIL_NOT_VERIFIED" } }), /Verify your sign-in email address/);
+  assert.match(accountSyncErrorMessage({ data: { code: "AMBIGUOUS_IDENTITY" } }), /more than one DWMS account/);
+  for (const failure of [null, undefined, "private backend text", new Error("private backend text"), { data: "private backend text" }, { data: { code: "INTERNAL", message: "private backend text" } }]) {
+    const message = accountSyncErrorMessage(failure);
+    assert.match(message, /could not be registered/);
+    assert.ok(!message.includes("private backend text"));
+  }
+});
 
 function fixture(identity, initial = []) {
   const rows = initial.map((row) => ({ ...row }));

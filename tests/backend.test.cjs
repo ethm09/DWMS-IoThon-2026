@@ -745,3 +745,48 @@ test("controller duplicate sequence cannot be rewrapped in a newer gateway packe
   assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000) })).status, 409);
   assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000), sourceSequence: 6, sourceUptimeMs: 500 })).status, 409);
 });
+
+test("pump ON delivery requires a fresh valid observation even when receipt is fresh and stale scheduler is delayed", async () => {
+  const f = fixture();
+  await f.ingest({ ...healthy, tds: 1600 });
+  await f.invoke("setDeviceControlMode", { deviceId: "site-a", mode: "manual" });
+  const next = () => f.invoke("getPendingControlCommand", { deviceId: "site-a" });
+  assert.equal((await next()).pumpOn, true);
+  const reading = f.tables.sensorReadings[0];
+  for (const patch of [
+    { ...healthy, timestamp: stamp(-11000) },
+    { ...healthy, timestamp: stamp(1000) },
+    { ...healthy, timestamp: stamp(), tds: NaN },
+    { ...healthy, timestamp: stamp(), ph: 4 },
+    { ...healthy, timestamp: stamp(), turbidity: 60 },
+  ]) {
+    Object.assign(reading, patch);
+    f.tables.devices[0].lastSeen = stamp();
+    f.tables.devices[0].status = "online";
+    assert.equal(await next(), null);
+  }
+  // A stop request remains available when measurements are unusable.
+  await f.invoke("setDevicePump", { deviceId: "site-a", pumpOn: false });
+  assert.equal((await next()).pumpOn, false);
+});
+
+test("new device registration validates identity and credential without fabricated initial telemetry", async () => {
+  const valid = { deviceId: "reservoir-node-2", name: " Tank outlet ", location: " Reuse tank ", apiKey: "ldwms_01234567-89ab-4def-8123-456789abcdef" };
+  for (const options of [{ role: "operator" }, { role: "viewer", fleetAccess: true }, { authenticated: false }]) {
+    await assert.rejects(fixture(options).invoke("registerDevice", valid));
+  }
+  const f = fixture({ role: "admin" });
+  for (const patch of [{ deviceId: "" }, { deviceId: " bad id " }, { deviceId: "a\nheader" }, { name: " " }, { name: "a".repeat(121) }, { location: "a".repeat(201) }, { apiKey: "short" }, { apiKey: "x".repeat(32) + "\n" }]) {
+    await assert.rejects(f.invoke("registerDevice", { ...valid, ...patch }), error => error.data?.code === "BAD_REQUEST");
+  }
+  assert.equal(f.tables.devices.length, 1);
+  await f.invoke("registerDevice", valid);
+  const registered = f.tables.devices[1];
+  assert.equal(registered.name, "Tank outlet");
+  assert.equal(registered.location, "Reuse tank");
+  assert.equal(registered.status, "offline");
+  assert.equal(registered.lastSeen, undefined);
+  assert.equal(f.tables.sensorReadings.length, 0);
+  await assert.rejects(f.invoke("registerDevice", valid), error => error.data?.code === "CONFLICT");
+  await assert.rejects(f.invoke("registerDevice", { ...valid, deviceId: "other-id" }), error => error.data?.code === "CONFLICT");
+});

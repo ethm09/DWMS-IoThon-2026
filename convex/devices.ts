@@ -396,6 +396,19 @@ export const getPendingControlCommand = internalQuery({
     ) {
       return null;
     }
+    if (command.pumpOn) {
+      // Receipt time can be newer than the gateway's observation. Never rely
+      // on scheduler timing to stop delivery of an already-stale start request.
+      const reading = await ctx.db
+        .query("sensorReadings")
+        .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+        .order("desc")
+        .first();
+      if (
+        !reading || !isFreshTimestamp(reading.timestamp) || !isValidSensorValues(reading) ||
+        classifyPh(reading.ph) === "critical" || classifyTurbidity(reading.turbidity) === "critical"
+      ) return null;
+    }
     return {
       commandId: command.commandId,
       pumpOn: command.pumpOn,
@@ -536,6 +549,17 @@ export const registerDevice = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+    if (
+      !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(args.deviceId) ||
+      !args.name.trim() || args.name.trim().length > 120 ||
+      (args.location !== undefined && args.location.trim().length > 200) ||
+      !/^[A-Za-z0-9_-]{32,256}$/.test(args.apiKey)
+    ) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Enter a valid device ID, name and generated device credential.",
+      });
+    }
     // Check for duplicate
     const existing = await ctx.db
       .query("devices")
@@ -558,8 +582,8 @@ export const registerDevice = mutation({
       });
     await ctx.db.insert("devices", {
       deviceId: args.deviceId,
-      name: args.name,
-      location: args.location,
+      name: args.name.trim(),
+      location: args.location?.trim() || undefined,
       apiKey: args.apiKey,
       status: "offline",
     });
