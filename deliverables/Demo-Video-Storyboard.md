@@ -31,3 +31,5 @@ python3 scripts/prepare-competition-video.py \
 The original synthesized backing is CC0; see [production provenance](video/PRODUCTION.txt). Narration and soundtrack are mixed separately; the standalone supplied MP3 remains byte-identical.
 
 **Remaining gate:** verify the authenticated IoThon portal's exact duration/upload/link requirements and obtain owner approval before submission. The 98-second edit follows the requested target, not a verified portal limit. Actual probe/calibration/qualified load footage remains deferred until the physical prototype returns. No compilation output or simulation substitutes for that physical evidence.
+
+Published delivery: [public MP4](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-competition-narrated.mp4). Public download/hash and full-file Chromium playback/seeking passed. Early partial-download byte-range seeking was unavailable in the tested delivery path; download the MP4 for seeking. See [published media evidence](../docs/screenshots/published-narrated-video.json).
