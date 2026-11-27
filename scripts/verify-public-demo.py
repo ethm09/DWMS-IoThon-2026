@@ -233,6 +233,7 @@ def verify_viewport(browser, options, width):
 
 def main():
     options = arguments()
+    expect.set_options(timeout=options.timeout_ms)
     report = {
         "url": options.url,
         "checked_at_utc": datetime.now(timezone.utc).isoformat(),

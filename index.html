@@ -29,7 +29,13 @@
     <link rel="apple-touch-icon" href="/icon/icon-192.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main role="status" style="min-height:100vh;display:grid;place-content:center;gap:12px;background:#F3F7FA;color:#142B40;font-family:Inter,Arial,sans-serif;text-align:center">
+        <strong style="font-size:24px;color:#0B2039">DWMS</strong>
+        <p style="margin:0;font-size:16px">Loading your water-monitoring workspace…</p>
+      </main>
+    </div>
+    <noscript>Enable JavaScript to use the DWMS monitoring platform.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
