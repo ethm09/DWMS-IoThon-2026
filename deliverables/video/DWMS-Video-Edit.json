@@ -1,0 +1,110 @@
+{
+  "duration": 98,
+  "scope": "Retimed excerpts from preserved actual 1440\u00d7950 software recording, displayed at native resolution inside 1920\u00d71080. Editing is not response-time evidence.",
+  "clips": [
+    {
+      "kind": "source",
+      "source_start": 0,
+      "source_end": 6.9,
+      "start": 0.0,
+      "end": 8.966666666666667,
+      "label": "Problem / actual landing page"
+    },
+    {
+      "kind": "source",
+      "source_start": 6.9,
+      "source_end": 13.0,
+      "start": 8.966666666666667,
+      "end": 22.866666666666667,
+      "label": "Normal readings / product introduction"
+    },
+    {
+      "kind": "source",
+      "source_start": 13.0,
+      "source_end": 20.1,
+      "start": 22.866666666666667,
+      "end": 25.833333333333332,
+      "label": "Warning transition"
+    },
+    {
+      "kind": "source",
+      "source_start": 20.1,
+      "source_end": 28.0,
+      "start": 25.833333333333332,
+      "end": 31.1,
+      "label": "Persisted scenario alerts"
+    },
+    {
+      "kind": "source",
+      "source_start": 28.0,
+      "source_end": 41.0,
+      "start": 31.1,
+      "end": 42.5,
+      "label": "Rule-based response simulation / actual schematic"
+    },
+    {
+      "kind": "source",
+      "source_start": 41.0,
+      "source_end": 53.0,
+      "start": 42.5,
+      "end": 54.233333333333334,
+      "label": "Critical interlock and blocked restart"
+    },
+    {
+      "kind": "source",
+      "source_start": 53.0,
+      "source_end": 60.0,
+      "start": 54.233333333333334,
+      "end": 56.0,
+      "label": "Recovered readings retain latch"
+    },
+    {
+      "kind": "source",
+      "source_start": 60.0,
+      "source_end": 67.0,
+      "start": 56.0,
+      "end": 62.56666666666667,
+      "label": "Operator acknowledgement / recorded recovery"
+    },
+    {
+      "kind": "source",
+      "source_start": 67.8,
+      "source_end": 74.0,
+      "start": 62.56666666666667,
+      "end": 67.5,
+      "label": "Historical trend"
+    },
+    {
+      "kind": "source",
+      "source_start": 74.0,
+      "source_end": 80.0,
+      "start": 67.5,
+      "end": 73.76666666666667,
+      "label": "Device visibility / software evidence narration"
+    },
+    {
+      "kind": "source",
+      "source_start": 80.0,
+      "source_end": 87.0,
+      "start": 73.76666666666667,
+      "end": 85.7,
+      "label": "Ethm designed context; live service unavailable"
+    },
+    {
+      "kind": "source",
+      "source_start": 87.0,
+      "source_end": 92.75,
+      "start": 85.7,
+      "end": 93.53333333333333,
+      "label": "Product closing / actual landing page"
+    },
+    {
+      "kind": "closing",
+      "source_start": 0,
+      "source_end": 0,
+      "start": 93.53333333333333,
+      "end": 98.0,
+      "label": "Founder end card"
+    }
+  ]
+}

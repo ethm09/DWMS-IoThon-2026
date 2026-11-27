@@ -1,38 +1,99 @@
-DWMS — final narration script / voice production pending
-Target: male, natural American English, confident documentary delivery. AI-generated voice must be disclosed.
+DWMS — supplied narration transcript
+Source: owner-supplied ElevenLabs MP3. No new voice generation or paid API used.
+Captions follow actual spoken wording; acronym/name recognition spelling corrected.
 
-00.00–08.00s
-Water quality monitoring should do more than display numbers. It should help operators detect problems and respond before they escalate.
+000.00–003.02s
+Water quality monitoring should do more than display numbers.
 
-08.00–16.00s
-Introducing DWMS. Sensor data, real-time visualization, and a traceable response workflow in one platform.
+003.82–005.70s
+It should help operators detect problems
 
-16.00–23.00s
-The hardware path supports pH, total dissolved solids, and turbidity. These demonstration readings are simulated.
+005.70–007.74s
+and respond before they escalate.
 
-23.00–29.00s
-Abnormal readings create alerts, showing the affected parameter and condition.
+008.98–010.58s
+Introducing DWMS.
 
-29.00–40.00s
-DWMS connects detection with action, requesting a response through predefined operating rules. This pump activity is a simulation; no physical equipment is connected.
+011.32–013.32s
+Sensor data, real-time visualization,
 
-40.00–49.00s
-Critical conditions latch emergency mode, request a stop, and prevent automatic restart.
+014.26–016.88s
+and a traceable response workflow in one platform.
 
-49.00–56.00s
-Returning readings alone cannot clear the interlock. Recovery requires an operator acknowledgement.
+017.88–021.30s
+The hardware path supports pH, total dissolved solids,
 
-56.00–66.00s
-Once readings recover, the operator confirms recovery, allowing a controlled return to normal operation and recording the transition.
+021.58–022.14s
+and turbidity.
 
-66.00–78.00s
-Historical trends, device records, and site grouping provide operational visibility across monitoring locations. The software integration is tested with isolated fixtures.
+022.86–024.72s
+These demonstration readings are simulated.
 
-78.00–86.00s
-Ethm is designed to explain authorized monitoring evidence. Live AI remains unavailable until provider credit is restored. AI never controls equipment.
+025.84–027.44s
+Abnormal readings create alerts,
 
-86.00–92.75s
-DWMS. Turning water data into accountable decisions. Monitor. Detect. Respond.
+027.98–029.94s
+showing the affected parameter and condition.
 
-92.75–96.00s
-Ahmed Alzahrani. Founder and Project Lead.
+031.10–033.54s
+DWMS connects detection with action,
+
+034.10–036.96s
+requesting a response through predefined operating rules.
+
+037.78–039.38s
+This pump activity is a simulation.
+
+040.28–041.70s
+No physical equipment is controlled.
+
+042.50–044.76s
+Critical conditions latch emergency mode,
+
+045.12–047.60s
+request a stop, and prevent automatic restart.
+
+048.54–051.26s
+Returning readings alone cannot clear the interlock.
+
+051.84–053.30s
+Recovery requires an operator.
+
+054.30–055.22s
+Once readings recover,
+
+055.76–057.14s
+the operator confirms recovery,
+
+057.24–060.04s
+allowing a controlled return to normal operation
+
+060.04–061.80s
+and recording the transition.
+
+062.56–065.50s
+Historical trends, device records, and site grouping
+
+065.50–068.98s
+provide operational visibility across monitoring locations.
+
+069.92–072.90s
+The software integration is tested with isolated fixtures.
+
+073.78–077.38s
+Ethm is designed to explain authorized monitoring evidence.
+
+078.22–081.88s
+Live AI remains unavailable until provider credit is restored.
+
+082.72–084.58s
+AI never controls equipment.
+
+085.70–089.58s
+DWMS, turning water data into accountable decisions.
+
+090.38–092.50s
+Monitor, detect, respond.
+
+093.52–096.40s
+Ahmed Alzahrani, Founder and Project Lead.

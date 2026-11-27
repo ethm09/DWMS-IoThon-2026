@@ -69,8 +69,8 @@ Before a field pilot, obtain component and maintenance quotes, select site-speci
 | Public software demo | https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo — simulated readings; no physical control |
 | Evidence / readiness | [docs/VALIDATION.md](../docs/VALIDATION.md) |
 | Architecture / setup | [Architecture](../docs/ARCHITECTURE.md) · [Setup](../docs/SETUP.md) |
-| Demo video | https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-software-demo.mp4 — 92.75-second silent recording of the actual public simulation. No physical footage; final review and portal acceptance pending. [Narration/storyboard](Demo-Video-Storyboard.md) |
-| Video production | [96-second captioned 1080p visual master](video/DWMS-Competition-Visual-Master.mp4), [SRT](video/DWMS-English.srt), [script](video/DWMS-Narration.txt). Voice-service authorization pending; no narrated MP4/voiceover MP3 claimed. Original 1440×950 footage is framed without upscaling. |
+| Demo video | https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-competition-narrated.mp4 — 98-second narrated recording of the actual public simulation. No physical footage; portal acceptance and owner submission approval pending. [Production/storyboard](Demo-Video-Storyboard.md) |
+| Video production | [Narrated MP4](../public/media/dwms-competition-narrated.mp4), [supplied MP3](video/DWMS-Voiceover.mp3), [speech-timed SRT](video/DWMS-English.srt), [transcript](video/DWMS-Narration.txt). Owner supplied the voice; no new paid voice service used. Original 1440×950 footage is framed without upscaling. |
 | Founder / project lead | Ahmed Alzahrani — confirmed; additional identities, affiliations or contact details must come from the registered account or owner |
 | Pitch deck | [Editable PPTX](DWMS-Pitch.pptx) · [PDF](DWMS-Pitch.pdf) |
 | Feasibility study | [Editable DOCX](DWMS-Feasibility.docx) · [PDF](DWMS-Feasibility.pdf) · [SAR financial model](DWMS-Financial-Model.xlsx), illustrative scenarios |

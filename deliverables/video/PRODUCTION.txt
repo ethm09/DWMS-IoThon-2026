@@ -1,8 +1,10 @@
-DWMS competition video production record
-Original: public/media/dwms-software-demo.mp4 (preserved unchanged).
-Source footage: actual published application, 1440×950, 92.75s. Simulated readings and response, no hardware footage.
-Output: 1920×1080 frame, native-resolution source centered with branded borders; no upscaling or invented Full HD detail.
-Visual master: 96s, English captions, original ambient backing, branded closing and founder credit. Not a narrated final.
-Voice: pending an authorized service connection and successful generation; no fake MP3 or AI response supplied.
-Music: generated specifically for DWMS by this authoring script from synthesized tones, no samples or third-party recordings. Dedicated under CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
-Final gate: approved voice, synchronization/audition, owner content review and actual portal duration/file/link requirements. Do not submit automatically.
+DWMS narrated competition video production record
+Final video: public/media/dwms-competition-narrated.mp4 (98.00s, 1920×1080, 30 fps, H.264/AAC, burned English captions plus optional English subtitle track).
+Voice: owner-supplied ElevenLabs MP3 (96.757551s); copied byte-for-byte as DWMS-Voiceover.mp3. No voice-service or paid API charge by the agent.
+Transcript/alignment: local faster-whisper; model/provenance in DWMS-Voice-Alignment.json. Names/acronym spelling corrected; subtitles follow spoken wording. Audio is not regenerated.
+Footage: original 1440×950 actual application recording, preserved unchanged. Excerpts retimed to match speech; exact decisions in DWMS-Video-Edit.json. Native source resolution is framed inside 1080p, without claiming added detail. Editing is not response-time evidence.
+Context: all sensor/control demonstrations are simulated. Physical prototype unavailable; relay disabled, flow demo-only. Ethm speech states its live AI service is unavailable. No physical experiment, AI completion or measurement is fabricated.
+Music: original synthesized DWMS ambient backing, CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
+Mix: voice normalization, quiet backing, final limiter. Check final measured loudness/playback evidence separately.
+Founder credit: Ahmed Alzahrani — Founder and Project Lead (owner-confirmed).
+Final gate: actual portal duration/file/link requirements and owner submission approval remain unverified/pending. Do not merge PR or submit automatically.

@@ -13,7 +13,7 @@ A focused IoThon 2026 prototype for water-quality monitoring across networks, re
 
 Competition implementation: [improvement branch](https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus) · [Draft PR #2](https://github.com/ethm09/DWMS-IoThon-2026/pull/2). Main is unchanged pending approval.
 
-[Watch the 93-second software walkthrough](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-software-demo.mp4) (silent, simulated readings; no hardware footage).
+[Watch the narrated competition demonstration](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-competition-narrated.mp4) (98 seconds, supplied AI narration, simulated readings; no hardware footage). The [original silent technical recording](public/media/dwms-software-demo.mp4) is preserved.
 
 **[Open Demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo)** · [Live workspace — gated](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/live) · [Readiness and evidence](docs/VALIDATION.md) · [Demo runbook](docs/DEMO.md)
 
@@ -49,7 +49,7 @@ The integration runner uses a disposable local backend with synthetic readings/o
 - [Pilot and competitive context](docs/COMPETITION.md): proposed utilities-engineer pilot, primary-source competitors and feasibility.
 - [English submission draft](deliverables/IoThon-Submission.md) · [100-second video storyboard](deliverables/Demo-Video-Storyboard.md).
 - Pitch: [editable PPTX](deliverables/DWMS-Pitch.pptx) · [PDF](deliverables/DWMS-Pitch.pdf). Feasibility: [editable DOCX](deliverables/DWMS-Feasibility.docx) · [PDF](deliverables/DWMS-Feasibility.pdf) · [editable SAR model](deliverables/DWMS-Financial-Model.xlsx) (illustrative assumptions, no actual revenue or costs).
-- [1080p captioned visual master](deliverables/video/DWMS-Competition-Visual-Master.mp4), [English SRT](deliverables/video/DWMS-English.srt) and [narration script](deliverables/video/DWMS-Narration.txt); authorized voice generation remains blocked. Original recording is preserved; native footage is framed without upscaling.
+- [Narrated MP4](public/media/dwms-competition-narrated.mp4), [supplied voice MP3](deliverables/video/DWMS-Voiceover.mp3), [speech-timed English SRT](deliverables/video/DWMS-English.srt) and [actual transcript](deliverables/video/DWMS-Narration.txt). Original recording is preserved; native footage is framed without upscaling.
 - Actual application captures: [desktop](docs/screenshots/dashboard-desktop.png) · [mobile](docs/screenshots/dashboard-mobile.png).
 
 Founder and Project Lead: **Ahmed Alzahrani**. Original contributor history and the [MIT license](LICENSE) are preserved. DWMS retains its formal expansion, Defense Water Monitoring System; Water Intelligence is the display brand.

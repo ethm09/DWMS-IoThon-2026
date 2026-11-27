@@ -1,0 +1,32 @@
+{
+  "checked_at_utc": "2026-11-27T00:39:32.329919+00:00",
+  "scope": "Supplied narration and recorded simulation only; actual Chromium video/audio decode/playback plus full FFmpeg decode. Public transport verified separately; no physical validation.",
+  "browser_playback": {
+    "width": 1920,
+    "height": 1080,
+    "duration": 98,
+    "currentTime": 0.52472,
+    "readyState": 4,
+    "error": null,
+    "audioDecodedBytes": 19980
+  },
+  "video_sha256": "0d2b50ba9e3a36c9525bd882d1bd2da768b895dbdfdc485345a44fe4c6e2e05b",
+  "voice_sha256": "34561b3fe884200131bdc9b70e546b931c9bb78c82fa390ffa8063db08e4e7d6",
+  "source_recording_sha256": "1cec6afdaa4ab585192358730fa19196cc5fa80c58c54d479b7851937379200a",
+  "captions": {
+    "cues": 28,
+    "overlaps": 0,
+    "max_lines": 2,
+    "max_characters_per_line": 42,
+    "maximum_characters_per_second": 20.0,
+    "basis": "Reviewed local actual-speech word timing, spelling corrections only"
+  },
+  "final_mix_measured": {
+    "integrated_LUFS": -16.99,
+    "true_peak_dBTP": -4.72,
+    "source": "FFmpeg loudnorm analysis of decoded final mix; metadata remux preserves audio packets"
+  },
+  "voice_service_spend_usd": 0,
+  "application_source_changed": false,
+  "backend_changed": false
+}
