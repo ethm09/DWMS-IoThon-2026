@@ -1,6 +1,6 @@
 {
   "url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site",
-  "checked_at_utc": "2026-11-26T22:45:27.216635+00:00",
+  "checked_at_utc": "2026-11-27T13:08:40.578342+00:00",
   "scope": "Signed-out browser UI and local simulation only; no Auth0 login, physical sensor validation, relay actuation, treatment result or load test.",
   "results": [
     {
@@ -209,7 +209,5 @@
       "page_errors": [],
       "observed_backend_writes": []
     }
-  ],
-  "site_version": 7,
-  "application_source_commit": "b167a1ec7c8ba36058e1afb6177a3a5d34cfca78"
+  ]
 }

@@ -1,0 +1,74 @@
+{
+  "checked_at_utc": "2026-11-27T13:13:04.623080+00:00",
+  "routes": [
+    {
+      "path": "/",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/demo",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/demo/trends",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/demo/alerts",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/demo/devices",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/demo/sites",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/demo/assistant",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/demo/rules",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/demo/about",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/live",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/live/connection",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/live/notifications",
+      "status": 200,
+      "expected_content_visible": true
+    },
+    {
+      "path": "/auth/callback",
+      "status": 200,
+      "expected_content_visible": true
+    }
+  ],
+  "console_errors": [],
+  "http_failures": [],
+  "offline_demo_recovery": "passed; browser simulation only",
+  "scope": "Actual published signed-out desktop route/console/API smoke and browser-local offline scenario controls. Callback is intentionally unavailable while Live is gated. Not authenticated Live, AI chat or physical evidence."
+}

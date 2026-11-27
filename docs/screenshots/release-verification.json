@@ -1,23 +1,22 @@
 {
-  "checked_at_utc": "2026-11-26T22:48:36.300819+00:00",
-  "application_and_backend_source": "b167a1ec7c8ba36058e1afb6177a3a5d34cfca78",
-  "public_site_version": 8,
+  "checked_at_utc": "2026-11-27T13:17:19.221038+00:00",
+  "public_site_version": 10,
   "demo_url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo",
   "live_url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/live",
   "ci": {
     "status": "success",
-    "run_url": "https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45906623386",
-    "uno_artifact_id": 15157413862
+    "run_url": "https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/46004366555"
   },
   "executed_checks": {
-    "node_tests": 47,
+    "node_tests": 68,
     "python_tests": 20,
     "isolated_backend_checkpoints": 10,
     "production_anonymous_denials": 7,
     "host_controller_harness": "passed, I/O fakes",
-    "arduino_uno": "compiled with both safety gates zero",
+    "arduino_uno": "compiled with calibration and relay gates zero",
     "lint": "passed",
-    "build": "passed, existing large-chunk warning"
+    "build": "passed, existing large-chunk warning",
+    "local_query_recovery": "passed, synthetic throwing component"
   },
   "browser": [
     {
@@ -115,24 +114,55 @@
     "scenario_arithmetic_reconciled": true
   },
   "blocked": {
-    "auth0": "403 callback mismatch; authorized tenant administration unavailable; no blind device flow repeated",
-    "ethm": "real model diagnostic returned credit_balance_exhausted; no successful AI answer",
-    "portal": "HTTP 200 sign-in wall; exact limits, deadline and judging criteria unverified",
-    "hardware": "unavailable, original calibrated sketch not found; relay disabled and flow demo-only"
+    "authenticated_acceptance": "Shared secure browser control fails to initialize; no real login/signup/logout/reload/role or contextual Ethm UI session verified. Live remains gated.",
+    "portal": "Paused by owner; prior portal sign-in wall remains outside current application-only task.",
+    "hardware": "Unavailable, original calibrated sketch not recovered; relay disabled and flow demo-only.",
+    "auth0": "Published callback, logout return and silent web-message origin accepted. Real authenticated end-user acceptance pending; shared browser-control runtime fails to start."
   },
   "readiness": {
-    "software": "verified within stated software scope",
-    "public_demo": "published and simulation verified",
-    "authentication_live": "blocked",
-    "ethm": "blocked",
-    "hardware": "software compile/protocol only; physical commissioning pending",
-    "competition_submission": "Narrated media and editable files delivered; hold for portal/account gates and owner approval",
-    "commercial_pilot": "not commissioned; customer, specifications, quotes and acceptance pending"
+    "software": "Not yet software-complete; real-session acceptance remains pending",
+    "public_demo": "Published and simulation verified at five widths",
+    "authentication_live": "Callback accepted; authenticated browser flows pending; Live gated",
+    "ethm": "Genuine backend provider completion verified; authenticated contextual chat pending",
+    "hardware": "Software compile/protocol only; physical commissioning deferred",
+    "competition_submission": "Paused by owner",
+    "commercial_pilot": "Not commissioned"
   },
   "media_source_commit": "4bb3ec33be2a1275d084fcbc9faab40530d13d62",
-  "browser_ui_scope": "Five-width published UI checks were at version7; version8 preserves all24 application assets byte-identically and adds only the narrated media asset. Published media and guest smoke verified separately.",
+  "browser_ui_scope": "Actual published Sites version 10, application source125ff9d: signed-out simulation only at390/430/768/1024/1440px. No authenticated Live or contextual AI browser acceptance.",
   "media_ci": {
     "status": "success",
     "run_url": "https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/45918014002"
+  },
+  "application_source": "125ff9d2d9f4de4733ab268d4450fcce146f5577",
+  "backend_source": "a3e6ad8f5dacd24b2bf04ba5b9dc1899072c1df6",
+  "auth0_authorization_page": {
+    "checked_at_utc": "2026-11-27T13:04:57.973675+00:00",
+    "http_status": 200,
+    "callback_mismatch": false,
+    "login_form_visible": true,
+    "scope": "Public SPA authorization-page check only; no credentials entered, no authenticated session or registration/logout verified. Not a device-code flow."
+  },
+  "ethm_provider": {
+    "available": true,
+    "model": "gpt-5-mini",
+    "reason": "completion_received"
+  },
+  "first_published_attempt": {
+    "application_source": "a3e6ad8",
+    "result": "390px initial cold load exceeded default five-second assertion; other four widths passed",
+    "resolution": "Visible HTML loading state added; browser runner honors its configured 20-second timeout; final five-width run passed. No performance or load-test claim."
+  },
+  "video_scope": "Historical evidence retained; no video work or reverification in this application cycle.",
+  "public_route_smoke": "public-application-smoke.json: 13 routes, zero console/HTTP errors, browser-local offline/recovery passed",
+  "auth0_configuration_checks": "auth0-acceptance-check.json and auth0-origin-checks.json; no successful user session claimed",
+  "auth0_origin_checks": {
+    "checked_at_utc": "2026-11-27T13:12:28.891145+00:00",
+    "silent_authorization_message": {
+      "received": true,
+      "error": "login_required"
+    },
+    "logout_return_origin_accepted": true,
+    "scope": "Real anonymous protocol checks using an isolated browser: origin-bound Auth0 web_message and logout return URL. No signed-in account, registration, token success, session persistence or actual session logout established."
   }
 }

@@ -6,10 +6,10 @@ A focused IoThon 2026 prototype for water-quality monitoring across networks, re
 
 | Component | Purpose | Current boundary |
 |---|---|---|
-| **Live** | Authenticated readings, alerts, history and authorized device controls | Backend deployed and anonymous access denied; Auth0 callback/session gate remains blocked |
+| **Live** | Authenticated readings, alerts, history and authorized device controls | Backend deployed and anonymous access denied; Auth0 callback accepted; end-user session acceptance remains blocked |
 | **Demo** | Shared browser scenarios for a repeatable presentation | Synthetic readings and response; no physical action |
 | **Hardware** | Arduino/USB bridge and deterministic local interlocks | Owner reports an earlier operating prototype; it is currently unavailable for audited revalidation |
-| **Ethm** | Read-only explanation of authenticated device evidence | Read-only path; provider returned `credit_balance_exhausted`; real-session rehearsal remains blocked |
+| **Ethm** | Read-only explanation of authenticated device evidence | Real provider connectivity verified; authenticated contextual conversation still pending |
 
 Competition implementation: [improvement branch](https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus) · [Draft PR #2](https://github.com/ethm09/DWMS-IoThon-2026/pull/2). Main is unchanged pending approval.
 

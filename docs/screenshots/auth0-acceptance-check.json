@@ -1,0 +1,7 @@
+{
+  "checked_at_utc": "2026-11-27T13:04:57.973675+00:00",
+  "http_status": 200,
+  "callback_mismatch": false,
+  "login_form_visible": true,
+  "scope": "Public SPA authorization-page check only; no credentials entered, no authenticated session or registration/logout verified. Not a device-code flow."
+}
