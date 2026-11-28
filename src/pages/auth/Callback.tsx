@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api.js";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useAuth } from "@/hooks/use-auth.ts";
+import { accountSyncErrorMessage } from "@/lib/auth-errors";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -19,12 +20,12 @@ export default function AuthCallback() {
   useEffect(() => {
     if (!isConfigured) {
       setSyncError(
-        "Auth0 is not configured. Set the VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID environment variables.",
+        "Sign-in is unavailable on this installation. You can open the public demo.",
       );
       return;
     }
     if (error) {
-      setSyncError(error.message);
+      setSyncError("Sign-in could not be completed. Please try again or contact the platform administrator.");
       return;
     }
     if (isLoading) return;
@@ -37,14 +38,10 @@ export default function AuthCallback() {
 
     syncStarted.current = true;
     void updateCurrentUser()
-      .then(() => navigate("/", { replace: true }))
-      .catch((syncError: unknown) => {
+      .then(() => navigate("/live", { replace: true }))
+      .catch((failure: unknown) => {
         syncStarted.current = false;
-        setSyncError(
-          syncError instanceof Error
-            ? syncError.message
-            : "Could not sync the signed-in user.",
-        );
+        setSyncError(accountSyncErrorMessage(failure));
       });
   }, [
     error,
@@ -56,6 +53,16 @@ export default function AuthCallback() {
     navigate,
     updateCurrentUser,
   ]);
+
+  useEffect(() => {
+    if (!isConfigured || isLoading || !isAuthenticated || error || syncError) return;
+    const timeout = window.setTimeout(() => {
+      setSyncError(
+        "Your session could not connect to the monitoring service. Sign in again or open the public demo.",
+      );
+    }, 15_000);
+    return () => window.clearTimeout(timeout);
+  }, [isConfigured, isLoading, isAuthenticated, error, syncError]);
 
   if (syncError) {
     return (
@@ -71,7 +78,19 @@ export default function AuthCallback() {
           >
             Return home
           </Button>
-          <Button onClick={() => void signinRedirect()}>Try again</Button>
+          {isConfigured && (
+            <Button
+              onClick={() => {
+                setSyncError(null);
+                syncStarted.current = false;
+                void signinRedirect().catch(() =>
+                  setSyncError("Sign-in could not start. Please try again."),
+                );
+              }}
+            >
+              Try again
+            </Button>
+          )}
         </div>
       </div>
     );

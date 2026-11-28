@@ -9,13 +9,23 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel.d.ts";
 import type { MutationCtx } from "./_generated/server";
 import { createSystemNotification } from "./notifications";
-import { getCurrentUserOrThrow } from "./users";
+import {
+  getCurrentUserOrThrow,
+  hasFleetAccess,
+  requireFleetAccess,
+} from "./users";
 import {
   classifyPh,
   classifyTds,
   classifyTurbidity,
   THRESHOLDS,
+  automaticPumpTarget,
+  isFreshTimestamp,
+  isValidSensorValues,
+  SENSOR_FRESHNESS_MS,
 } from "./safetyPolicy";
+
+import { telemetryFields, checkTelemetry } from "./telemetry";
 
 const CONTROL_COMMAND_TTL_MS = 20_000;
 
@@ -42,12 +52,19 @@ async function findDevice(ctx: MutationCtx, deviceId: string) {
 }
 
 async function getFreshReading(ctx: MutationCtx, deviceId: string) {
+  const device = await findDevice(ctx, deviceId);
   const reading = await ctx.db
     .query("sensorReadings")
     .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", deviceId))
     .order("desc")
     .first();
-  if (!reading || Date.now() - Date.parse(reading.timestamp) > 10_000) {
+  if (
+    device.status !== "online" ||
+    !isFreshTimestamp(device.lastSeen) ||
+    !reading ||
+    !isFreshTimestamp(reading.timestamp) ||
+    !isValidSensorValues(reading)
+  ) {
     throw new ConvexError({
       message: "A fresh sensor reading is required before controlling the pump",
       code: "STALE_SENSOR_DATA",
@@ -56,10 +73,7 @@ async function getFreshReading(ctx: MutationCtx, deviceId: string) {
   return reading;
 }
 
-function assertPumpStartAllowed(reading: {
-  ph: number;
-  turbidity: number;
-}) {
+function assertPumpStartAllowed(reading: { ph: number; turbidity: number }) {
   if (
     classifyPh(reading.ph) === "critical" ||
     classifyTurbidity(reading.turbidity) === "critical"
@@ -80,6 +94,7 @@ async function createControlCommand(
     mode: "auto" | "manual" | "emergency";
     source: "operator" | "automatic" | "emergency";
     requestedBy?: string;
+    clearEmergency?: boolean;
   },
 ) {
   if (device.lastCommandId) {
@@ -103,6 +118,7 @@ async function createControlCommand(
     deviceId: device.deviceId,
     commandId,
     pumpOn: args.pumpOn,
+    clearEmergency: args.clearEmergency ?? false,
     mode: args.mode,
     source: args.source,
     requestedBy: args.requestedBy,
@@ -124,19 +140,41 @@ async function createControlCommand(
   return { commandId, createdAt, pumpOn: args.pumpOn, mode: args.mode };
 }
 
+/** Reissue lost/failed commands and reconcile controller resets without flooding pending commands. */
+async function reconcileControl(
+  ctx: MutationCtx,
+  device: Doc<"devices">,
+  target: { mode: "auto" | "emergency"; pumpOn: boolean },
+) {
+  const previous = device.lastCommandId
+    ? await ctx.db
+        .query("deviceCommands")
+        .withIndex("by_commandId", (q) =>
+          q.eq("commandId", device.lastCommandId!),
+        )
+        .unique()
+    : null;
+  const modeChanged = (device.controlMode ?? "auto") !== target.mode;
+  const desiredChanged = (device.desiredPumpState ?? false) !== target.pumpOn;
+  const pending =
+    previous?.status === "pending" &&
+    Date.now() - Date.parse(previous.createdAt) <= CONTROL_COMMAND_TTL_MS &&
+    previous.pumpOn === target.pumpOn &&
+    previous.mode === target.mode;
+  if (!modeChanged && !desiredChanged && pending) return;
+  const confirmed =
+    isFreshTimestamp(device.pumpReportedAt) &&
+    device.reportedPumpState === target.pumpOn;
+  if (!modeChanged && !desiredChanged && confirmed) return;
+  await createControlCommand(ctx, device, {
+    ...target,
+    source: target.mode === "emergency" ? "emergency" : "automatic",
+  });
+}
+
 async function autoPumpTarget(ctx: MutationCtx, deviceId: string) {
   const reading = await getFreshReading(ctx, deviceId);
-  if (
-    classifyPh(reading.ph) === "critical" ||
-    classifyTurbidity(reading.turbidity) === "critical"
-  ) {
-    return { reading, mode: "emergency" as const, pumpOn: false };
-  }
-
-  const shouldRun =
-    reading.tds > THRESHOLDS.tds.critical.above ||
-    reading.turbidity > THRESHOLDS.turbidity.filtration.above;
-  return { reading, mode: "auto" as const, pumpOn: shouldRun };
+  return { reading, ...automaticPumpTarget(reading) };
 }
 
 // Helper to require admin
@@ -161,10 +199,11 @@ async function requireAdmin(ctx: MutationCtx) {
   return user;
 }
 
-// List all registered devices (public read — guests can view)
+// Shared prototype fleet: only authenticated, registered users may read device data.
 export const listDevices = query({
   args: {},
   handler: async (ctx): Promise<Array<Omit<Doc<"devices">, "apiKey">>> => {
+    await requireFleetAccess(ctx);
     const devices = await ctx.db.query("devices").collect();
     return devices.map((device) => {
       const { apiKey, ...publicDevice } = device;
@@ -174,10 +213,11 @@ export const listDevices = query({
   },
 });
 
-// Public dashboard state; API keys are never returned from this query.
+// Authenticated dashboard state; API keys are never returned from this query.
 export const getControlState = query({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const device = await ctx.db
       .query("devices")
       .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
@@ -196,7 +236,7 @@ export const getControlState = query({
       reportedPumpState:
         device.reportedPumpState !== undefined &&
         device.pumpReportedAt !== undefined &&
-        Date.now() - Date.parse(device.pumpReportedAt) <= 10_000
+        isFreshTimestamp(device.pumpReportedAt)
           ? device.reportedPumpState
           : null,
       reportedAt: device.pumpReportedAt ?? null,
@@ -220,7 +260,11 @@ export const getControlState = query({
 export const setDeviceControlMode = mutation({
   args: {
     deviceId: v.string(),
-    mode: v.union(v.literal("auto"), v.literal("manual"), v.literal("emergency")),
+    mode: v.union(
+      v.literal("auto"),
+      v.literal("manual"),
+      v.literal("emergency"),
+    ),
   },
   handler: async (ctx, args) => {
     const user = await requireOperator(ctx);
@@ -237,7 +281,8 @@ export const setDeviceControlMode = mutation({
     }
     if (currentMode === "emergency") {
       throw new ConvexError({
-        message: "Acknowledge the emergency after conditions are safe before changing mode.",
+        message:
+          "Acknowledge the emergency after conditions are safe before changing mode.",
         code: "EMERGENCY_LOCKED",
       });
     }
@@ -310,12 +355,14 @@ export const acknowledgeDeviceEmergency = mutation({
     const target = await autoPumpTarget(ctx, args.deviceId);
     if (target.mode === "emergency") {
       throw new ConvexError({
-        message: "Emergency conditions are still present; the pump remains stopped.",
+        message:
+          "Emergency conditions are still present; the pump remains stopped.",
         code: "SAFETY_INTERLOCK",
       });
     }
     return await createControlCommand(ctx, device, {
       pumpOn: target.pumpOn,
+      clearEmergency: true,
       mode: "auto",
       source: "operator",
       requestedBy: user.email ?? user._id,
@@ -341,13 +388,31 @@ export const getPendingControlCommand = internalQuery({
     if (
       !command ||
       command.status !== "pending" ||
+      (command.pumpOn &&
+        (device.controlMode === "emergency" ||
+          device.status !== "online" ||
+          !isFreshTimestamp(device.lastSeen))) ||
       Date.now() - Date.parse(command.createdAt) > CONTROL_COMMAND_TTL_MS
     ) {
       return null;
     }
+    if (command.pumpOn) {
+      // Receipt time can be newer than the gateway's observation. Never rely
+      // on scheduler timing to stop delivery of an already-stale start request.
+      const reading = await ctx.db
+        .query("sensorReadings")
+        .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+        .order("desc")
+        .first();
+      if (
+        !reading || !isFreshTimestamp(reading.timestamp) || !isValidSensorValues(reading) ||
+        classifyPh(reading.ph) === "critical" || classifyTurbidity(reading.turbidity) === "critical"
+      ) return null;
+    }
     return {
       commandId: command.commandId,
       pumpOn: command.pumpOn,
+      clearEmergency: command.clearEmergency ?? false,
       mode: command.mode,
     };
   },
@@ -366,7 +431,8 @@ export const acknowledgeControlCommand = internalMutation({
       .query("deviceCommands")
       .withIndex("by_commandId", (q) => q.eq("commandId", args.commandId))
       .unique();
-    if (!command || command.deviceId !== args.deviceId) return { accepted: false };
+    if (!command || command.deviceId !== args.deviceId)
+      return { accepted: false };
     if (command.status !== "pending") {
       return { accepted: command.status === "applied" };
     }
@@ -381,7 +447,10 @@ export const acknowledgeControlCommand = internalMutation({
     const success = args.ok && args.pumpOn === command.pumpOn;
     const message = success
       ? undefined
-      : (args.message ?? "The controller rejected or did not apply the command.").slice(0, 240);
+      : (
+          args.message ??
+          "The controller rejected or did not apply the command."
+        ).slice(0, 240);
     await ctx.db.patch(command._id, {
       status: success ? "applied" : "failed",
       reportedPumpState: args.pumpOn,
@@ -404,13 +473,38 @@ export const acknowledgeControlCommand = internalMutation({
 });
 
 export const reportPumpStatus = internalMutation({
-  args: { deviceId: v.string(), pumpOn: v.boolean() },
+  args: {
+    deviceId: v.string(),
+    pumpOn: v.boolean(),
+    emergencyLock: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const device = await ctx.db
       .query("devices")
       .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
       .unique();
     if (!device) return;
+    if (args.emergencyLock) {
+      const command = device.lastCommandId
+        ? await ctx.db
+            .query("deviceCommands")
+            .withIndex("by_commandId", (q) =>
+              q.eq("commandId", device.lastCommandId!),
+            )
+            .unique()
+        : null;
+      // STATUS may precede delivery of the operator's explicit reset. Preserve
+      // that short-lived command until ACK/expiry, rather than superseding it.
+      const resetPending =
+        command?.status === "pending" &&
+        command.clearEmergency === true &&
+        Date.now() - Date.parse(command.createdAt) <= CONTROL_COMMAND_TTL_MS;
+      if (!resetPending)
+        await reconcileControl(ctx, device, {
+          mode: "emergency",
+          pumpOn: false,
+        });
+    }
     await ctx.db.patch(device._id, {
       reportedPumpState: args.pumpOn,
       pumpReportedAt: new Date().toISOString(),
@@ -428,7 +522,8 @@ export const expireControlCommand = internalMutation({
     if (!command || command.status !== "pending") return;
     await ctx.db.patch(command._id, {
       status: "expired",
-      message: "No controller acknowledgement arrived; the physical output is unknown.",
+      message:
+        "No controller acknowledgement arrived; the physical output is unknown.",
     });
     const device = await ctx.db
       .query("devices")
@@ -454,6 +549,17 @@ export const registerDevice = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+    if (
+      !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(args.deviceId) ||
+      !args.name.trim() || args.name.trim().length > 120 ||
+      (args.location !== undefined && args.location.trim().length > 200) ||
+      !/^[A-Za-z0-9_-]{32,256}$/.test(args.apiKey)
+    ) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Enter a valid device ID, name and generated device credential.",
+      });
+    }
     // Check for duplicate
     const existing = await ctx.db
       .query("devices")
@@ -476,8 +582,8 @@ export const registerDevice = mutation({
       });
     await ctx.db.insert("devices", {
       deviceId: args.deviceId,
-      name: args.name,
-      location: args.location,
+      name: args.name.trim(),
+      location: args.location?.trim() || undefined,
       apiKey: args.apiKey,
       status: "offline",
     });
@@ -500,10 +606,11 @@ export const deleteDevice = mutation({
   },
 });
 
-// Get latest sensor reading for a device (public)
+// Get latest sensor reading for an authenticated registered user.
 export const getLatestReading = query({
   args: { deviceId: v.string() },
   handler: async (ctx, args): Promise<Doc<"sensorReadings"> | null> => {
+    await requireFleetAccess(ctx);
     return await ctx.db
       .query("sensorReadings")
       .withIndex("by_deviceId_timestamp", (q) =>
@@ -514,29 +621,62 @@ export const getLatestReading = query({
   },
 });
 
-// Get recent readings for a device (public)
+// Get bounded recent readings for an authenticated registered user.
 export const getRecentReadings = query({
   args: { deviceId: v.string(), limit: v.optional(v.number()) },
   handler: async (ctx, args): Promise<Doc<"sensorReadings">[]> => {
+    await requireFleetAccess(ctx);
     return await ctx.db
       .query("sensorReadings")
       .withIndex("by_deviceId_timestamp", (q) =>
         q.eq("deviceId", args.deviceId),
       )
       .order("desc")
-      .take(args.limit ?? 50);
+      .take(
+        Number.isFinite(args.limit)
+          ? Math.max(1, Math.min(200, Math.floor(args.limit!)))
+          : 50,
+      );
+  },
+});
+
+/** Persistent operational history, without actor emails or device credentials. */
+export const getRecentCommands = query({
+  args: { deviceId: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
+    const limit = Number.isFinite(args.limit) ? Math.max(1, Math.min(50, Math.floor(args.limit!))) : 30;
+    const commands = await ctx.db.query("deviceCommands")
+      .withIndex("by_deviceId_createdAt", q => q.eq("deviceId", args.deviceId))
+      .order("desc").take(limit);
+    return commands.map(command => ({
+      commandId: command.commandId, pumpOn: command.pumpOn,
+      reportedPumpState: command.reportedPumpState ?? null,
+      mode: command.mode, source: command.source, status: command.status,
+      createdAt: command.createdAt, acknowledgedAt: command.acknowledgedAt ?? null,
+      expiresAt: new Date(Date.parse(command.createdAt) + CONTROL_COMMAND_TTL_MS).toISOString(),
+      message: command.message ?? null,
+    }));
   },
 });
 
 // Internal: save a sensor reading (called from HTTP action)
 export const internalSaveReading = internalMutation({
   args: {
+    ...telemetryFields,
     deviceId: v.string(),
     ph: v.number(),
     tds: v.number(),
     turbidity: v.number(),
   },
-  handler: async (ctx, args): Promise<void> => {
+  handler: async (ctx, args) => {
+    if (!isValidSensorValues(args)) {
+      throw new ConvexError({
+        code: "INVALID_SENSOR_DATA",
+        message:
+          "All three finite sensor values within measurement ranges are required.",
+      });
+    }
     const now = new Date().toISOString();
     const previousReading = await ctx.db
       .query("sensorReadings")
@@ -551,56 +691,54 @@ export const internalSaveReading = internalMutation({
       .query("devices")
       .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
       .unique();
-    if (device) {
-      await ctx.db.patch(device._id, { lastSeen: now, status: "online" });
-    }
+    if (!device)
+      throw new ConvexError({ code: "NOT_FOUND", message: "Device not found" });
+    const frame = {
+      sessionId: args.sessionId, seq: args.seq, gatewayObservedAt: args.gatewayObservedAt,
+      sourceSequence: args.sourceSequence, sourceUptimeMs: args.sourceUptimeMs,
+    };
+    const fingerprint = JSON.stringify({ ...frame, ph: args.ph, tds: args.tds, turbidity: args.turbidity });
+    const identity = checkTelemetry(frame, device, fingerprint, Date.parse(now));
+    if (identity.duplicate) return { duplicate: true };
+    const timestamp = args.gatewayObservedAt ?? now;
+    await ctx.db.patch(device._id, {
+      lastSeen: now, status: "online",
+      ...(args.sessionId ? {
+        telemetrySessionId: args.sessionId, telemetrySeq: args.seq,
+        telemetryObservedAt: args.gatewayObservedAt, telemetryFingerprint: fingerprint,
+        telemetrySourceSequence: args.sourceSequence, telemetrySourceUptimeMs: args.sourceUptimeMs,
+      } : {}),
+    });
 
     // Insert reading
     await ctx.db.insert("sensorReadings", {
       deviceId: args.deviceId,
-      timestamp: now,
+      timestamp, receivedAt: now, timeBasis: identity.timeBasis,
+      ...(args.sessionId ? { sessionId: args.sessionId, seq: args.seq } : {}),
+      ...(args.sourceSequence !== undefined ? { sourceSequence: args.sourceSequence, sourceUptimeMs: args.sourceUptimeMs } : {}),
       ph: args.ph,
       tds: args.tds,
       turbidity: args.turbidity,
     });
 
-    // Backend Auto is authoritative for physical hardware. With no flow sensor
-    // in the current schema, critical pH or turbidity fails closed and stops the
-    // pump; a connected operator must acknowledge only after readings recover.
-    if (device) {
-      const mode = device.controlMode ?? "auto";
-      const emergencyReading =
-        classifyPh(args.ph) === "critical" ||
-        classifyTurbidity(args.turbidity) === "critical";
-      const desiredPumpState = device.desiredPumpState ?? false;
-
-      if (emergencyReading) {
-        if (mode !== "emergency" || desiredPumpState) {
-          await createControlCommand(ctx, device, {
-            pumpOn: false,
-            mode: "emergency",
-            source: "emergency",
-          });
-        }
-      } else if (mode === "auto") {
-        const shouldRun =
-          args.tds > THRESHOLDS.tds.critical.above ||
-          args.turbidity > THRESHOLDS.turbidity.filtration.above;
-        if (shouldRun !== desiredPumpState) {
-          await createControlCommand(ctx, device, {
-            pumpOn: shouldRun,
-            mode: "auto",
-            source: "automatic",
-          });
-        }
-      }
+    // Emergency stays latched until a fresh, explicit operator acknowledgement.
+    const mode = device.controlMode ?? "auto";
+    const target = automaticPumpTarget(args);
+    if (mode === "emergency" || target.mode === "emergency") {
+      await reconcileControl(ctx, device, { mode: "emergency", pumpOn: false });
+    } else if (mode === "auto") {
+      await reconcileControl(ctx, device, target);
     }
 
     // Schedule offline check in 10 seconds
-    await ctx.scheduler.runAfter(10_000, internal.devices.checkDeviceStale, {
-      deviceId: args.deviceId,
-      expectedLastSeen: now,
-    });
+    await ctx.scheduler.runAfter(
+      Math.max(0, SENSOR_FRESHNESS_MS - (Date.parse(now) - Date.parse(timestamp))),
+      internal.devices.checkDeviceStale,
+      {
+        deviceId: args.deviceId,
+        expectedLastSeen: now,
+      },
+    );
 
     // Threshold alert logic — broadcast to all admin/operator users
     const alerts: Array<{
@@ -627,7 +765,7 @@ export const internalSaveReading = internalMutation({
       alerts.push({
         level,
         title: `pH ${level === "critical" ? "CRITICAL" : "Warning"}: ${args.ph.toFixed(2)}`,
-        message: `pH reading of ${args.ph.toFixed(2)} is outside the safe range (${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}). Device: ${args.deviceId}`,
+        message: `pH reading of ${args.ph.toFixed(2)} is outside the configured prototype range (${THRESHOLDS.ph.safe.min}–${THRESHOLDS.ph.safe.max}). Device: ${args.deviceId}`,
         parameter: "pH",
         value: args.ph.toFixed(2),
       });
@@ -642,7 +780,7 @@ export const internalSaveReading = internalMutation({
       alerts.push({
         level,
         title: `TDS ${level === "critical" ? "CRITICAL" : "Warning"}: ${args.tds.toFixed(0)} ppm`,
-        message: `TDS reading of ${args.tds.toFixed(0)} ppm is at or above the recommended limit of ${THRESHOLDS.tds.safe.max} ppm. Device: ${args.deviceId}`,
+        message: `TDS reading of ${args.tds.toFixed(0)} ppm is at or above the configured prototype limit of ${THRESHOLDS.tds.safe.max} ppm. Device: ${args.deviceId}`,
         parameter: "TDS",
         value: `${args.tds.toFixed(0)} ppm`,
       });
@@ -667,7 +805,7 @@ export const internalSaveReading = internalMutation({
     if (alerts.length > 0) {
       const users = await ctx.db.query("users").collect();
       for (const alert of alerts) {
-        for (const target of users) {
+        for (const target of users.filter(hasFleetAccess)) {
           await createSystemNotification(ctx, target._id, {
             level: alert.level,
             category: "threshold",
@@ -679,6 +817,7 @@ export const internalSaveReading = internalMutation({
         }
       }
     }
+    return { duplicate: false };
   },
 });
 
@@ -700,7 +839,13 @@ export const checkDeviceStale = internalMutation({
       device.lastSeen === args.expectedLastSeen &&
       device.status === "online"
     ) {
-      await ctx.db.patch(device._id, { status: "offline" });
+      await ctx.db.patch(device._id, {
+        status: "offline",
+        reportedPumpState: undefined,
+      });
+      // Backend records a stop request; the controller's local lease watchdog
+      // remains responsible for stopping during a disconnected link.
+      await reconcileControl(ctx, device, { mode: "emergency", pumpOn: false });
 
       // Notify admin/operator users
       const users = await ctx.db.query("users").collect();
@@ -712,7 +857,7 @@ export const checkDeviceStale = internalMutation({
           level: "warning",
           category: "device",
           title: `Device offline: ${device.name}`,
-          message: `Device ${device.deviceId} (${device.name}) has not sent data for 10+ seconds. Last seen: ${device.lastSeen ?? "unknown"}`,
+          message: `Device ${device.deviceId} (${device.name}) has stale measurement data. Latest accepted receipt: ${device.lastSeen ?? "unknown"}`,
         });
       }
     }

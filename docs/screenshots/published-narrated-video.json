@@ -1,0 +1,29 @@
+{
+  "checked_at_utc": "2026-11-27T00:46:28.672450+00:00",
+  "site_version": 8,
+  "media_source_commit": "4bb3ec33be2a1275d084fcbc9faab40530d13d62",
+  "url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-competition-narrated.mp4",
+  "browser_playback": {
+    "width": 1920,
+    "height": 1080,
+    "duration": 98,
+    "currentTime": 0.529094,
+    "readyState": 4,
+    "error": null,
+    "audioDecodedBytes": 19980
+  },
+  "downloaded_file_seek_results": [
+    78,
+    95
+  ],
+  "asset": {
+    "status": 200,
+    "bytes": 5978726,
+    "contentType": "video/mp4",
+    "sha256": "0d2b50ba9e3a36c9525bd882d1bd2da768b895dbdfdc485345a44fe4c6e2e05b"
+  },
+  "demo_smoke": "normal scenario and simulation label visible",
+  "frozen_application_assets_preserved": 24,
+  "delivery_limit": "Byte-range requests returned200/whole body in tested delivery path; early partial-download seeking was unavailable. Full-download asset seeking passed.",
+  "scope": "Actual signed-out public asset download/hash, Chromium full-download video/audio decode/playback/seeking and guest UI smoke. No authentication or physical validation."
+}

@@ -6,6 +6,8 @@ export default defineSchema({
     tokenIdentifier: v.string(),
     name: v.optional(v.string()),
     email: v.optional(v.string()),
+    // Explicit viewer approval for the shared fleet; absent legacy values deny.
+    fleetAccess: v.optional(v.boolean()),
     role: v.union(
       v.literal("admin"),
       v.literal("operator"),
@@ -22,7 +24,13 @@ export default defineSchema({
     name: v.string(),
     location: v.optional(v.string()),
     apiKey: v.string(), // secret key for device auth
-    lastSeen: v.optional(v.string()), // ISO timestamp
+    lastSeen: v.optional(v.string()), // Latest accepted telemetry receipt; duplicates never renew it.
+    telemetrySessionId: v.optional(v.string()),
+    telemetrySeq: v.optional(v.number()),
+    telemetryObservedAt: v.optional(v.string()),
+    telemetryFingerprint: v.optional(v.string()),
+    telemetrySourceSequence: v.optional(v.number()),
+    telemetrySourceUptimeMs: v.optional(v.number()),
     status: v.union(
       v.literal("online"),
       v.literal("offline"),
@@ -46,8 +54,18 @@ export default defineSchema({
     deviceId: v.string(),
     commandId: v.string(),
     pumpOn: v.boolean(),
-    mode: v.union(v.literal("auto"), v.literal("manual"), v.literal("emergency")),
-    source: v.union(v.literal("operator"), v.literal("automatic"), v.literal("emergency")),
+    // Only an explicit operator emergency acknowledgement may clear the local latch.
+    clearEmergency: v.optional(v.boolean()),
+    mode: v.union(
+      v.literal("auto"),
+      v.literal("manual"),
+      v.literal("emergency"),
+    ),
+    source: v.union(
+      v.literal("operator"),
+      v.literal("automatic"),
+      v.literal("emergency"),
+    ),
     requestedBy: v.optional(v.string()),
     createdAt: v.string(),
     status: v.union(
@@ -67,7 +85,13 @@ export default defineSchema({
   // Sensor readings from Arduino (pH, TDS, Turbidity only)
   sensorReadings: defineTable({
     deviceId: v.string(),
-    timestamp: v.string(), // ISO timestamp
+    timestamp: v.string(), // Gateway observation, or legacy backend receipt (not probe acquisition).
+    receivedAt: v.optional(v.string()),
+    timeBasis: v.optional(v.union(v.literal("gateway_observation"), v.literal("server_receipt"))),
+    sessionId: v.optional(v.string()),
+    seq: v.optional(v.number()),
+    sourceSequence: v.optional(v.number()),
+    sourceUptimeMs: v.optional(v.number()),
     ph: v.number(),
     tds: v.number(),
     turbidity: v.number(),
@@ -116,12 +140,14 @@ export default defineSchema({
     browserNotifications: v.boolean(),
   }).index("by_userId", ["userId"]),
 
-  // S.A.M.I chat messages
+  // Private Ethm conversation; assistant results are written by backend runs.
   chatMessages: defineTable({
     userId: v.id("users"),
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
-  }).index("by_userId", ["userId"]),
+    runId: v.optional(v.id("agentRuns")),
+    kind: v.optional(v.union(v.literal("interpretation"), v.literal("service_status"))),
+  }).index("by_userId", ["userId"]).index("by_runId", ["runId"]),
 
   // Ethm operational runs contain concise status and outcome data only. They
   // deliberately do not persist model reasoning or client-supplied sensor state.
@@ -149,8 +175,7 @@ export default defineSchema({
     startedAt: v.string(),
     executionClaimedAt: v.optional(v.string()),
     completedAt: v.optional(v.string()),
-  })
-    .index("by_userId_startedAt", ["userId", "startedAt"]),
+  }).index("by_userId_startedAt", ["userId", "startedAt"]),
 
   agentRunEvents: defineTable({
     runId: v.id("agentRuns"),
@@ -200,8 +225,25 @@ export default defineSchema({
         note: v.optional(v.string()),
       }),
     ),
-    confidence: v.number(),
+    confidence: v.optional(v.number()),
     operatorFeedback: v.optional(v.string()),
     createdAt: v.string(),
   }).index("by_deviceId_createdAt", ["deviceId", "createdAt"]),
+  // Guest AI has capability-token sessions and its own finite lifetime allowance.
+  // No operational records, identities, credentials or controls are referenced.
+  demoEthmBudgets: defineTable({
+    key: v.string(), reservedTokens: v.number(), requests: v.number(), sessions: v.number(),
+    windowAt: v.number(), windowRequests: v.number(), windowSessions: v.number(),
+  }).index("by_key", ["key"]),
+  demoEthmSessions: defineTable({
+    tokenHash: v.string(), expiresAt: v.string(), turns: v.number(), reservedTokens: v.number(),
+    lastRequestAt: v.number(), revision: v.number(),
+    pendingId: v.optional(v.string()), pendingUntil: v.optional(v.number()),
+    messages: v.array(v.object({
+      role: v.union(v.literal("user"), v.literal("assistant")), content: v.string(), generatedAt: v.string(),
+      kind: v.union(v.literal("question"), v.literal("ai_interpretation"), v.literal("service_status")),
+      contextScenario: v.optional(v.string()), contextAsOf: v.optional(v.string()),
+      sources: v.optional(v.array(v.object({ id: v.string(), title: v.string(), url: v.string() }))),
+    })),
+  }).index("by_tokenHash", ["tokenHash"]),
 });

@@ -1,0 +1,2592 @@
+{
+  "language": "en",
+  "duration": 96.72,
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 3.02,
+      "text": "Water quality monitoring should do more than display numbers.",
+      "words": [
+        {
+          "start": 0.0,
+          "end": 0.24,
+          "word": " Water",
+          "probability": 0.8803966641426086
+        },
+        {
+          "start": 0.24,
+          "end": 0.6,
+          "word": " quality",
+          "probability": 0.8607482314109802
+        },
+        {
+          "start": 0.6,
+          "end": 1.06,
+          "word": " monitoring",
+          "probability": 0.9991158843040466
+        },
+        {
+          "start": 1.06,
+          "end": 1.58,
+          "word": " should",
+          "probability": 0.9984447360038757
+        },
+        {
+          "start": 1.58,
+          "end": 1.76,
+          "word": " do",
+          "probability": 0.9981720447540283
+        },
+        {
+          "start": 1.76,
+          "end": 2.06,
+          "word": " more",
+          "probability": 0.9992799162864685
+        },
+        {
+          "start": 2.06,
+          "end": 2.32,
+          "word": " than",
+          "probability": 0.9950405955314636
+        },
+        {
+          "start": 2.32,
+          "end": 2.62,
+          "word": " display",
+          "probability": 0.9951097369194031
+        },
+        {
+          "start": 2.62,
+          "end": 3.02,
+          "word": " numbers.",
+          "probability": 0.9982142448425293
+        }
+      ]
+    },
+    {
+      "start": 3.82,
+      "end": 5.7,
+      "text": "It should help operators detect problems",
+      "words": [
+        {
+          "start": 3.82,
+          "end": 3.9,
+          "word": " It",
+          "probability": 0.995614767074585
+        },
+        {
+          "start": 3.9,
+          "end": 4.02,
+          "word": " should",
+          "probability": 0.9985144734382629
+        },
+        {
+          "start": 4.02,
+          "end": 4.24,
+          "word": " help",
+          "probability": 0.9993076324462891
+        },
+        {
+          "start": 4.24,
+          "end": 4.64,
+          "word": " operators",
+          "probability": 0.9979281425476074
+        },
+        {
+          "start": 4.64,
+          "end": 5.08,
+          "word": " detect",
+          "probability": 0.9917659163475037
+        },
+        {
+          "start": 5.08,
+          "end": 5.7,
+          "word": " problems",
+          "probability": 0.9992355108261108
+        }
+      ]
+    },
+    {
+      "start": 5.7,
+      "end": 7.74,
+      "text": "and respond before they escalate.",
+      "words": [
+        {
+          "start": 5.7,
+          "end": 6.16,
+          "word": " and",
+          "probability": 0.9873700141906738
+        },
+        {
+          "start": 6.16,
+          "end": 6.48,
+          "word": " respond",
+          "probability": 0.9980435371398926
+        },
+        {
+          "start": 6.48,
+          "end": 7.08,
+          "word": " before",
+          "probability": 0.9990159273147583
+        },
+        {
+          "start": 7.08,
+          "end": 7.44,
+          "word": " they",
+          "probability": 0.9988610744476318
+        },
+        {
+          "start": 7.44,
+          "end": 7.74,
+          "word": " escalate.",
+          "probability": 0.9985033273696899
+        }
+      ]
+    },
+    {
+      "start": 8.98,
+      "end": 10.58,
+      "text": "Introducing DWMS.",
+      "words": [
+        {
+          "start": 8.98,
+          "end": 9.78,
+          "word": " Introducing",
+          "probability": 0.9903454780578613
+        },
+        {
+          "start": 9.78,
+          "end": 10.58,
+          "word": " DWMS.",
+          "probability": 0.700786754488945
+        }
+      ]
+    },
+    {
+      "start": 11.32,
+      "end": 13.32,
+      "text": "Sensor data, real-time visualization,",
+      "words": [
+        {
+          "start": 11.32,
+          "end": 11.74,
+          "word": " Sensor",
+          "probability": 0.8452709317207336
+        },
+        {
+          "start": 11.74,
+          "end": 12.0,
+          "word": " data,",
+          "probability": 0.8381714224815369
+        },
+        {
+          "start": 12.52,
+          "end": 12.62,
+          "word": " real",
+          "probability": 0.960120677947998
+        },
+        {
+          "start": 12.62,
+          "end": 12.98,
+          "word": "-time",
+          "probability": 0.8633075952529907
+        },
+        {
+          "start": 12.98,
+          "end": 13.32,
+          "word": " visualization,",
+          "probability": 0.9918756484985352
+        }
+      ]
+    },
+    {
+      "start": 14.26,
+      "end": 16.88,
+      "text": "and a traceable response workflow in one platform.",
+      "words": [
+        {
+          "start": 14.26,
+          "end": 14.3,
+          "word": " and",
+          "probability": 0.9988152980804443
+        },
+        {
+          "start": 14.3,
+          "end": 14.36,
+          "word": " a",
+          "probability": 0.9090674519538879
+        },
+        {
+          "start": 14.36,
+          "end": 14.84,
+          "word": " traceable",
+          "probability": 0.9940290153026581
+        },
+        {
+          "start": 14.84,
+          "end": 15.16,
+          "word": " response",
+          "probability": 0.9912520051002502
+        },
+        {
+          "start": 15.16,
+          "end": 15.82,
+          "word": " workflow",
+          "probability": 0.9851273894309998
+        },
+        {
+          "start": 15.82,
+          "end": 16.2,
+          "word": " in",
+          "probability": 0.9922033548355103
+        },
+        {
+          "start": 16.2,
+          "end": 16.46,
+          "word": " one",
+          "probability": 0.9705145955085754
+        },
+        {
+          "start": 16.46,
+          "end": 16.88,
+          "word": " platform.",
+          "probability": 0.9950336217880249
+        }
+      ]
+    },
+    {
+      "start": 17.88,
+      "end": 21.3,
+      "text": "The hardware path supports pH, total dissolved solids,",
+      "words": [
+        {
+          "start": 17.88,
+          "end": 17.98,
+          "word": " The",
+          "probability": 0.9961323738098145
+        },
+        {
+          "start": 17.98,
+          "end": 18.18,
+          "word": " hardware",
+          "probability": 0.9447410702705383
+        },
+        {
+          "start": 18.18,
+          "end": 18.66,
+          "word": " path",
+          "probability": 0.9865133166313171
+        },
+        {
+          "start": 18.66,
+          "end": 19.16,
+          "word": " supports",
+          "probability": 0.9979943037033081
+        },
+        {
+          "start": 19.16,
+          "end": 19.48,
+          "word": " pH,",
+          "probability": 0.5741605758666992
+        },
+        {
+          "start": 20.3,
+          "end": 20.3,
+          "word": " total",
+          "probability": 0.9706717133522034
+        },
+        {
+          "start": 20.3,
+          "end": 20.74,
+          "word": " dissolved",
+          "probability": 0.8250280618667603
+        },
+        {
+          "start": 20.74,
+          "end": 21.3,
+          "word": " solids,",
+          "probability": 0.9888887405395508
+        }
+      ]
+    },
+    {
+      "start": 21.58,
+      "end": 22.14,
+      "text": "and turbidity.",
+      "words": [
+        {
+          "start": 21.58,
+          "end": 21.7,
+          "word": " and",
+          "probability": 0.9992874264717102
+        },
+        {
+          "start": 21.7,
+          "end": 22.14,
+          "word": " turbidity.",
+          "probability": 0.9935232698917389
+        }
+      ]
+    },
+    {
+      "start": 22.86,
+      "end": 24.72,
+      "text": "These demonstration readings are simulated.",
+      "words": [
+        {
+          "start": 22.86,
+          "end": 22.96,
+          "word": " These",
+          "probability": 0.9983181953430176
+        },
+        {
+          "start": 22.96,
+          "end": 23.3,
+          "word": " demonstration",
+          "probability": 0.9982432126998901
+        },
+        {
+          "start": 23.3,
+          "end": 23.98,
+          "word": " readings",
+          "probability": 0.9985925555229187
+        },
+        {
+          "start": 23.98,
+          "end": 24.28,
+          "word": " are",
+          "probability": 0.9997593760490417
+        },
+        {
+          "start": 24.28,
+          "end": 24.72,
+          "word": " simulated.",
+          "probability": 0.9993253946304321
+        }
+      ]
+    },
+    {
+      "start": 25.84,
+      "end": 27.44,
+      "text": "Abnormal readings create alerts,",
+      "words": [
+        {
+          "start": 25.84,
+          "end": 26.2,
+          "word": " Abnormal",
+          "probability": 0.844496101140976
+        },
+        {
+          "start": 26.2,
+          "end": 26.64,
+          "word": " readings",
+          "probability": 0.9963317513465881
+        },
+        {
+          "start": 26.64,
+          "end": 27.06,
+          "word": " create",
+          "probability": 0.9976795315742493
+        },
+        {
+          "start": 27.06,
+          "end": 27.44,
+          "word": " alerts,",
+          "probability": 0.9992338418960571
+        }
+      ]
+    },
+    {
+      "start": 27.98,
+      "end": 29.94,
+      "text": "showing the affected parameter and condition.",
+      "words": [
+        {
+          "start": 27.98,
+          "end": 28.18,
+          "word": " showing",
+          "probability": 0.9873605370521545
+        },
+        {
+          "start": 28.18,
+          "end": 28.4,
+          "word": " the",
+          "probability": 0.9976546168327332
+        },
+        {
+          "start": 28.4,
+          "end": 28.76,
+          "word": " affected",
+          "probability": 0.828540027141571
+        },
+        {
+          "start": 28.76,
+          "end": 29.1,
+          "word": " parameter",
+          "probability": 0.9674038887023926
+        },
+        {
+          "start": 29.1,
+          "end": 29.62,
+          "word": " and",
+          "probability": 0.991324782371521
+        },
+        {
+          "start": 29.62,
+          "end": 29.94,
+          "word": " condition.",
+          "probability": 0.9973438382148743
+        }
+      ]
+    },
+    {
+      "start": 31.1,
+      "end": 33.54,
+      "text": "DWMS connects detection with action,",
+      "words": [
+        {
+          "start": 31.1,
+          "end": 31.82,
+          "word": " DWMS",
+          "probability": 0.6388292610645294
+        },
+        {
+          "start": 31.82,
+          "end": 32.14,
+          "word": " connects",
+          "probability": 0.9827693700790405
+        },
+        {
+          "start": 32.14,
+          "end": 32.94,
+          "word": " detection",
+          "probability": 0.9855222702026367
+        },
+        {
+          "start": 32.94,
+          "end": 33.28,
+          "word": " with",
+          "probability": 0.998044490814209
+        },
+        {
+          "start": 33.28,
+          "end": 33.54,
+          "word": " action,",
+          "probability": 0.9434702396392822
+        }
+      ]
+    },
+    {
+      "start": 34.1,
+      "end": 36.96,
+      "text": "requesting a response through predefined operating rules.",
+      "words": [
+        {
+          "start": 34.1,
+          "end": 34.4,
+          "word": " requesting",
+          "probability": 0.9978043437004089
+        },
+        {
+          "start": 34.4,
+          "end": 34.74,
+          "word": " a",
+          "probability": 0.9885115623474121
+        },
+        {
+          "start": 34.74,
+          "end": 35.02,
+          "word": " response",
+          "probability": 0.9997686743736267
+        },
+        {
+          "start": 35.02,
+          "end": 35.46,
+          "word": " through",
+          "probability": 0.9964787364006042
+        },
+        {
+          "start": 35.46,
+          "end": 36.08,
+          "word": " predefined",
+          "probability": 0.9408251643180847
+        },
+        {
+          "start": 36.08,
+          "end": 36.54,
+          "word": " operating",
+          "probability": 0.9969056248664856
+        },
+        {
+          "start": 36.54,
+          "end": 36.96,
+          "word": " rules.",
+          "probability": 0.9970121383666992
+        }
+      ]
+    },
+    {
+      "start": 37.78,
+      "end": 39.38,
+      "text": "This pump activity is a simulation.",
+      "words": [
+        {
+          "start": 37.78,
+          "end": 37.94,
+          "word": " This",
+          "probability": 0.9958258867263794
+        },
+        {
+          "start": 37.94,
+          "end": 38.16,
+          "word": " pump",
+          "probability": 0.9919719696044922
+        },
+        {
+          "start": 38.16,
+          "end": 38.48,
+          "word": " activity",
+          "probability": 0.9954392313957214
+        },
+        {
+          "start": 38.48,
+          "end": 38.96,
+          "word": " is",
+          "probability": 0.9992489218711853
+        },
+        {
+          "start": 38.96,
+          "end": 39.06,
+          "word": " a",
+          "probability": 0.7391204833984375
+        },
+        {
+          "start": 39.06,
+          "end": 39.38,
+          "word": " simulation.",
+          "probability": 0.997323751449585
+        }
+      ]
+    },
+    {
+      "start": 40.28,
+      "end": 41.7,
+      "text": "No physical equipment is controlled.",
+      "words": [
+        {
+          "start": 40.28,
+          "end": 40.28,
+          "word": " No",
+          "probability": 0.9801023602485657
+        },
+        {
+          "start": 40.28,
+          "end": 40.54,
+          "word": " physical",
+          "probability": 0.9976061582565308
+        },
+        {
+          "start": 40.54,
+          "end": 41.08,
+          "word": " equipment",
+          "probability": 0.9989935755729675
+        },
+        {
+          "start": 41.08,
+          "end": 41.38,
+          "word": " is",
+          "probability": 0.9989029169082642
+        },
+        {
+          "start": 41.38,
+          "end": 41.7,
+          "word": " controlled.",
+          "probability": 0.9975022673606873
+        }
+      ]
+    },
+    {
+      "start": 42.5,
+      "end": 44.76,
+      "text": "Critical conditions latch emergency mode,",
+      "words": [
+        {
+          "start": 42.5,
+          "end": 42.78,
+          "word": " Critical",
+          "probability": 0.9757789969444275
+        },
+        {
+          "start": 42.78,
+          "end": 43.22,
+          "word": " conditions",
+          "probability": 0.9754354357719421
+        },
+        {
+          "start": 43.22,
+          "end": 43.76,
+          "word": " latch",
+          "probability": 0.9934717416763306
+        },
+        {
+          "start": 43.76,
+          "end": 44.12,
+          "word": " emergency",
+          "probability": 0.9550588130950928
+        },
+        {
+          "start": 44.12,
+          "end": 44.76,
+          "word": " mode,",
+          "probability": 0.9993983507156372
+        }
+      ]
+    },
+    {
+      "start": 45.12,
+      "end": 47.6,
+      "text": "request a stop, and prevent automatic restart.",
+      "words": [
+        {
+          "start": 45.12,
+          "end": 45.34,
+          "word": " request",
+          "probability": 0.9924052357673645
+        },
+        {
+          "start": 45.34,
+          "end": 45.6,
+          "word": " a",
+          "probability": 0.8825362920761108
+        },
+        {
+          "start": 45.6,
+          "end": 45.84,
+          "word": " stop,",
+          "probability": 0.9941253662109375
+        },
+        {
+          "start": 46.18,
+          "end": 46.36,
+          "word": " and",
+          "probability": 0.9995158910751343
+        },
+        {
+          "start": 46.36,
+          "end": 46.64,
+          "word": " prevent",
+          "probability": 0.9991056323051453
+        },
+        {
+          "start": 46.64,
+          "end": 47.16,
+          "word": " automatic",
+          "probability": 0.9967464208602905
+        },
+        {
+          "start": 47.16,
+          "end": 47.6,
+          "word": " restart.",
+          "probability": 0.9764202237129211
+        }
+      ]
+    },
+    {
+      "start": 48.54,
+      "end": 51.26,
+      "text": "Returning readings alone cannot clear the interlock.",
+      "words": [
+        {
+          "start": 48.54,
+          "end": 48.94,
+          "word": " Returning",
+          "probability": 0.9752654433250427
+        },
+        {
+          "start": 48.94,
+          "end": 49.24,
+          "word": " readings",
+          "probability": 0.9914621114730835
+        },
+        {
+          "start": 49.24,
+          "end": 49.64,
+          "word": " alone",
+          "probability": 0.9983596205711365
+        },
+        {
+          "start": 49.64,
+          "end": 50.08,
+          "word": " cannot",
+          "probability": 0.9289877414703369
+        },
+        {
+          "start": 50.08,
+          "end": 50.64,
+          "word": " clear",
+          "probability": 0.9985268115997314
+        },
+        {
+          "start": 50.64,
+          "end": 50.82,
+          "word": " the",
+          "probability": 0.9993919134140015
+        },
+        {
+          "start": 50.82,
+          "end": 51.26,
+          "word": " interlock.",
+          "probability": 0.988153725862503
+        }
+      ]
+    },
+    {
+      "start": 51.84,
+      "end": 53.3,
+      "text": "Recovery requires an operator.",
+      "words": [
+        {
+          "start": 51.84,
+          "end": 52.04,
+          "word": " Recovery",
+          "probability": 0.9759975075721741
+        },
+        {
+          "start": 52.04,
+          "end": 52.76,
+          "word": " requires",
+          "probability": 0.9993671774864197
+        },
+        {
+          "start": 52.76,
+          "end": 53.02,
+          "word": " an",
+          "probability": 0.9981247782707214
+        },
+        {
+          "start": 53.02,
+          "end": 53.3,
+          "word": " operator.",
+          "probability": 0.9966501593589783
+        }
+      ]
+    },
+    {
+      "start": 54.3,
+      "end": 55.22,
+      "text": "Once readings recover,",
+      "words": [
+        {
+          "start": 54.3,
+          "end": 54.44,
+          "word": " Once",
+          "probability": 0.9961745738983154
+        },
+        {
+          "start": 54.44,
+          "end": 54.7,
+          "word": " readings",
+          "probability": 0.9931944608688354
+        },
+        {
+          "start": 54.7,
+          "end": 55.22,
+          "word": " recover,",
+          "probability": 0.9924362301826477
+        }
+      ]
+    },
+    {
+      "start": 55.76,
+      "end": 57.14,
+      "text": "the operator confirms recovery,",
+      "words": [
+        {
+          "start": 55.76,
+          "end": 55.82,
+          "word": " the",
+          "probability": 0.9977028965950012
+        },
+        {
+          "start": 55.82,
+          "end": 56.18,
+          "word": " operator",
+          "probability": 0.9938940405845642
+        },
+        {
+          "start": 56.18,
+          "end": 56.74,
+          "word": " confirms",
+          "probability": 0.997385561466217
+        },
+        {
+          "start": 56.74,
+          "end": 57.14,
+          "word": " recovery,",
+          "probability": 0.9943705201148987
+        }
+      ]
+    },
+    {
+      "start": 57.24,
+      "end": 60.04,
+      "text": "allowing a controlled return to normal operation",
+      "words": [
+        {
+          "start": 57.24,
+          "end": 58.02,
+          "word": " allowing",
+          "probability": 0.9992316961288452
+        },
+        {
+          "start": 58.02,
+          "end": 58.26,
+          "word": " a",
+          "probability": 0.9988762736320496
+        },
+        {
+          "start": 58.26,
+          "end": 58.64,
+          "word": " controlled",
+          "probability": 0.9696285128593445
+        },
+        {
+          "start": 58.64,
+          "end": 58.96,
+          "word": " return",
+          "probability": 0.9973955154418945
+        },
+        {
+          "start": 58.96,
+          "end": 59.32,
+          "word": " to",
+          "probability": 0.9992389678955078
+        },
+        {
+          "start": 59.32,
+          "end": 59.54,
+          "word": " normal",
+          "probability": 0.9910655617713928
+        },
+        {
+          "start": 59.54,
+          "end": 60.04,
+          "word": " operation",
+          "probability": 0.9945334196090698
+        }
+      ]
+    },
+    {
+      "start": 60.04,
+      "end": 61.8,
+      "text": "and recording the transition.",
+      "words": [
+        {
+          "start": 60.04,
+          "end": 60.66,
+          "word": " and",
+          "probability": 0.8953825235366821
+        },
+        {
+          "start": 60.66,
+          "end": 60.92,
+          "word": " recording",
+          "probability": 0.995001494884491
+        },
+        {
+          "start": 60.92,
+          "end": 61.28,
+          "word": " the",
+          "probability": 0.9993250370025635
+        },
+        {
+          "start": 61.28,
+          "end": 61.8,
+          "word": " transition.",
+          "probability": 0.9962995648384094
+        }
+      ]
+    },
+    {
+      "start": 62.56,
+      "end": 65.5,
+      "text": "Historical trends, device records, and site grouping",
+      "words": [
+        {
+          "start": 62.56,
+          "end": 62.94,
+          "word": " Historical",
+          "probability": 0.9620553851127625
+        },
+        {
+          "start": 62.94,
+          "end": 63.44,
+          "word": " trends,",
+          "probability": 0.9565538167953491
+        },
+        {
+          "start": 63.88,
+          "end": 64.08,
+          "word": " device",
+          "probability": 0.9934584498405457
+        },
+        {
+          "start": 64.08,
+          "end": 64.54,
+          "word": " records,",
+          "probability": 0.9993547797203064
+        },
+        {
+          "start": 64.94,
+          "end": 65.0,
+          "word": " and",
+          "probability": 0.9989078044891357
+        },
+        {
+          "start": 65.0,
+          "end": 65.22,
+          "word": " site",
+          "probability": 0.9140596389770508
+        },
+        {
+          "start": 65.22,
+          "end": 65.5,
+          "word": " grouping",
+          "probability": 0.9912509918212891
+        }
+      ]
+    },
+    {
+      "start": 65.5,
+      "end": 68.98,
+      "text": "provide operational visibility across monitoring locations.",
+      "words": [
+        {
+          "start": 65.5,
+          "end": 66.04,
+          "word": " provide",
+          "probability": 0.993267297744751
+        },
+        {
+          "start": 66.04,
+          "end": 66.7,
+          "word": " operational",
+          "probability": 0.9946000576019287
+        },
+        {
+          "start": 66.7,
+          "end": 67.16,
+          "word": " visibility",
+          "probability": 0.9985446929931641
+        },
+        {
+          "start": 67.16,
+          "end": 67.86,
+          "word": " across",
+          "probability": 0.9981833100318909
+        },
+        {
+          "start": 67.86,
+          "end": 68.4,
+          "word": " monitoring",
+          "probability": 0.9970242381095886
+        },
+        {
+          "start": 68.4,
+          "end": 68.98,
+          "word": " locations.",
+          "probability": 0.9992030262947083
+        }
+      ]
+    },
+    {
+      "start": 69.92,
+      "end": 72.9,
+      "text": "The software integration is tested with isolated fixtures.",
+      "words": [
+        {
+          "start": 69.92,
+          "end": 70.0,
+          "word": " The",
+          "probability": 0.9982301592826843
+        },
+        {
+          "start": 70.0,
+          "end": 70.24,
+          "word": " software",
+          "probability": 0.9959322810173035
+        },
+        {
+          "start": 70.24,
+          "end": 70.8,
+          "word": " integration",
+          "probability": 0.9988573789596558
+        },
+        {
+          "start": 70.8,
+          "end": 71.28,
+          "word": " is",
+          "probability": 0.9993669390678406
+        },
+        {
+          "start": 71.28,
+          "end": 71.54,
+          "word": " tested",
+          "probability": 0.9986737966537476
+        },
+        {
+          "start": 71.54,
+          "end": 71.94,
+          "word": " with",
+          "probability": 0.99969482421875
+        },
+        {
+          "start": 71.94,
+          "end": 72.22,
+          "word": " isolated",
+          "probability": 0.9939139485359192
+        },
+        {
+          "start": 72.22,
+          "end": 72.9,
+          "word": " fixtures.",
+          "probability": 0.9992839694023132
+        }
+      ]
+    },
+    {
+      "start": 73.78,
+      "end": 77.38,
+      "text": "Ethm is designed to explain authorized monitoring evidence.",
+      "words": [
+        {
+          "start": 73.78,
+          "end": 74.4,
+          "word": " Ethm",
+          "probability": 0.7935737669467926
+        },
+        {
+          "start": 74.4,
+          "end": 74.7,
+          "word": " is",
+          "probability": 0.9980679154396057
+        },
+        {
+          "start": 74.7,
+          "end": 75.08,
+          "word": " designed",
+          "probability": 0.9985817670822144
+        },
+        {
+          "start": 75.08,
+          "end": 75.3,
+          "word": " to",
+          "probability": 0.9998323917388916
+        },
+        {
+          "start": 75.3,
+          "end": 75.76,
+          "word": " explain",
+          "probability": 0.9988920092582703
+        },
+        {
+          "start": 75.76,
+          "end": 76.22,
+          "word": " authorized",
+          "probability": 0.9833104014396667
+        },
+        {
+          "start": 76.22,
+          "end": 76.86,
+          "word": " monitoring",
+          "probability": 0.9984392523765564
+        },
+        {
+          "start": 76.86,
+          "end": 77.38,
+          "word": " evidence.",
+          "probability": 0.9979117512702942
+        }
+      ]
+    },
+    {
+      "start": 78.22,
+      "end": 81.88,
+      "text": "Live AI remains unavailable until provider credit is restored.",
+      "words": [
+        {
+          "start": 78.22,
+          "end": 78.54,
+          "word": " Live",
+          "probability": 0.9347231984138489
+        },
+        {
+          "start": 78.54,
+          "end": 78.78,
+          "word": " AI",
+          "probability": 0.5499579310417175
+        },
+        {
+          "start": 78.78,
+          "end": 79.34,
+          "word": " remains",
+          "probability": 0.9984923601150513
+        },
+        {
+          "start": 79.34,
+          "end": 79.9,
+          "word": " unavailable",
+          "probability": 0.9910926222801208
+        },
+        {
+          "start": 79.9,
+          "end": 80.48,
+          "word": " until",
+          "probability": 0.9944295883178711
+        },
+        {
+          "start": 80.48,
+          "end": 80.86,
+          "word": " provider",
+          "probability": 0.9318817257881165
+        },
+        {
+          "start": 80.86,
+          "end": 81.26,
+          "word": " credit",
+          "probability": 0.9970887303352356
+        },
+        {
+          "start": 81.26,
+          "end": 81.58,
+          "word": " is",
+          "probability": 0.9997560381889343
+        },
+        {
+          "start": 81.58,
+          "end": 81.88,
+          "word": " restored.",
+          "probability": 0.9995080232620239
+        }
+      ]
+    },
+    {
+      "start": 82.72,
+      "end": 84.58,
+      "text": "AI never controls equipment.",
+      "words": [
+        {
+          "start": 82.72,
+          "end": 82.84,
+          "word": " AI",
+          "probability": 0.9440965056419373
+        },
+        {
+          "start": 82.84,
+          "end": 83.44,
+          "word": " never",
+          "probability": 0.9804067015647888
+        },
+        {
+          "start": 83.44,
+          "end": 84.12,
+          "word": " controls",
+          "probability": 0.9977930784225464
+        },
+        {
+          "start": 84.12,
+          "end": 84.58,
+          "word": " equipment.",
+          "probability": 0.997113823890686
+        }
+      ]
+    },
+    {
+      "start": 85.7,
+      "end": 89.58,
+      "text": "DWMS, turning water data into accountable decisions.",
+      "words": [
+        {
+          "start": 85.7,
+          "end": 86.54,
+          "word": " DWMS,",
+          "probability": 0.6983301937580109
+        },
+        {
+          "start": 87.12,
+          "end": 87.42,
+          "word": " turning",
+          "probability": 0.41155943274497986
+        },
+        {
+          "start": 87.42,
+          "end": 87.74,
+          "word": " water",
+          "probability": 0.994412362575531
+        },
+        {
+          "start": 87.74,
+          "end": 88.12,
+          "word": " data",
+          "probability": 0.9989283680915833
+        },
+        {
+          "start": 88.12,
+          "end": 88.56,
+          "word": " into",
+          "probability": 0.9976256489753723
+        },
+        {
+          "start": 88.56,
+          "end": 88.88,
+          "word": " accountable",
+          "probability": 0.9226183295249939
+        },
+        {
+          "start": 88.88,
+          "end": 89.58,
+          "word": " decisions.",
+          "probability": 0.9938126802444458
+        }
+      ]
+    },
+    {
+      "start": 90.38,
+      "end": 92.5,
+      "text": "Monitor, detect, respond.",
+      "words": [
+        {
+          "start": 90.38,
+          "end": 90.7,
+          "word": " Monitor,",
+          "probability": 0.9528838396072388
+        },
+        {
+          "start": 91.2,
+          "end": 91.44,
+          "word": " detect,",
+          "probability": 0.9601192474365234
+        },
+        {
+          "start": 92.12,
+          "end": 92.5,
+          "word": " respond.",
+          "probability": 0.9976606369018555
+        }
+      ]
+    },
+    {
+      "start": 93.52,
+      "end": 96.4,
+      "text": "Ahmed Alzahrani, Founder and Project Lead.",
+      "words": [
+        {
+          "start": 93.52,
+          "end": 93.8,
+          "word": " Ahmed",
+          "probability": 0.48825228214263916
+        },
+        {
+          "start": 93.8,
+          "end": 94.66,
+          "word": " Alzahrani,",
+          "probability": 0.6880406687657038
+        },
+        {
+          "start": 95.02,
+          "end": 95.34,
+          "word": " founder",
+          "probability": 0.6706357002258301
+        },
+        {
+          "start": 95.34,
+          "end": 95.74,
+          "word": " and",
+          "probability": 0.9899448752403259
+        },
+        {
+          "start": 95.74,
+          "end": 96.08,
+          "word": " project",
+          "probability": 0.9957743287086487
+        },
+        {
+          "start": 96.08,
+          "end": 96.4,
+          "word": " lead.",
+          "probability": 0.9880713224411011
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "asr_tool": "faster-whisper",
+    "version": "1.2.1",
+    "engine": "CTranslate2 CPU int8",
+    "model_repo": "Systran/faster-whisper-base.en",
+    "model_revision": "3d3d5dee26484f91867d81cb899cfcf72b96be6c",
+    "source_audio_sha256": "34561b3fe884200131bdc9b70e546b931c9bb78c82fa390ffa8063db08e4e7d6",
+    "scope": "Local ASR of owner-supplied ElevenLabs narration. No paid API, application dependency, generated voice or physical validation. Word recognition and timing require editorial review.",
+    "model_files_sha256": {
+      "tokenizer.json": "929c5252409436dce1b38a75d1abbcb5e132d170d8e324e4e04ed915fa2d22df",
+      "vocabulary.txt": "ff77588746d3a2595d32ab5b69ffd7b95ce2441ac57533cb66fc3eb575a115cf",
+      "config.json": "f3bc3821e9fc76a27bae538e11ae5b677dcdd352b4600429ce7951d398569aeb",
+      "model.bin": "2a166925539a16005f14ff328359f9b9adb9dc4fb631bb3b227526862e93e2ef"
+    },
+    "alignment_review": "Primary VAD ASR cross-checked with no-VAD pass and short boundary crops. Obvious project/founder spellings normalized. Earlier/late edge word times corrected using cross-pass timing and FFmpeg silence onsets; no speech synthesized. Alignment is ASR-assisted editorial timing, not certified word-boundary accuracy.",
+    "editorial_corrections": [
+      "ETM -> Ethm; founder -> confirmed Ahmed Alzahrani spelling",
+      "Returning starts48.54 from no-VAD pass",
+      "Showing starts27.98 from no-VAD pass; low-confidence extra results hallucination omitted",
+      "Once starts54.30 and the-operator starts55.76 from boundary crop",
+      "AI-never starts82.72 from no-VAD pass",
+      "Founder phrase starts93.52 using observed post-pause voice onset; merged family name spelling"
+    ],
+    "content_findings": [
+      "No physical equipment is controlled (actual wording differs from older connected text).",
+      "Recovery requires an operator (actual wording omits acknowledgement; next sentence states operator confirms recovery).",
+      "Ethm described as designed capability; live AI explicitly unavailable pending credit; no operational AI claim.",
+      "All sensor readings/response are explicitly stated simulated; no physical accuracy or treatment outcome claimed."
+    ]
+  },
+  "words_corrected_for_captions": [
+    {
+      "start": 0.0,
+      "end": 0.24,
+      "word": " Water",
+      "probability": 0.8803966641426086
+    },
+    {
+      "start": 0.24,
+      "end": 0.6,
+      "word": " quality",
+      "probability": 0.8607482314109802
+    },
+    {
+      "start": 0.6,
+      "end": 1.06,
+      "word": " monitoring",
+      "probability": 0.9991158843040466
+    },
+    {
+      "start": 1.06,
+      "end": 1.58,
+      "word": " should",
+      "probability": 0.9984447360038757
+    },
+    {
+      "start": 1.58,
+      "end": 1.76,
+      "word": " do",
+      "probability": 0.9981720447540283
+    },
+    {
+      "start": 1.76,
+      "end": 2.06,
+      "word": " more",
+      "probability": 0.9992799162864685
+    },
+    {
+      "start": 2.06,
+      "end": 2.32,
+      "word": " than",
+      "probability": 0.9950405955314636
+    },
+    {
+      "start": 2.32,
+      "end": 2.62,
+      "word": " display",
+      "probability": 0.9951097369194031
+    },
+    {
+      "start": 2.62,
+      "end": 3.02,
+      "word": " numbers.",
+      "probability": 0.9982142448425293
+    },
+    {
+      "start": 3.82,
+      "end": 3.9,
+      "word": " It",
+      "probability": 0.995614767074585
+    },
+    {
+      "start": 3.9,
+      "end": 4.02,
+      "word": " should",
+      "probability": 0.9985144734382629
+    },
+    {
+      "start": 4.02,
+      "end": 4.24,
+      "word": " help",
+      "probability": 0.9993076324462891
+    },
+    {
+      "start": 4.24,
+      "end": 4.64,
+      "word": " operators",
+      "probability": 0.9979281425476074
+    },
+    {
+      "start": 4.64,
+      "end": 5.08,
+      "word": " detect",
+      "probability": 0.9917659163475037
+    },
+    {
+      "start": 5.08,
+      "end": 5.7,
+      "word": " problems",
+      "probability": 0.9992355108261108
+    },
+    {
+      "start": 5.7,
+      "end": 6.16,
+      "word": " and",
+      "probability": 0.9873700141906738
+    },
+    {
+      "start": 6.16,
+      "end": 6.48,
+      "word": " respond",
+      "probability": 0.9980435371398926
+    },
+    {
+      "start": 6.48,
+      "end": 7.08,
+      "word": " before",
+      "probability": 0.9990159273147583
+    },
+    {
+      "start": 7.08,
+      "end": 7.44,
+      "word": " they",
+      "probability": 0.9988610744476318
+    },
+    {
+      "start": 7.44,
+      "end": 7.74,
+      "word": " escalate.",
+      "probability": 0.9985033273696899
+    },
+    {
+      "start": 8.98,
+      "end": 9.78,
+      "word": " Introducing",
+      "probability": 0.9903454780578613
+    },
+    {
+      "start": 9.78,
+      "end": 10.58,
+      "word": " DWMS.",
+      "probability": 0.700786754488945
+    },
+    {
+      "start": 11.32,
+      "end": 11.74,
+      "word": " Sensor",
+      "probability": 0.8452709317207336
+    },
+    {
+      "start": 11.74,
+      "end": 12.0,
+      "word": " data,",
+      "probability": 0.8381714224815369
+    },
+    {
+      "start": 12.52,
+      "end": 12.62,
+      "word": " real",
+      "probability": 0.960120677947998
+    },
+    {
+      "start": 12.62,
+      "end": 12.98,
+      "word": "-time",
+      "probability": 0.8633075952529907
+    },
+    {
+      "start": 12.98,
+      "end": 13.32,
+      "word": " visualization,",
+      "probability": 0.9918756484985352
+    },
+    {
+      "start": 14.26,
+      "end": 14.3,
+      "word": " and",
+      "probability": 0.9988152980804443
+    },
+    {
+      "start": 14.3,
+      "end": 14.36,
+      "word": " a",
+      "probability": 0.9090674519538879
+    },
+    {
+      "start": 14.36,
+      "end": 14.84,
+      "word": " traceable",
+      "probability": 0.9940290153026581
+    },
+    {
+      "start": 14.84,
+      "end": 15.16,
+      "word": " response",
+      "probability": 0.9912520051002502
+    },
+    {
+      "start": 15.16,
+      "end": 15.82,
+      "word": " workflow",
+      "probability": 0.9851273894309998
+    },
+    {
+      "start": 15.82,
+      "end": 16.2,
+      "word": " in",
+      "probability": 0.9922033548355103
+    },
+    {
+      "start": 16.2,
+      "end": 16.46,
+      "word": " one",
+      "probability": 0.9705145955085754
+    },
+    {
+      "start": 16.46,
+      "end": 16.88,
+      "word": " platform.",
+      "probability": 0.9950336217880249
+    },
+    {
+      "start": 17.88,
+      "end": 17.98,
+      "word": " The",
+      "probability": 0.9961323738098145
+    },
+    {
+      "start": 17.98,
+      "end": 18.18,
+      "word": " hardware",
+      "probability": 0.9447410702705383
+    },
+    {
+      "start": 18.18,
+      "end": 18.66,
+      "word": " path",
+      "probability": 0.9865133166313171
+    },
+    {
+      "start": 18.66,
+      "end": 19.16,
+      "word": " supports",
+      "probability": 0.9979943037033081
+    },
+    {
+      "start": 19.16,
+      "end": 19.48,
+      "word": " pH,",
+      "probability": 0.5741605758666992
+    },
+    {
+      "start": 20.3,
+      "end": 20.3,
+      "word": " total",
+      "probability": 0.9706717133522034
+    },
+    {
+      "start": 20.3,
+      "end": 20.74,
+      "word": " dissolved",
+      "probability": 0.8250280618667603
+    },
+    {
+      "start": 20.74,
+      "end": 21.3,
+      "word": " solids,",
+      "probability": 0.9888887405395508
+    },
+    {
+      "start": 21.58,
+      "end": 21.7,
+      "word": " and",
+      "probability": 0.9992874264717102
+    },
+    {
+      "start": 21.7,
+      "end": 22.14,
+      "word": " turbidity.",
+      "probability": 0.9935232698917389
+    },
+    {
+      "start": 22.86,
+      "end": 22.96,
+      "word": " These",
+      "probability": 0.9983181953430176
+    },
+    {
+      "start": 22.96,
+      "end": 23.3,
+      "word": " demonstration",
+      "probability": 0.9982432126998901
+    },
+    {
+      "start": 23.3,
+      "end": 23.98,
+      "word": " readings",
+      "probability": 0.9985925555229187
+    },
+    {
+      "start": 23.98,
+      "end": 24.28,
+      "word": " are",
+      "probability": 0.9997593760490417
+    },
+    {
+      "start": 24.28,
+      "end": 24.72,
+      "word": " simulated.",
+      "probability": 0.9993253946304321
+    },
+    {
+      "start": 25.84,
+      "end": 26.2,
+      "word": " Abnormal",
+      "probability": 0.844496101140976
+    },
+    {
+      "start": 26.2,
+      "end": 26.64,
+      "word": " readings",
+      "probability": 0.9963317513465881
+    },
+    {
+      "start": 26.64,
+      "end": 27.06,
+      "word": " create",
+      "probability": 0.9976795315742493
+    },
+    {
+      "start": 27.06,
+      "end": 27.44,
+      "word": " alerts,",
+      "probability": 0.9992338418960571
+    },
+    {
+      "start": 27.98,
+      "end": 28.18,
+      "word": " showing",
+      "probability": 0.9873605370521545
+    },
+    {
+      "start": 28.18,
+      "end": 28.4,
+      "word": " the",
+      "probability": 0.9976546168327332
+    },
+    {
+      "start": 28.4,
+      "end": 28.76,
+      "word": " affected",
+      "probability": 0.828540027141571
+    },
+    {
+      "start": 28.76,
+      "end": 29.1,
+      "word": " parameter",
+      "probability": 0.9674038887023926
+    },
+    {
+      "start": 29.1,
+      "end": 29.62,
+      "word": " and",
+      "probability": 0.991324782371521
+    },
+    {
+      "start": 29.62,
+      "end": 29.94,
+      "word": " condition.",
+      "probability": 0.9973438382148743
+    },
+    {
+      "start": 31.1,
+      "end": 31.82,
+      "word": " DWMS",
+      "probability": 0.6388292610645294
+    },
+    {
+      "start": 31.82,
+      "end": 32.14,
+      "word": " connects",
+      "probability": 0.9827693700790405
+    },
+    {
+      "start": 32.14,
+      "end": 32.94,
+      "word": " detection",
+      "probability": 0.9855222702026367
+    },
+    {
+      "start": 32.94,
+      "end": 33.28,
+      "word": " with",
+      "probability": 0.998044490814209
+    },
+    {
+      "start": 33.28,
+      "end": 33.54,
+      "word": " action,",
+      "probability": 0.9434702396392822
+    },
+    {
+      "start": 34.1,
+      "end": 34.4,
+      "word": " requesting",
+      "probability": 0.9978043437004089
+    },
+    {
+      "start": 34.4,
+      "end": 34.74,
+      "word": " a",
+      "probability": 0.9885115623474121
+    },
+    {
+      "start": 34.74,
+      "end": 35.02,
+      "word": " response",
+      "probability": 0.9997686743736267
+    },
+    {
+      "start": 35.02,
+      "end": 35.46,
+      "word": " through",
+      "probability": 0.9964787364006042
+    },
+    {
+      "start": 35.46,
+      "end": 36.08,
+      "word": " predefined",
+      "probability": 0.9408251643180847
+    },
+    {
+      "start": 36.08,
+      "end": 36.54,
+      "word": " operating",
+      "probability": 0.9969056248664856
+    },
+    {
+      "start": 36.54,
+      "end": 36.96,
+      "word": " rules.",
+      "probability": 0.9970121383666992
+    },
+    {
+      "start": 37.78,
+      "end": 37.94,
+      "word": " This",
+      "probability": 0.9958258867263794
+    },
+    {
+      "start": 37.94,
+      "end": 38.16,
+      "word": " pump",
+      "probability": 0.9919719696044922
+    },
+    {
+      "start": 38.16,
+      "end": 38.48,
+      "word": " activity",
+      "probability": 0.9954392313957214
+    },
+    {
+      "start": 38.48,
+      "end": 38.96,
+      "word": " is",
+      "probability": 0.9992489218711853
+    },
+    {
+      "start": 38.96,
+      "end": 39.06,
+      "word": " a",
+      "probability": 0.7391204833984375
+    },
+    {
+      "start": 39.06,
+      "end": 39.38,
+      "word": " simulation.",
+      "probability": 0.997323751449585
+    },
+    {
+      "start": 40.28,
+      "end": 40.28,
+      "word": " No",
+      "probability": 0.9801023602485657
+    },
+    {
+      "start": 40.28,
+      "end": 40.54,
+      "word": " physical",
+      "probability": 0.9976061582565308
+    },
+    {
+      "start": 40.54,
+      "end": 41.08,
+      "word": " equipment",
+      "probability": 0.9989935755729675
+    },
+    {
+      "start": 41.08,
+      "end": 41.38,
+      "word": " is",
+      "probability": 0.9989029169082642
+    },
+    {
+      "start": 41.38,
+      "end": 41.7,
+      "word": " controlled.",
+      "probability": 0.9975022673606873
+    },
+    {
+      "start": 42.5,
+      "end": 42.78,
+      "word": " Critical",
+      "probability": 0.9757789969444275
+    },
+    {
+      "start": 42.78,
+      "end": 43.22,
+      "word": " conditions",
+      "probability": 0.9754354357719421
+    },
+    {
+      "start": 43.22,
+      "end": 43.76,
+      "word": " latch",
+      "probability": 0.9934717416763306
+    },
+    {
+      "start": 43.76,
+      "end": 44.12,
+      "word": " emergency",
+      "probability": 0.9550588130950928
+    },
+    {
+      "start": 44.12,
+      "end": 44.76,
+      "word": " mode,",
+      "probability": 0.9993983507156372
+    },
+    {
+      "start": 45.12,
+      "end": 45.34,
+      "word": " request",
+      "probability": 0.9924052357673645
+    },
+    {
+      "start": 45.34,
+      "end": 45.6,
+      "word": " a",
+      "probability": 0.8825362920761108
+    },
+    {
+      "start": 45.6,
+      "end": 45.84,
+      "word": " stop,",
+      "probability": 0.9941253662109375
+    },
+    {
+      "start": 46.18,
+      "end": 46.36,
+      "word": " and",
+      "probability": 0.9995158910751343
+    },
+    {
+      "start": 46.36,
+      "end": 46.64,
+      "word": " prevent",
+      "probability": 0.9991056323051453
+    },
+    {
+      "start": 46.64,
+      "end": 47.16,
+      "word": " automatic",
+      "probability": 0.9967464208602905
+    },
+    {
+      "start": 47.16,
+      "end": 47.6,
+      "word": " restart.",
+      "probability": 0.9764202237129211
+    },
+    {
+      "start": 48.54,
+      "end": 48.94,
+      "word": " Returning",
+      "probability": 0.9752654433250427
+    },
+    {
+      "start": 48.94,
+      "end": 49.24,
+      "word": " readings",
+      "probability": 0.9914621114730835
+    },
+    {
+      "start": 49.24,
+      "end": 49.64,
+      "word": " alone",
+      "probability": 0.9983596205711365
+    },
+    {
+      "start": 49.64,
+      "end": 50.08,
+      "word": " cannot",
+      "probability": 0.9289877414703369
+    },
+    {
+      "start": 50.08,
+      "end": 50.64,
+      "word": " clear",
+      "probability": 0.9985268115997314
+    },
+    {
+      "start": 50.64,
+      "end": 50.82,
+      "word": " the",
+      "probability": 0.9993919134140015
+    },
+    {
+      "start": 50.82,
+      "end": 51.26,
+      "word": " interlock.",
+      "probability": 0.988153725862503
+    },
+    {
+      "start": 51.84,
+      "end": 52.04,
+      "word": " Recovery",
+      "probability": 0.9759975075721741
+    },
+    {
+      "start": 52.04,
+      "end": 52.76,
+      "word": " requires",
+      "probability": 0.9993671774864197
+    },
+    {
+      "start": 52.76,
+      "end": 53.02,
+      "word": " an",
+      "probability": 0.9981247782707214
+    },
+    {
+      "start": 53.02,
+      "end": 53.3,
+      "word": " operator.",
+      "probability": 0.9966501593589783
+    },
+    {
+      "start": 54.3,
+      "end": 54.44,
+      "word": " Once",
+      "probability": 0.9961745738983154
+    },
+    {
+      "start": 54.44,
+      "end": 54.7,
+      "word": " readings",
+      "probability": 0.9931944608688354
+    },
+    {
+      "start": 54.7,
+      "end": 55.22,
+      "word": " recover,",
+      "probability": 0.9924362301826477
+    },
+    {
+      "start": 55.76,
+      "end": 55.82,
+      "word": " the",
+      "probability": 0.9977028965950012
+    },
+    {
+      "start": 55.82,
+      "end": 56.18,
+      "word": " operator",
+      "probability": 0.9938940405845642
+    },
+    {
+      "start": 56.18,
+      "end": 56.74,
+      "word": " confirms",
+      "probability": 0.997385561466217
+    },
+    {
+      "start": 56.74,
+      "end": 57.14,
+      "word": " recovery,",
+      "probability": 0.9943705201148987
+    },
+    {
+      "start": 57.24,
+      "end": 58.02,
+      "word": " allowing",
+      "probability": 0.9992316961288452
+    },
+    {
+      "start": 58.02,
+      "end": 58.26,
+      "word": " a",
+      "probability": 0.9988762736320496
+    },
+    {
+      "start": 58.26,
+      "end": 58.64,
+      "word": " controlled",
+      "probability": 0.9696285128593445
+    },
+    {
+      "start": 58.64,
+      "end": 58.96,
+      "word": " return",
+      "probability": 0.9973955154418945
+    },
+    {
+      "start": 58.96,
+      "end": 59.32,
+      "word": " to",
+      "probability": 0.9992389678955078
+    },
+    {
+      "start": 59.32,
+      "end": 59.54,
+      "word": " normal",
+      "probability": 0.9910655617713928
+    },
+    {
+      "start": 59.54,
+      "end": 60.04,
+      "word": " operation",
+      "probability": 0.9945334196090698
+    },
+    {
+      "start": 60.04,
+      "end": 60.66,
+      "word": " and",
+      "probability": 0.8953825235366821
+    },
+    {
+      "start": 60.66,
+      "end": 60.92,
+      "word": " recording",
+      "probability": 0.995001494884491
+    },
+    {
+      "start": 60.92,
+      "end": 61.28,
+      "word": " the",
+      "probability": 0.9993250370025635
+    },
+    {
+      "start": 61.28,
+      "end": 61.8,
+      "word": " transition.",
+      "probability": 0.9962995648384094
+    },
+    {
+      "start": 62.56,
+      "end": 62.94,
+      "word": " Historical",
+      "probability": 0.9620553851127625
+    },
+    {
+      "start": 62.94,
+      "end": 63.44,
+      "word": " trends,",
+      "probability": 0.9565538167953491
+    },
+    {
+      "start": 63.88,
+      "end": 64.08,
+      "word": " device",
+      "probability": 0.9934584498405457
+    },
+    {
+      "start": 64.08,
+      "end": 64.54,
+      "word": " records,",
+      "probability": 0.9993547797203064
+    },
+    {
+      "start": 64.94,
+      "end": 65.0,
+      "word": " and",
+      "probability": 0.9989078044891357
+    },
+    {
+      "start": 65.0,
+      "end": 65.22,
+      "word": " site",
+      "probability": 0.9140596389770508
+    },
+    {
+      "start": 65.22,
+      "end": 65.5,
+      "word": " grouping",
+      "probability": 0.9912509918212891
+    },
+    {
+      "start": 65.5,
+      "end": 66.04,
+      "word": " provide",
+      "probability": 0.993267297744751
+    },
+    {
+      "start": 66.04,
+      "end": 66.7,
+      "word": " operational",
+      "probability": 0.9946000576019287
+    },
+    {
+      "start": 66.7,
+      "end": 67.16,
+      "word": " visibility",
+      "probability": 0.9985446929931641
+    },
+    {
+      "start": 67.16,
+      "end": 67.86,
+      "word": " across",
+      "probability": 0.9981833100318909
+    },
+    {
+      "start": 67.86,
+      "end": 68.4,
+      "word": " monitoring",
+      "probability": 0.9970242381095886
+    },
+    {
+      "start": 68.4,
+      "end": 68.98,
+      "word": " locations.",
+      "probability": 0.9992030262947083
+    },
+    {
+      "start": 69.92,
+      "end": 70.0,
+      "word": " The",
+      "probability": 0.9982301592826843
+    },
+    {
+      "start": 70.0,
+      "end": 70.24,
+      "word": " software",
+      "probability": 0.9959322810173035
+    },
+    {
+      "start": 70.24,
+      "end": 70.8,
+      "word": " integration",
+      "probability": 0.9988573789596558
+    },
+    {
+      "start": 70.8,
+      "end": 71.28,
+      "word": " is",
+      "probability": 0.9993669390678406
+    },
+    {
+      "start": 71.28,
+      "end": 71.54,
+      "word": " tested",
+      "probability": 0.9986737966537476
+    },
+    {
+      "start": 71.54,
+      "end": 71.94,
+      "word": " with",
+      "probability": 0.99969482421875
+    },
+    {
+      "start": 71.94,
+      "end": 72.22,
+      "word": " isolated",
+      "probability": 0.9939139485359192
+    },
+    {
+      "start": 72.22,
+      "end": 72.9,
+      "word": " fixtures.",
+      "probability": 0.9992839694023132
+    },
+    {
+      "start": 73.78,
+      "end": 74.4,
+      "word": " Ethm",
+      "probability": 0.7935737669467926
+    },
+    {
+      "start": 74.4,
+      "end": 74.7,
+      "word": " is",
+      "probability": 0.9980679154396057
+    },
+    {
+      "start": 74.7,
+      "end": 75.08,
+      "word": " designed",
+      "probability": 0.9985817670822144
+    },
+    {
+      "start": 75.08,
+      "end": 75.3,
+      "word": " to",
+      "probability": 0.9998323917388916
+    },
+    {
+      "start": 75.3,
+      "end": 75.76,
+      "word": " explain",
+      "probability": 0.9988920092582703
+    },
+    {
+      "start": 75.76,
+      "end": 76.22,
+      "word": " authorized",
+      "probability": 0.9833104014396667
+    },
+    {
+      "start": 76.22,
+      "end": 76.86,
+      "word": " monitoring",
+      "probability": 0.9984392523765564
+    },
+    {
+      "start": 76.86,
+      "end": 77.38,
+      "word": " evidence.",
+      "probability": 0.9979117512702942
+    },
+    {
+      "start": 78.22,
+      "end": 78.54,
+      "word": " Live",
+      "probability": 0.9347231984138489
+    },
+    {
+      "start": 78.54,
+      "end": 78.78,
+      "word": " AI",
+      "probability": 0.5499579310417175
+    },
+    {
+      "start": 78.78,
+      "end": 79.34,
+      "word": " remains",
+      "probability": 0.9984923601150513
+    },
+    {
+      "start": 79.34,
+      "end": 79.9,
+      "word": " unavailable",
+      "probability": 0.9910926222801208
+    },
+    {
+      "start": 79.9,
+      "end": 80.48,
+      "word": " until",
+      "probability": 0.9944295883178711
+    },
+    {
+      "start": 80.48,
+      "end": 80.86,
+      "word": " provider",
+      "probability": 0.9318817257881165
+    },
+    {
+      "start": 80.86,
+      "end": 81.26,
+      "word": " credit",
+      "probability": 0.9970887303352356
+    },
+    {
+      "start": 81.26,
+      "end": 81.58,
+      "word": " is",
+      "probability": 0.9997560381889343
+    },
+    {
+      "start": 81.58,
+      "end": 81.88,
+      "word": " restored.",
+      "probability": 0.9995080232620239
+    },
+    {
+      "start": 82.72,
+      "end": 82.84,
+      "word": " AI",
+      "probability": 0.9440965056419373
+    },
+    {
+      "start": 82.84,
+      "end": 83.44,
+      "word": " never",
+      "probability": 0.9804067015647888
+    },
+    {
+      "start": 83.44,
+      "end": 84.12,
+      "word": " controls",
+      "probability": 0.9977930784225464
+    },
+    {
+      "start": 84.12,
+      "end": 84.58,
+      "word": " equipment.",
+      "probability": 0.997113823890686
+    },
+    {
+      "start": 85.7,
+      "end": 86.54,
+      "word": " DWMS,",
+      "probability": 0.6983301937580109
+    },
+    {
+      "start": 87.12,
+      "end": 87.42,
+      "word": " turning",
+      "probability": 0.41155943274497986
+    },
+    {
+      "start": 87.42,
+      "end": 87.74,
+      "word": " water",
+      "probability": 0.994412362575531
+    },
+    {
+      "start": 87.74,
+      "end": 88.12,
+      "word": " data",
+      "probability": 0.9989283680915833
+    },
+    {
+      "start": 88.12,
+      "end": 88.56,
+      "word": " into",
+      "probability": 0.9976256489753723
+    },
+    {
+      "start": 88.56,
+      "end": 88.88,
+      "word": " accountable",
+      "probability": 0.9226183295249939
+    },
+    {
+      "start": 88.88,
+      "end": 89.58,
+      "word": " decisions.",
+      "probability": 0.9938126802444458
+    },
+    {
+      "start": 90.38,
+      "end": 90.7,
+      "word": " Monitor,",
+      "probability": 0.9528838396072388
+    },
+    {
+      "start": 91.2,
+      "end": 91.44,
+      "word": " detect,",
+      "probability": 0.9601192474365234
+    },
+    {
+      "start": 92.12,
+      "end": 92.5,
+      "word": " respond.",
+      "probability": 0.9976606369018555
+    },
+    {
+      "start": 93.52,
+      "end": 93.8,
+      "word": " Ahmed",
+      "probability": 0.48825228214263916
+    },
+    {
+      "start": 93.8,
+      "end": 94.66,
+      "word": " Alzahrani,",
+      "probability": 0.6880406687657038
+    },
+    {
+      "start": 95.02,
+      "end": 95.34,
+      "word": " founder",
+      "probability": 0.6706357002258301
+    },
+    {
+      "start": 95.34,
+      "end": 95.74,
+      "word": " and",
+      "probability": 0.9899448752403259
+    },
+    {
+      "start": 95.74,
+      "end": 96.08,
+      "word": " project",
+      "probability": 0.9957743287086487
+    },
+    {
+      "start": 96.08,
+      "end": 96.4,
+      "word": " lead.",
+      "probability": 0.9880713224411011
+    }
+  ],
+  "caption_corrections": [
+    "ETM \u2192 Ethm",
+    "Ahmad Al Zahrani \u2192 Ahmed Alzahrani (owner-confirmed identity)"
+  ],
+  "captions": [
+    {
+      "start": 0,
+      "end": 3.14,
+      "text": "Water quality monitoring should do more\nthan display numbers."
+    },
+    {
+      "start": 3.7849999999999997,
+      "end": 7.86,
+      "text": "It should help operators detect problems\nand respond before they escalate."
+    },
+    {
+      "start": 8.945,
+      "end": 10.7,
+      "text": "Introducing DWMS."
+    },
+    {
+      "start": 11.285,
+      "end": 13.44,
+      "text": "Sensor data, real-time visualization,"
+    },
+    {
+      "start": 14.225,
+      "end": 17.0,
+      "text": "and a traceable response workflow in one\nplatform."
+    },
+    {
+      "start": 17.845,
+      "end": 19.6,
+      "text": "The hardware path supports pH,"
+    },
+    {
+      "start": 20.265,
+      "end": 22.26,
+      "text": "total dissolved solids, and turbidity."
+    },
+    {
+      "start": 22.825,
+      "end": 24.974999999999998,
+      "text": "These demonstration readings are\nsimulated."
+    },
+    {
+      "start": 25.805,
+      "end": 30.060000000000002,
+      "text": "Abnormal readings create alerts, showing\nthe affected parameter and condition."
+    },
+    {
+      "start": 31.065,
+      "end": 36.03,
+      "text": "DWMS connects detection with action,\nrequesting a response through predefined"
+    },
+    {
+      "start": 36.045,
+      "end": 37.08,
+      "text": "operating rules."
+    },
+    {
+      "start": 37.745000000000005,
+      "end": 39.5,
+      "text": "This pump activity is a simulation."
+    },
+    {
+      "start": 40.245000000000005,
+      "end": 42.045,
+      "text": "No physical equipment is controlled."
+    },
+    {
+      "start": 42.465,
+      "end": 46.59,
+      "text": "Critical conditions latch emergency mode,\nrequest a stop, and prevent"
+    },
+    {
+      "start": 46.605000000000004,
+      "end": 47.72,
+      "text": "automatic restart."
+    },
+    {
+      "start": 48.505,
+      "end": 51.379999999999995,
+      "text": "Returning readings alone cannot clear the\ninterlock."
+    },
+    {
+      "start": 51.80500000000001,
+      "end": 53.419999999999995,
+      "text": "Recovery requires an operator."
+    },
+    {
+      "start": 54.265,
+      "end": 58.59,
+      "text": "Once readings recover, the operator\nconfirms recovery, allowing a controlled"
+    },
+    {
+      "start": 58.605000000000004,
+      "end": 61.919999999999995,
+      "text": "return to normal operation and recording\nthe transition."
+    },
+    {
+      "start": 62.525000000000006,
+      "end": 66.65,
+      "text": "Historical trends, device records, and\nsite grouping provide operational"
+    },
+    {
+      "start": 66.665,
+      "end": 69.10000000000001,
+      "text": "visibility across monitoring locations."
+    },
+    {
+      "start": 69.885,
+      "end": 73.02000000000001,
+      "text": "The software integration is tested with\nisolated fixtures."
+    },
+    {
+      "start": 73.745,
+      "end": 77.5,
+      "text": "Ethm is designed to explain authorized\nmonitoring evidence."
+    },
+    {
+      "start": 78.185,
+      "end": 82.0,
+      "text": "Live AI remains unavailable until provider\ncredit is restored."
+    },
+    {
+      "start": 82.685,
+      "end": 84.7,
+      "text": "AI never controls equipment."
+    },
+    {
+      "start": 85.665,
+      "end": 89.7,
+      "text": "DWMS, turning water data into accountable\ndecisions."
+    },
+    {
+      "start": 90.345,
+      "end": 92.62,
+      "text": "Monitor, detect, respond."
+    },
+    {
+      "start": 93.485,
+      "end": 96.52000000000001,
+      "text": "Ahmed Alzahrani, founder and project lead."
+    }
+  ]
+}

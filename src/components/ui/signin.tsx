@@ -73,9 +73,8 @@ export const SignInButton = forwardRef<HTMLButtonElement, SignInButtonProps>(
     useEffect(() => {
       if (error) {
         toast.error("Login error", {
-          description: error.message,
+          description: "Sign-in could not be completed. Please try again or contact the platform administrator.",
         });
-        console.error("Login error", error);
       }
     }, [error]);
 
@@ -84,13 +83,7 @@ export const SignInButton = forwardRef<HTMLButtonElement, SignInButtonProps>(
         // Run custom onClick first
         onClick?.(event);
 
-        if (!isConfigured) {
-          toast.error("Sign-in is not configured", {
-            description:
-              "Set VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID to enable sign-in.",
-          });
-          return;
-        }
+        if (!isConfigured || event.defaultPrevented) return;
 
         try {
           if (isAuthenticated) {
@@ -98,9 +91,8 @@ export const SignInButton = forwardRef<HTMLButtonElement, SignInButtonProps>(
           } else {
             await signinRedirect();
           }
-        } catch (err) {
-          console.error("Authentication error:", err);
-          // Don't prevent the default here as the auth library handles errors
+        } catch {
+          toast.error("Sign-in could not start. Please try again.");
         }
       },
       [isAuthenticated, removeUser, signinRedirect, onClick, isConfigured],
@@ -125,6 +117,8 @@ export const SignInButton = forwardRef<HTMLButtonElement, SignInButtonProps>(
     ) : (
       <LogIn className="size-4" />
     );
+
+    if (!isConfigured) return null;
 
     return (
       <Button

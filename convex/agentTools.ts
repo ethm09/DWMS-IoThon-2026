@@ -1,14 +1,16 @@
 import { internalQuery } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
+import { requireFleetAccess } from "./users";
 import type { QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
+import { isFreshTimestamp, isValidSensorValues } from "./safetyPolicy";
+import { analyzeIntelligence } from "../src/lib/intelligence";
 import {
   analyzeSensorTrends as analyzeTrendData,
   analyzeWaterQuality as analyzeQualityData,
   evaluateSafetyState as evaluateSafetyData,
   type AgentReading,
 } from "./agentAnalysis";
-import { classifyPh, classifyTurbidity } from "./safetyPolicy";
 
 async function getDevice(ctx: QueryCtx, deviceId: string) {
   return await ctx.db
@@ -34,19 +36,91 @@ function toAgentReading(reading: Doc<"sensorReadings">): AgentReading {
   };
 }
 
+function deviceStatus(device: Doc<"devices">, now = Date.now()) {
+  return device.status === "online" && !isFreshTimestamp(device.lastSeen, now)
+    ? "offline"
+    : device.status;
+}
+
+function pumpReport(device: Doc<"devices">, now = Date.now()) {
+  return isFreshTimestamp(device.pumpReportedAt, now)
+    ? (device.reportedPumpState ?? null)
+    : null;
+}
+
+function readingDetails(reading: Doc<"sensorReadings">) {
+  const timeBasis = reading.timeBasis ?? "server_receipt";
+  return {
+    ...toAgentReading(reading),
+    timeBasis,
+    receivedAt:
+      reading.receivedAt ??
+      (timeBasis === "server_receipt" ? reading.timestamp : null),
+  };
+}
+
+function validHistoricalReading(reading: Doc<"sensorReadings">, now: number) {
+  const timestamp = Date.parse(reading.timestamp);
+  return (
+    isValidSensorValues(reading) &&
+    Number.isFinite(timestamp) &&
+    timestamp <= now
+  );
+}
+
+function readingContext(
+  device: Doc<"devices"> | null,
+  reading: Doc<"sensorReadings"> | null,
+  now = Date.now(),
+) {
+  const age = reading ? now - Date.parse(reading.timestamp) : NaN;
+  const valid =
+    reading && isValidSensorValues(reading) && Number.isFinite(age) && age >= 0;
+  const live =
+    valid &&
+    device &&
+    deviceStatus(device, now) === "online" &&
+    isFreshTimestamp(reading.timestamp, now);
+  return {
+    available: !!valid && !!device,
+    mode: valid && device ? "HARDWARE" : "UNKNOWN",
+    freshness: !reading
+      ? "UNAVAILABLE"
+      : !valid
+        ? "INVALID"
+        : live
+          ? "LIVE"
+          : "STALE",
+    ageMs: Number.isFinite(age) && age >= 0 ? age : null,
+    deviceStatus: device ? deviceStatus(device, now) : "unknown",
+    readingTimestamp: reading?.timestamp ?? null,
+    reason: !device
+      ? "Device not found."
+      : !reading
+        ? "No persisted hardware reading is available; demo state is not used by Ethm."
+        : !valid
+          ? "The persisted reading has invalid values or an invalid/future timestamp; do not treat it as current measurement evidence."
+          : live
+            ? null
+            : "Persisted reading is historical or device connectivity is stale; current conditions are unknown.",
+  };
+}
+
 export const listDevices = internalQuery({
   args: {},
   handler: async (ctx) => {
+    await requireFleetAccess(ctx);
     const devices = await ctx.db.query("devices").take(100);
     return devices.map((device) => ({
       deviceId: device.deviceId,
       name: device.name,
       location: device.location ?? null,
-      status: device.status,
+      status: deviceStatus(device),
       lastSeen: device.lastSeen ?? null,
       controlMode: device.controlMode ?? "auto",
       desiredPumpState: device.desiredPumpState ?? false,
-      reportedPumpState: device.reportedPumpState ?? null,
+      reportedPumpState: pumpReport(device),
+      pumpReportedAt: device.pumpReportedAt ?? null,
     }));
   },
 });
@@ -54,25 +128,17 @@ export const listDevices = internalQuery({
 export const getLatestSensorReadings = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const [device, reading] = await Promise.all([
       getDevice(ctx, args.deviceId),
       getLatestReading(ctx, args.deviceId),
     ]);
-    if (!device) return { available: false, reason: "Device not found.", reading: null };
+    const context = readingContext(device, reading);
     return {
-      available: reading !== null,
+      ...context,
       source: "device-ingested-hardware-data",
-      deviceId: device.deviceId,
-      deviceStatus: device.status,
-      reason: reading ? null : "No reading has been persisted for this device.",
-      reading: reading
-        ? {
-            ph: reading.ph,
-            tds: reading.tds,
-            turbidity: reading.turbidity,
-            timestamp: reading.timestamp,
-          }
-        : null,
+      deviceId: args.deviceId,
+      reading: context.available && reading ? readingDetails(reading) : null,
     };
   },
 });
@@ -80,22 +146,25 @@ export const getLatestSensorReadings = internalQuery({
 export const getRecentSensorReadings = internalQuery({
   args: { deviceId: v.string(), limit: v.number() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const limit = Math.max(1, Math.min(50, Math.floor(args.limit)));
     const readings = await ctx.db
       .query("sensorReadings")
-      .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_timestamp", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .take(limit);
+    const now = Date.now();
+    const validReadings = readings.filter((reading) =>
+      validHistoricalReading(reading, now),
+    );
     return {
       deviceId: args.deviceId,
       source: "device-ingested-hardware-data",
-      count: readings.length,
-      readings: readings.map((reading) => ({
-        ph: reading.ph,
-        tds: reading.tds,
-        turbidity: reading.turbidity,
-        timestamp: reading.timestamp,
-      })),
+      count: validReadings.length,
+      excludedInvalidCount: readings.length - validReadings.length,
+      readings: validReadings.map(readingDetails),
     };
   },
 });
@@ -103,12 +172,15 @@ export const getRecentSensorReadings = internalQuery({
 export const getDeviceStatus = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const device = await getDevice(ctx, args.deviceId);
     if (!device) return { available: false, reason: "Device not found." };
     const command = device.lastCommandId
       ? await ctx.db
           .query("deviceCommands")
-          .withIndex("by_commandId", (q) => q.eq("commandId", device.lastCommandId!))
+          .withIndex("by_commandId", (q) =>
+            q.eq("commandId", device.lastCommandId!),
+          )
           .unique()
       : null;
     return {
@@ -116,11 +188,12 @@ export const getDeviceStatus = internalQuery({
       deviceId: device.deviceId,
       name: device.name,
       location: device.location ?? null,
-      status: device.status,
+      status: deviceStatus(device),
       lastSeen: device.lastSeen ?? null,
       controlMode: device.controlMode ?? "auto",
       desiredPumpState: device.desiredPumpState ?? false,
-      reportedPumpState: device.reportedPumpState ?? null,
+      reportedPumpState: pumpReport(device),
+      pumpReportedAt: device.pumpReportedAt ?? null,
       lastControlMessage: device.lastControlMessage ?? null,
       latestCommand: command
         ? {
@@ -139,6 +212,12 @@ export const getDeviceStatus = internalQuery({
 export const getActiveAlerts = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
+    const user = await requireFleetAccess(ctx);
+    if (user._id !== args.userId)
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cannot read another user's notifications.",
+      });
     const alerts = await ctx.db
       .query("notifications")
       .withIndex("by_userId_dismissed", (q) =>
@@ -162,6 +241,12 @@ export const getActiveAlerts = internalQuery({
 export const getRecentAlerts = internalQuery({
   args: { userId: v.id("users"), limit: v.number() },
   handler: async (ctx, args) => {
+    const user = await requireFleetAccess(ctx);
+    if (user._id !== args.userId)
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cannot read another user's notifications.",
+      });
     const limit = Math.max(1, Math.min(50, Math.floor(args.limit)));
     const alerts = await ctx.db
       .query("notifications")
@@ -185,8 +270,10 @@ export const getRecentAlerts = internalQuery({
 export const getSystemMode = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const device = await getDevice(ctx, args.deviceId);
-    if (!device) return { available: false, mode: "unknown", reason: "Device not found." };
+    if (!device)
+      return { available: false, mode: "unknown", reason: "Device not found." };
     return {
       available: true,
       deviceId: device.deviceId,
@@ -199,30 +286,21 @@ export const getSystemMode = internalQuery({
 export const getDataMode = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const [device, reading] = await Promise.all([
       getDevice(ctx, args.deviceId),
       getLatestReading(ctx, args.deviceId),
     ]);
-    if (!device) return { mode: "UNKNOWN", reason: "Device not found." };
-    if (!reading) {
-      return {
-        mode: "UNKNOWN",
-        deviceStatus: device.status,
-        reason: "No persisted hardware reading is available; demo state is browser-local and is not used by Ethm.",
-      };
-    }
-    const ageMs = Math.max(0, Date.now() - Date.parse(reading.timestamp));
+    const context = readingContext(device, reading);
     return {
-      mode: "HARDWARE",
-      freshness: ageMs <= 10_000 && device.status === "online" ? "LIVE" : "STALE",
-      ageMs,
-      deviceStatus: device.status,
-      readingTimestamp: reading.timestamp,
+      ...context,
+      timeBasis: reading?.timeBasis ?? (reading ? "server_receipt" : null),
+      receivedAt: reading ? readingDetails(reading).receivedAt : null,
       source: "Arduino/device ingestion endpoint",
       note:
-        ageMs <= 10_000 && device.status === "online"
-          ? "Recent device-ingested reading."
-          : "Persisted device reading is historical; do not describe it as live.",
+        context.freshness === "LIVE"
+          ? "Recent device-ingested reading; gateway/receipt time is not independently established probe acquisition time or calibration evidence."
+          : context.reason,
     };
   },
 });
@@ -230,39 +308,114 @@ export const getDataMode = internalQuery({
 export const evaluateSafetyState = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
-    const reading = await getLatestReading(ctx, args.deviceId);
-    return evaluateSafetyData(reading ? toAgentReading(reading) : null);
+    await requireFleetAccess(ctx);
+    const [device, reading] = await Promise.all([
+      getDevice(ctx, args.deviceId),
+      getLatestReading(ctx, args.deviceId),
+    ]);
+    const context = readingContext(device, reading);
+    if (context.freshness !== "LIVE") {
+      return {
+        ...evaluateSafetyData(null),
+        reason:
+          context.reason ??
+          "Fresh device telemetry is required for safety evaluation.",
+        deviceStatus: context.deviceStatus,
+        emergencyLatched: device?.controlMode === "emergency",
+      };
+    }
+    const result = evaluateSafetyData(reading ? toAgentReading(reading) : null);
+    if (device?.controlMode === "emergency") {
+      return {
+        ...result,
+        state: "critical" as const,
+        emergencyLatched: true,
+        pumpStartAllowed: false,
+        automaticFiltrationRequested: false,
+        reason:
+          "Emergency mode remains latched. Recovered readings alone cannot permit restart; an authorized operator must acknowledge recovery through the dedicated control panel.",
+      };
+    }
+    return { ...result, emergencyLatched: false };
   },
 });
 
 export const analyzeWaterQuality = internalQuery({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
-    const reading = await getLatestReading(ctx, args.deviceId);
-    return analyzeQualityData(reading ? toAgentReading(reading) : null);
+    await requireFleetAccess(ctx);
+    const [device, reading] = await Promise.all([
+      getDevice(ctx, args.deviceId),
+      getLatestReading(ctx, args.deviceId),
+    ]);
+    const context = readingContext(device, reading);
+    return {
+      ...analyzeQualityData(
+        context.available && reading ? toAgentReading(reading) : null,
+      ),
+      freshness: context.freshness,
+      dataNote: context.reason,
+      timeBasis: reading?.timeBasis ?? (reading ? "server_receipt" : null),
+    };
   },
 });
 
 export const analyzeSensorTrends = internalQuery({
   args: { deviceId: v.string(), limit: v.number() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const limit = Math.max(3, Math.min(50, Math.floor(args.limit)));
     const readings = await ctx.db
       .query("sensorReadings")
-      .withIndex("by_deviceId_timestamp", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_timestamp", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .take(limit);
-    return analyzeTrendData(readings.map(toAgentReading));
+    const now = Date.now();
+    const validReadings = readings.filter((reading) =>
+      validHistoricalReading(reading, now),
+    );
+    const device = await getDevice(ctx, args.deviceId);
+    const assessment = analyzeIntelligence(readings.map(toAgentReading), {
+      source: "LIVE",
+      now,
+      connected: !!device && deviceStatus(device, now) === "online",
+      deviceId: args.deviceId,
+      site: device?.location,
+      emergencyLatched: device?.controlMode === "emergency",
+    });
+    return {
+      ...analyzeTrendData(validReadings.map(toAgentReading)),
+      intelligence: {
+        source: assessment.source,
+        evidenceTimestamp: assessment.evidenceTimestamp,
+        freshness: assessment.freshness,
+        summary: assessment.summary,
+        operationalAssessment: assessment.operationalAssessment,
+        insights: assessment.insights.slice(0, 12),
+        forecasts: assessment.forecasts,
+        rejectedRows: assessment.rejectedRows,
+        duplicateRows: assessment.duplicateRows,
+        conflictingRows: assessment.conflictingRows,
+      },
+      excludedInvalidCount: readings.length - validReadings.length,
+      timestampNote:
+        "Trend times use gateway observation or legacy server receipt, not independently established probe acquisition time.",
+    };
   },
 });
 
 export const getRecentEvents = internalQuery({
   args: { deviceId: v.string(), limit: v.number() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const limit = Math.max(1, Math.min(30, Math.floor(args.limit)));
     const events = await ctx.db
       .query("deviceCommands")
-      .withIndex("by_deviceId_createdAt", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_createdAt", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .take(limit);
     return events.map((event) => ({
@@ -281,10 +434,13 @@ export const getRecentEvents = internalQuery({
 export const getRelevantExperiences = internalQuery({
   args: { deviceId: v.string(), limit: v.number() },
   handler: async (ctx, args) => {
+    await requireFleetAccess(ctx);
     const limit = Math.max(1, Math.min(8, Math.floor(args.limit)));
     const experiences = await ctx.db
       .query("agentExperiences")
-      .withIndex("by_deviceId_createdAt", (q) => q.eq("deviceId", args.deviceId))
+      .withIndex("by_deviceId_createdAt", (q) =>
+        q.eq("deviceId", args.deviceId),
+      )
       .order("desc")
       .take(limit);
     return experiences.map((experience) => ({
@@ -296,69 +452,18 @@ export const getRelevantExperiences = internalQuery({
       result: experience.result,
       succeeded: experience.succeeded,
       outcomeMetrics: experience.outcomeMetrics ?? null,
-      confidence: experience.confidence,
       operatorFeedback: experience.operatorFeedback ?? null,
       createdAt: experience.createdAt,
     }));
   },
 });
 
+// Compatibility-only guard: the assistant has no actuator/proposal capability.
 export const preflightPumpControl = internalQuery({
   args: { deviceId: v.string(), pumpOn: v.boolean() },
-  handler: async (ctx, args) => {
-    const device = await getDevice(ctx, args.deviceId);
-    if (!device) return { allowed: false, reason: "Device not found." };
-    const reading = await getLatestReading(ctx, args.deviceId);
-    if (!reading) return { allowed: false, reason: "No sensor reading is available." };
-    const readingAgeMs = Date.now() - Date.parse(reading.timestamp);
-    if (
-      device.status !== "online" ||
-      !Number.isFinite(readingAgeMs) ||
-      readingAgeMs < 0 ||
-      readingAgeMs > 10_000
-    ) {
-      return {
-        allowed: false,
-        reason: "A current online device and sensor reading no older than 10 seconds are required.",
-      };
-    }
-    const mode = device.controlMode ?? "auto";
-    if (mode !== "manual") {
-      return {
-        allowed: false,
-        reason: `Device is in ${mode.toUpperCase()} mode. Ethm cannot override the backend control mode.`,
-      };
-    }
-    if (device.desiredPumpState === args.pumpOn) {
-      return {
-        allowed: false,
-        reason: `The backend already requests the pump to be ${args.pumpOn ? "on" : "off"}.`,
-      };
-    }
-    if (args.pumpOn && (classifyPh(reading.ph) === "critical" || classifyTurbidity(reading.turbidity) === "critical")) {
-      return {
-        allowed: false,
-        reason: "The safety interlock blocks pump start while pH or turbidity is critical.",
-      };
-    }
-    if (device.lastCommandId) {
-      const latestCommand = await ctx.db
-        .query("deviceCommands")
-        .withIndex("by_commandId", (q) => q.eq("commandId", device.lastCommandId!))
-        .unique();
-      if (latestCommand?.status === "pending") {
-        return { allowed: false, reason: "A previous pump command is still awaiting controller acknowledgement." };
-      }
-    }
-    return {
-      allowed: true,
-      deviceId: device.deviceId,
-      deviceStatus: device.status,
-      mode,
-      currentDesiredPumpState: device.desiredPumpState ?? false,
-      reportedPumpState: device.reportedPumpState ?? null,
-      reading: toAgentReading(reading),
-      readingAgeMs,
-    };
-  },
+  handler: async () => ({
+    allowed: false,
+    reason:
+      "The assistant is explanation-only. Use the dedicated operator control panel.",
+  }),
 });

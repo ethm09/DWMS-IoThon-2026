@@ -1,5 +1,6 @@
 import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 import { useCallback, useMemo, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { AuthContext, unconfiguredAuthState } from "@/hooks/use-auth.ts";
 import {
   auth0ClientId,
@@ -45,7 +46,10 @@ function Auth0SessionBridge({ children }: { children: ReactNode }) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  if (!auth0Configured) {
+  const { pathname } = useLocation();
+  // Guest demo never initializes Auth0 or restores an operational session.
+  const operationalRoute = pathname === "/live" || pathname.startsWith("/live/") || pathname === "/auth/callback";
+  if (!operationalRoute || !auth0Configured) {
     return (
       <AuthContext.Provider value={unconfiguredAuthState}>
         {children}
@@ -62,8 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         scope: "openid profile email",
         prompt: "select_account",
       }}
-      useRefreshTokens
-      cacheLocation="localstorage"
+      // Keep tokens in memory. Standard Auth0 SSO can restore a session; no
+      // persistent refresh token or tenant refresh-rotation setup is assumed.
+      cacheLocation="memory"
     >
       <Auth0SessionBridge>{children}</Auth0SessionBridge>
     </Auth0Provider>

@@ -30,3 +30,7 @@ tsconfig.tsbuildinfo
 # Environment variables
 .env*
 !.env.example
+
+# Python bridge test artifacts
+__pycache__/
+*.pyc

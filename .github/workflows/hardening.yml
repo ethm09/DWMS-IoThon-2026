@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -38,6 +38,17 @@ jobs:
 
       - name: Generate Convex bindings in an isolated local backend
         run: bash scripts/prepare-convex-build.sh
+
+      - name: Test ingestion, safety and communication failures
+        run: pnpm test
+
+      - name: Verify isolated HTTP-to-backend demonstration (synthetic input, no hardware)
+        run: pnpm demo:e2e
+
+      - name: Test controller logic on host (not an Arduino board build)
+        run: |
+          g++ -std=c++11 -Wall -Wextra -I tests/firmware tests/firmware/controller_test.cpp -o /tmp/dwms-controller-test
+          /tmp/dwms-controller-test
 
       - name: Lint DWMS
         run: pnpm run lint
@@ -83,8 +94,34 @@ jobs:
           echo "======================================"
           echo "Dependencies: PASS"
           echo "Convex Codegen: PASS"
+          echo "Behavioral software tests: PASS"
+          echo "Physical hardware validation: NOT PERFORMED BY CI"
           echo "Lint: PASS"
           echo "Build: PASS"
           echo "Environment check: PASS"
           echo "Secret scan: PASS"
           echo "======================================"
+
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pinned Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+        with:
+          version: 1.6.0
+
+      - name: Compile Arduino Uno target with calibration and relay disabled
+        env:
+          DWMS_ARDUINO_WORK_DIR: ${{ runner.temp }}/dwms-arduino
+        run: bash scripts/compile-arduino.sh "${{ runner.temp }}/dwms-uno-evidence"
+
+      - name: Preserve target compile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arduino-uno-compile-evidence
+          path: ${{ runner.temp }}/dwms-uno-evidence/
+          if-no-files-found: warn

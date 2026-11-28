@@ -1,0 +1,154 @@
+{
+  "checked_at_utc": "2026-11-28T02:11:21.368931+00:00",
+  "application_source": "3425914abdaefcacff5f2e8db30b7e6dd2589d02",
+  "backend_source": "44afc0b2fdd09b912407b455af4e07e279d358bf",
+  "public_site_version": 13,
+  "site_published_at_utc": "2026-11-28T02:04:05Z",
+  "demo_url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo",
+  "guest_ethm_url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo/assistant",
+  "live_url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/live",
+  "ci": {
+    "status": "success",
+    "application_commit": "3425914abdaefcacff5f2e8db30b7e6dd2589d02",
+    "run_url": "https://github.com/ethm09/DWMS-IoThon-2026/actions/runs/46096030184"
+  },
+  "executed_checks": {
+    "node_tests": 88,
+    "python_tests": 20,
+    "isolated_backend_checkpoints": 11,
+    "production_anonymous_denials": 7,
+    "host_controller_harness": "passed with I/O fakes",
+    "arduino_uno": "compiled, calibration and relay gates zero; no upload or actuation",
+    "arduino_hex_sha256": "0c46970a95b127e0c865749a99043bc20ea7b7e77161689333ad456d99a29009",
+    "lint": "passed",
+    "frontend_typecheck_build": "passed",
+    "convex_es2021_typecheck": "passed"
+  },
+  "isolated_backend_scope": "Disposable local Convex with synthetic roles/readings/ACKs, real HTTP/persistence/reactive transport and concurrent guest reservation serialization; no model calls or production fixtures.",
+  "browser": {
+    "record": "qa-results.json",
+    "checked_at_utc": "2026-11-27T18:33:32.043205+00:00",
+    "site_version": 12,
+    "application_source": "44afc0b2fdd09b912407b455af4e07e279d358bf",
+    "results": [
+      {
+        "width": 390,
+        "checks": 28,
+        "status": "passed"
+      },
+      {
+        "width": 430,
+        "checks": 28,
+        "status": "passed"
+      },
+      {
+        "width": 768,
+        "checks": 28,
+        "status": "passed"
+      },
+      {
+        "width": 1024,
+        "checks": 28,
+        "status": "passed"
+      },
+      {
+        "width": 1440,
+        "checks": 29,
+        "status": "passed"
+      }
+    ],
+    "scope": "Signed-out browser UI and local simulation only; no Auth0 login, physical sensor validation, relay actuation, treatment result or load test.",
+    "delta_to_v13": "Only requested-period PDF copy and actual landing dashboard preview; updated dashboard captures and report downloads verified on v13."
+  },
+  "published_artifacts": {
+    "record": "artifact-checks.json",
+    "checked_at_utc": "2026-11-28T02:04:15.299031+00:00",
+    "site_version": 13,
+    "application_source": "3425914abdaefcacff5f2e8db30b7e6dd2589d02",
+    "pdf_provenance_and_requested_period": "passed",
+    "csv_provenance": "passed",
+    "scope": "Actual published desktop/mobile dashboard captures and mobile PDF/CSV downloads using simulated critical/recovery samples; no AI inference, Auth0 session or physical validation."
+  },
+  "guest_ethm": {
+    "provider": "Existing backend-only gpt-5-mini integration",
+    "genuine_browser_replies": 3,
+    "desktop_record": "genuine-ethm-results.json",
+    "mobile_record": "genuine-ethm-mobile-results.json",
+    "verified_contexts": [
+      "English critical incident",
+      "Arabic recovery follow-up",
+      "Arabic recovery question actually submitted at390px"
+    ],
+    "data_basis": "Canonical server-owned simulated evidence only",
+    "scope": "Genuine model responses, not scripted substitutes; no operational records, Auth0 account, controller tools or physical results. AI interpretations require operator review."
+  },
+  "guest_controls": {
+    "lifetime_reserved_token_ceiling": 250000,
+    "record": "budget-check.json",
+    "observed_at_utc": "2026-11-28T01:59:19.582Z",
+    "observed_reserved_tokens": 91166,
+    "observed_model_attempts": 7,
+    "observed_sessions": 20,
+    "budget_basis": "Non-recurring conservative reservations, not measured invoice cost. No failed/ambiguous-call refund or chat-clear reset. Shared allowance can be exhausted; not a hosting/Convex cost cap.",
+    "model_max_completion_tokens": 1200,
+    "automatic_model_retries": 0,
+    "scope": "Dedicated demo sessions/budget only; fixed canonical context and no tools/operational table access."
+  },
+  "production_negative_checks": {
+    "record": "production-release-checks.json",
+    "checked_at_utc": "2026-11-28T02:06:09.958Z",
+    "anonymous_denials": 7,
+    "guest_guards": {
+      "untrusted_origin_status": 403,
+      "oversized_body_status": 413
+    },
+    "scope": "Actual production negative checks only. No operational test devices, users or measurements created; no model request. Public guest AI is intentionally separate from protected operational APIs."
+  },
+  "auth0": {
+    "callback_record": "auth0-acceptance-check.json",
+    "origin_logout_record": "auth0-origin-checks.json",
+    "scope": "Public login-form callback, anonymous logout return and login_required origin message passed; no successful account session or saved management settings verification."
+  },
+  "statistics": {
+    "implemented": "Transparent bounded OLS estimate with data sufficiency, suitability, freshness and uncertainty checks",
+    "software_verified": true,
+    "physically_validated": false,
+    "claim_boundary": "Experimental only; no validated forecast accuracy or anticipation claim; canonical demo history is insufficient."
+  },
+  "knowledge": {
+    "reviewed_sources": 6,
+    "registry": "convex/knowledge.ts",
+    "scope": "Primary WHO, USGS and Saudi Water Code references; numeric Saudi end-use requirements and unidentified probe manuals remain unencoded/unavailable; no potability or compliance certification."
+  },
+  "reports": {
+    "scopes": ["summary", "daily", "weekly", "incident", "trends", "device"],
+    "formats": ["PDF", "CSV"],
+    "scope": "Loaded evidence only, with simulation/device-reported/estimated/unavailable provenance, requested period and partial coverage; not complete daily/weekly records or uptime."
+  },
+  "screenshots": {
+    "dashboard_desktop": "dashboard-desktop.png",
+    "dashboard_mobile": "dashboard-mobile.png",
+    "genuine_ethm_desktop": "ethm-genuine-desktop.png",
+    "genuine_ethm_mobile": "ethm-genuine-mobile.png",
+    "mobile_report_export": "report-mobile.png"
+  },
+  "readiness": {
+    "software": "Not fully accepted: real Auth0/Live end-user acceptance pending",
+    "public_demo": "Published; five scenarios and genuine contextual guest AI verified against simulated data",
+    "authentication_live": "Public protocol checks passed; real registration/login/logout/reload/roles/privacy pending; Live gated",
+    "ethm_live": "Implemented with existing private-history/context controls; authenticated browser acceptance pending",
+    "prediction": "Experimental software-verified foundation; not field validated",
+    "hardware": "Compile/protocol checks only; physical commissioning deferred, relay disabled, flow Demo-only",
+    "competition_submission": "Paused; no application submitted",
+    "commercial_pilot": "Not commissioned"
+  },
+  "blocked": {
+    "secure_browser": "Shared-browser initialization fails: the gaas-browser node_repl sandbox cannot be disabled, rechecked2026-11-28. No failed device-code flow repeated.",
+    "hardware": "Prototype unavailable; original calibrated sketch not recovered; preserve existing firmware/wiring before reflashing."
+  },
+  "owner_action": "Provide a working secure browser handoff and sign in to the existing approved Auth0 account for real-session acceptance; no passwords/tokens in chat. No additional configuration/payment request currently required.",
+  "preserved_historical_deliverables": {
+    "video_record": "narrated-video-verification.json",
+    "scope": "Existing documents/media and hardware reconnection package unchanged. Prior media predates this release; video/presentation/submission work paused. No merge or submission."
+  }
+}

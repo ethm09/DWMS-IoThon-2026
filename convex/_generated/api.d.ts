@@ -13,10 +13,15 @@ import type * as agentAnalysis from "../agentAnalysis.js";
 import type * as agentTools from "../agentTools.js";
 import type * as chat from "../chat.js";
 import type * as chatAction from "../chatAction.js";
+import type * as demoEthm from "../demoEthm.js";
+import type * as demoEthmAction from "../demoEthmAction.js";
+import type * as demoEthmPolicy from "../demoEthmPolicy.js";
 import type * as devices from "../devices.js";
 import type * as http from "../http.js";
+import type * as knowledge from "../knowledge.js";
 import type * as notifications from "../notifications.js";
 import type * as safetyPolicy from "../safetyPolicy.js";
+import type * as telemetry from "../telemetry.js";
 import type * as users from "../users.js";
 
 import type {
@@ -31,10 +36,15 @@ declare const fullApi: ApiFromModules<{
   agentTools: typeof agentTools;
   chat: typeof chat;
   chatAction: typeof chatAction;
+  demoEthm: typeof demoEthm;
+  demoEthmAction: typeof demoEthmAction;
+  demoEthmPolicy: typeof demoEthmPolicy;
   devices: typeof devices;
   http: typeof http;
+  knowledge: typeof knowledge;
   notifications: typeof notifications;
   safetyPolicy: typeof safetyPolicy;
+  telemetry: typeof telemetry;
   users: typeof users;
 }>;
 
@@ -65,4 +75,3 @@ export declare const internal: FilterApi<
 >;
 
 export declare const components: {};
-

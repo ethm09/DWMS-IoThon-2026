@@ -1,412 +1,491 @@
-import { useState, useMemo } from "react";
-import { motion } from "motion/react";
+import { LiveAccessState } from "@/components/live-access-state";
+import { useEffect, useState } from "react";
 import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
+  Authenticated,
+  AuthLoading,
+  Unauthenticated,
+  useQuery,
+  useConvexAuth,
+} from "convex/react";
+import { WorkspaceLink as Link } from "@/components/workspace-link";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  ReferenceLine,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import { TrendingUp, TrendingDown, Download, Activity, Droplets, Thermometer, AlertTriangle } from "lucide-react";
-import { cn } from "@/lib/utils.ts";
+import { api } from "@/convex/_generated/api.js";
+import { useProcessMode } from "@/hooks/use-process-mode.ts";
+import { useDemo } from "@/hooks/use-demo.ts";
+import { SignInButton } from "@/components/ui/signin.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-type TimeRange = "24h" | "7d" | "30d" | "90d";
-type MetricKey = "pH" | "turbidity" | "chlorine" | "temperature" | "pressure" | "flow";
+import { THRESHOLDS } from "@/lib/dwms-safety";
+const METRICS = {
+  ph: { label: "pH", unit: "pH", color: "#8D62AE" },
+  tds: { label: "TDS", unit: "ppm", color: "#168A70" },
+  turbidity: { label: "Turbidity", unit: "NTU", color: "#AC750B" },
+};
+type Metric = keyof typeof METRICS;
+const selectClass = "rounded-md border border-border bg-background p-2 text-sm";
 
-interface DataPoint {
-  time: string;
-  pH: number;
-  turbidity: number;
-  chlorine: number;
-  temperature: number;
-  pressure: number;
-  flow: number;
-  anomaly?: boolean;
-}
-
-interface TrendStat {
-  key: MetricKey;
-  label: string;
-  unit: string;
-  current: number;
-  avg: number;
-  min: number;
-  max: number;
-  trend: number; // percent change
-  icon: React.ReactNode;
-  color: string;
-  threshold: { warn: number; crit: number };
-}
-
-// ── Data Generators ────────────────────────────────────────────────────────
-function seededRandom(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return (s >>> 0) / 0xffffffff;
-  };
-}
-
-function generateData(points: number, startSeed = 42): DataPoint[] {
-  const rand = seededRandom(startSeed);
-  const now = Date.now();
-  const interval = (points <= 24 ? 3600 : points <= 168 ? 3600 : 86400) * 1000;
-
-  return Array.from({ length: points }, (_, i) => {
-    const t = new Date(now - (points - i) * interval);
-    const label =
-      points <= 24
-        ? t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        : points <= 168
-        ? t.toLocaleDateString([], { weekday: "short", hour: "2-digit" })
-        : t.toLocaleDateString([], { month: "short", day: "numeric" });
-
-    const noise = () => (rand() - 0.5) * 2;
-    const anomaly = rand() > 0.95;
-
-    return {
-      time: label,
-      pH: parseFloat((7.2 + noise() * 0.3 + (anomaly ? 0.6 : 0)).toFixed(2)),
-      turbidity: parseFloat((1.8 + rand() * 0.8 + (anomaly ? 2 : 0)).toFixed(2)),
-      chlorine: parseFloat((1.5 + noise() * 0.2).toFixed(2)),
-      temperature: parseFloat((18 + noise() * 1.5).toFixed(1)),
-      pressure: parseFloat((68 + noise() * 4).toFixed(1)),
-      flow: parseFloat((420 + noise() * 30).toFixed(0)),
-      anomaly,
-    };
-  });
-}
-
-const RANGE_POINTS: Record<TimeRange, number> = { "24h": 24, "7d": 168, "30d": 30, "90d": 90 };
-
-// ── Metric Config ──────────────────────────────────────────────────────────
-function buildStats(data: DataPoint[]): TrendStat[] {
-  const stat = (key: MetricKey) => {
-    const vals = data.map((d) => d[key] as number);
-    return { avg: vals.reduce((a, b) => a + b, 0) / vals.length, min: Math.min(...vals), max: Math.max(...vals) };
-  };
-
-  return [
-    { key: "pH", label: "pH Level", unit: "", ...stat("pH"), current: data.at(-1)!.pH, trend: 0.4, icon: <Droplets className="w-4 h-4" />, color: "#06b6d4", threshold: { warn: 7.8, crit: 8.5 } },
-    { key: "turbidity", label: "Turbidity", unit: "NTU", ...stat("turbidity"), current: data.at(-1)!.turbidity, trend: -1.2, icon: <Activity className="w-4 h-4" />, color: "#f59e0b", threshold: { warn: 2.5, crit: 4 } },
-    { key: "chlorine", label: "Chlorine", unit: "mg/L", ...stat("chlorine"), current: data.at(-1)!.chlorine, trend: 0.8, icon: <Activity className="w-4 h-4" />, color: "#10b981", threshold: { warn: 2, crit: 3 } },
-    { key: "temperature", label: "Temperature", unit: "°C", ...stat("temperature"), current: data.at(-1)!.temperature, trend: -0.3, icon: <Thermometer className="w-4 h-4" />, color: "#f97316", threshold: { warn: 22, crit: 25 } },
-    { key: "pressure", label: "Pressure", unit: "PSI", ...stat("pressure"), current: data.at(-1)!.pressure, trend: 1.1, icon: <Activity className="w-4 h-4" />, color: "#8b5cf6", threshold: { warn: 75, crit: 80 } },
-    { key: "flow", label: "Flow Rate", unit: "L/m", ...stat("flow"), current: data.at(-1)!.flow, trend: 0.6, icon: <Activity className="w-4 h-4" />, color: "#ec4899", threshold: { warn: 460, crit: 500 } },
-  ];
-}
-
-// ── Anomaly Events ─────────────────────────────────────────────────────────
-const ANOMALY_LABELS = [
-  "pH spike detected — Zone 4 sensor",
-  "Turbidity exceeded threshold — Filter B",
-  "Pressure drop — Main line junction",
-  "Temperature anomaly — Sector 2",
-  "Chlorine level deviation — Dosing pump",
-];
-
-// ── Custom Tooltip ─────────────────────────────────────────────────────────
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-card/95 border border-border rounded-lg p-3 text-xs space-y-1 shadow-xl backdrop-blur">
-      <div className="font-mono text-muted-foreground mb-1">{label}</div>
-      {payload.map((p) => (
-        <div key={p.name} className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-muted-foreground">{p.name}:</span>
-          <span className="font-bold" style={{ color: p.color }}>{p.value}</span>
-        </div>
-      ))}
-    </div>
+function HistoryInner() {
+  const { selectedDeviceId, setSelectedDeviceId } = useProcessMode();
+  const devices = useQuery(api.devices.listDevices, {});
+  const [metric, setMetric] = useState<Metric>("ph");
+  const [range, setRange] = useState("all");
+  const [now, setNow] = useState(Date.now);
+  const deviceId = devices?.some(
+    (device) => device.deviceId === selectedDeviceId,
+  )
+    ? selectedDeviceId
+    : devices?.[0]?.deviceId;
+  useEffect(() => {
+    if (deviceId && deviceId !== selectedDeviceId)
+      setSelectedDeviceId(deviceId);
+  }, [deviceId, selectedDeviceId, setSelectedDeviceId]);
+  const readings = useQuery(
+    api.devices.getRecentReadings,
+    deviceId ? { deviceId, limit: 200 } : "skip",
   );
-}
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 2000);
+    return () => clearInterval(timer);
+  }, []);
 
-// ── Main Component ─────────────────────────────────────────────────────────
-export default function HistoricalData() {
-  const [range, setRange] = useState<TimeRange>("7d");
-  const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>(["pH", "turbidity", "chlorine"]);
-  const [chartType, setChartType] = useState<"line" | "area" | "bar">("area");
-  const [showAnomalies, setShowAnomalies] = useState(true);
-
-  const data = useMemo(() => generateData(RANGE_POINTS[range]), [range]);
-  const stats = useMemo(() => buildStats(data), [data]);
-
-  const anomalyPoints = useMemo(
-    () => data.filter((d) => d.anomaly).map((d, i) => ({ ...d, label: ANOMALY_LABELS[i % ANOMALY_LABELS.length] })),
-    [data]
+  const config = METRICS[metric];
+  const normalLimit =
+    metric === "ph"
+      ? THRESHOLDS.ph.safe.max
+      : metric === "tds"
+        ? THRESHOLDS.tds.safe.max
+        : THRESHOLDS.turbidity.safe.max;
+  const visibleReadings = (readings ?? []).filter(
+    (reading) =>
+      range === "all" ||
+      (now - Date.parse(reading.timestamp) >= 0 &&
+        now - Date.parse(reading.timestamp) <= Number(range)),
   );
-
-  const toggleMetric = (key: MetricKey) => {
-    setActiveMetrics((prev) =>
-      prev.includes(key) ? (prev.length > 1 ? prev.filter((k) => k !== key) : prev) : [...prev, key]
-    );
-  };
-
-  const metricColors: Record<MetricKey, string> = {
-    pH: "#06b6d4", turbidity: "#f59e0b", chlorine: "#10b981",
-    temperature: "#f97316", pressure: "#8b5cf6", flow: "#ec4899",
-  };
+  const history = visibleReadings
+    .slice()
+    .reverse()
+    .map((reading) => ({
+      ...reading,
+      readingAt: Date.parse(reading.timestamp),
+    }));
+  const latest = readings?.[0];
+  const age = latest ? now - Date.parse(latest.timestamp) : null;
+  const fresh =
+    age !== null &&
+    Number.isFinite(age) &&
+    age >= 0 &&
+    age <= 10_000 &&
+    devices?.find((device) => device.deviceId === deviceId)?.status ===
+      "online";
 
   return (
-    <div className="p-6 space-y-6 min-h-screen">
-
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-widest text-foreground">HISTORICAL DATA</h1>
-          <p className="text-xs text-muted-foreground tracking-widest mt-0.5">SENSOR TRENDS · ANOMALY DETECTION · ANALYTICS</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Time range */}
-          <div className="flex bg-muted/40 rounded-lg border border-border p-0.5 gap-0.5">
-            {(["24h", "7d", "30d", "90d"] as TimeRange[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold tracking-widest rounded-md transition-all cursor-pointer",
-                  range === r ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {r.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          {/* Chart type */}
-          <div className="flex bg-muted/40 rounded-lg border border-border p-0.5 gap-0.5">
-            {(["area", "line", "bar"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setChartType(t)}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-bold tracking-widest rounded-md transition-all cursor-pointer",
-                  chartType === t ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {t.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-bold tracking-widest text-muted-foreground hover:text-foreground hover:bg-accent transition-all cursor-pointer">
-            <Download className="w-3.5 h-3.5" />
-            EXPORT
-          </button>
-        </div>
-      </motion.div>
-
-      {/* KPI Cards */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {stats.map((s, i) => {
-          const isWarn = s.current >= s.threshold.warn;
-          const isCrit = s.current >= s.threshold.crit;
-          return (
-            <motion.button
-              key={s.key}
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              onClick={() => toggleMetric(s.key)}
-              className={cn(
-                "rounded-xl border p-3 text-left transition-all cursor-pointer",
-                activeMetrics.includes(s.key)
-                  ? "border-primary/40 bg-primary/5 shadow-[0_0_12px_rgba(var(--primary-rgb),0.15)]"
-                  : "border-border bg-card hover:bg-accent/30"
-              )}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div style={{ color: s.color }}>{s.icon}</div>
-                {isCrit ? (
-                  <AlertTriangle className="w-3 h-3 text-destructive" />
-                ) : isWarn ? (
-                  <AlertTriangle className="w-3 h-3 text-yellow-400" />
-                ) : null}
-              </div>
-              <div className="text-lg font-bold font-mono" style={{ color: s.color }}>
-                {s.current}{s.unit}
-              </div>
-              <div className="text-[10px] text-muted-foreground tracking-widest mt-0.5">{s.label.toUpperCase()}</div>
-              <div className={cn("flex items-center gap-1 mt-1 text-[10px] font-bold", s.trend >= 0 ? "text-green-400" : "text-red-400")}>
-                {s.trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                {Math.abs(s.trend)}%
-              </div>
-            </motion.button>
-          );
-        })}
-      </motion.div>
-
-      {/* Main Chart */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="bg-card/50 border border-border rounded-xl p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-          <div>
-            <h2 className="text-sm font-bold tracking-widest">MULTI-PARAMETER TREND ANALYSIS</h2>
-            <p className="text-xs text-muted-foreground mt-0.5 tracking-wider">Click KPI cards above to toggle metrics</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAnomalies(!showAnomalies)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-widest transition-all cursor-pointer border",
-                showAnomalies ? "bg-destructive/20 border-destructive/40 text-destructive" : "border-border text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              ANOMALIES {showAnomalies ? "ON" : "OFF"}
-            </button>
-          </div>
-        </div>
-
-        <ResponsiveContainer width="100%" height={320}>
-          {chartType === "bar" ? (
-            <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-              <XAxis dataKey="time" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: "10px", letterSpacing: "0.1em" }} />
-              {showAnomalies && anomalyPoints.map((pt) => (
-                <ReferenceLine key={pt.time} x={pt.time} stroke="hsl(var(--destructive))" strokeDasharray="4 2" strokeWidth={1} opacity={0.6} />
-              ))}
-              {activeMetrics.map((key) => (
-                <Bar key={key} dataKey={key} name={key.toUpperCase()} fill={metricColors[key]} fillOpacity={0.8} radius={[2, 2, 0, 0]} />
-              ))}
-            </BarChart>
-          ) : chartType === "area" ? (
-            <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-              <defs>
-                {activeMetrics.map((key) => (
-                  <linearGradient key={key} id={`grad-${key}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={metricColors[key]} stopOpacity={0.4} />
-                    <stop offset="95%" stopColor={metricColors[key]} stopOpacity={0} />
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-              <XAxis dataKey="time" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: "10px", letterSpacing: "0.1em" }} />
-              {showAnomalies && anomalyPoints.map((pt) => (
-                <ReferenceLine key={pt.time} x={pt.time} stroke="hsl(var(--destructive))" strokeDasharray="4 2" strokeWidth={1} opacity={0.6} />
-              ))}
-              {activeMetrics.map((key) => (
-                <Area key={key} type="monotone" dataKey={key} name={key.toUpperCase()} stroke={metricColors[key]} strokeWidth={2} fill={`url(#grad-${key})`} dot={false} />
-              ))}
-            </AreaChart>
-          ) : (
-            <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-              <XAxis dataKey="time" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: "10px", letterSpacing: "0.1em" }} />
-              {showAnomalies && anomalyPoints.map((pt) => (
-                <ReferenceLine key={pt.time} x={pt.time} stroke="hsl(var(--destructive))" strokeDasharray="4 2" strokeWidth={1} opacity={0.6} />
-              ))}
-              {activeMetrics.map((key) => (
-                <Line key={key} type="monotone" dataKey={key} name={key.toUpperCase()} stroke={metricColors[key]} strokeWidth={2} dot={false} />
-              ))}
-            </LineChart>
-          )}
-        </ResponsiveContainer>
-      </motion.div>
-
-      {/* Secondary Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-        {/* Distribution Chart */}
-        <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-          className="bg-card/50 border border-border rounded-xl p-5">
-          <h2 className="text-sm font-bold tracking-widest mb-4">pH DISTRIBUTION — {range.toUpperCase()}</h2>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data.slice(0, Math.min(data.length, 30))} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
-              <XAxis dataKey="time" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} interval={Math.floor(data.length / 6)} />
-              <YAxis domain={[6.5, 8.5]} tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <ReferenceLine y={7.0} stroke="#06b6d4" strokeDasharray="3 3" opacity={0.5} />
-              <ReferenceLine y={7.5} stroke="#10b981" strokeDasharray="3 3" opacity={0.5} />
-              <ReferenceLine y={8.0} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.5} />
-              <Bar dataKey="pH" name="pH" fill="#06b6d4" fillOpacity={0.85} radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="flex gap-4 mt-2">
-            {[{ label: "OPTIMAL", color: "#10b981" }, { label: "CAUTION", color: "#f59e0b" }, { label: "CRITICAL", color: "#ef4444" }].map((l) => (
-              <div key={l.label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground tracking-widest">
-                <div className="w-2 h-2 rounded-full" style={{ background: l.color }} />
-                {l.label}
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Anomaly Log */}
-        <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-          className="bg-card/50 border border-border rounded-xl p-5 flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold tracking-widest">ANOMALY EVENT LOG</h2>
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-destructive tracking-widest">
-              <motion.div className="w-2 h-2 rounded-full bg-destructive" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
-              {anomalyPoints.length} DETECTED
-            </div>
-          </div>
-          <div className="space-y-2 flex-1 overflow-auto">
-            {anomalyPoints.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-xs tracking-widest">NO ANOMALIES IN SELECTED RANGE</div>
-            ) : (
-              anomalyPoints.slice(0, 8).map((pt, i) => (
-                <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
-                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                  <div>
-                    <div className="text-xs font-bold text-foreground">{pt.label}</div>
-                    <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{pt.time}</div>
-                  </div>
-                  <div className="ml-auto text-[10px] font-bold text-destructive tracking-wider">WARN</div>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </motion.div>
+    <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
+      <div>
+        <h1 className="text-xl font-bold">Sensor history</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Stored device readings only. Browser demo values are not saved here.
+        </p>
       </div>
-
-      {/* Stats Summary Table */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-        className="bg-card/50 border border-border rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-bold tracking-widest">STATISTICAL SUMMARY — {range.toUpperCase()}</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-border">
-                {["PARAMETER", "CURRENT", "AVERAGE", "MIN", "MAX", "STATUS"].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left font-bold tracking-widest text-muted-foreground">{h}</th>
+      {devices === undefined ? (
+        <p role="status">Loading devices…</p>
+      ) : devices.length === 0 ? (
+        <Card className="p-6 text-sm">
+          No devices are registered.{" "}
+          <Link to="/devices" className="text-primary underline">
+            Register a device
+          </Link>{" "}
+          to begin collecting history.
+        </Card>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="grid gap-1 text-sm">
+              Device / site
+              <select
+                className={selectClass}
+                value={deviceId ?? ""}
+                onChange={(event) => setSelectedDeviceId(event.target.value)}
+              >
+                {devices.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.name} · {device.location || device.deviceId}
+                  </option>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {stats.map((s, i) => {
-                const isWarn = s.current >= s.threshold.warn;
-                const isCrit = s.current >= s.threshold.crit;
-                const statusLabel = isCrit ? "CRITICAL" : isWarn ? "WARNING" : "NOMINAL";
-                const statusColor = isCrit ? "text-destructive" : isWarn ? "text-yellow-400" : "text-green-400";
-                return (
-                  <tr key={s.key} className={cn("border-b border-border/50 hover:bg-accent/10 transition-colors", i % 2 === 0 ? "bg-muted/10" : "")}>
-                    <td className="px-5 py-3 font-bold tracking-wider" style={{ color: s.color }}>{s.label.toUpperCase()}</td>
-                    <td className="px-5 py-3 font-mono font-bold">{s.current} {s.unit}</td>
-                    <td className="px-5 py-3 font-mono text-muted-foreground">{s.avg.toFixed(2)} {s.unit}</td>
-                    <td className="px-5 py-3 font-mono text-blue-400">{s.min.toFixed(2)} {s.unit}</td>
-                    <td className="px-5 py-3 font-mono text-orange-400">{s.max.toFixed(2)} {s.unit}</td>
-                    <td className="px-5 py-3">
-                      <span className={cn("font-bold tracking-widest text-[10px]", statusColor)}>{statusLabel}</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
-
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm">
+              Time window
+              <select
+                className={selectClass}
+                value={range}
+                onChange={(event) => setRange(event.target.value)}
+              >
+                <option value="all">All 200 recent</option>
+                <option value="60000">Last minute</option>
+                <option value="300000">Last 5 minutes</option>
+                <option value="3600000">Last hour</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm">
+              Trend metric
+              <select
+                className={selectClass}
+                value={metric}
+                onChange={(event) => setMetric(event.target.value as Metric)}
+              >
+                {Object.entries(METRICS).map(([key, value]) => (
+                  <option key={key} value={key}>
+                    {value.label} ({value.unit})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {readings === undefined ? (
+            <p role="status">Loading stored readings…</p>
+          ) : readings.length === 0 ? (
+            <Card className="p-6 text-sm">
+              No readings have been received for this device. Check its
+              credentials, sensor calibration and serial bridge.
+            </Card>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Latest reading:{" "}
+                <time dateTime={latest?.timestamp}>
+                  {latest ? new Date(latest.timestamp).toLocaleString() : "—"}
+                </time>
+                {" · "}
+                {fresh
+                  ? "reading age within 10 seconds"
+                  : "historical / stale; current water status is unknown"}
+                .
+              </p>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    {config.label} ({config.unit}) · latest {history.length}{" "}
+                    records
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {history.length === 0 && (
+                    <p className="py-4 text-sm text-muted-foreground">
+                      No samples in this time window.
+                    </p>
+                  )}
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart
+                      data={history}
+                      margin={{ top: 8, right: 20, bottom: 10, left: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                      <XAxis
+                        dataKey="readingAt"
+                        type="number"
+                        domain={["dataMin", "dataMax"]}
+                        tickFormatter={(value: number) =>
+                          new Date(value).toLocaleTimeString()
+                        }
+                        tick={{ fontSize: 11 }}
+                        minTickGap={50}
+                      />
+                      <YAxis
+                        domain={
+                          metric === "ph"
+                            ? [0, 14]
+                            : [
+                                0,
+                                (maximum: number) =>
+                                  Math.max(maximum * 1.1, normalLimit * 1.2),
+                              ]
+                        }
+                        tick={{ fontSize: 11 }}
+                        width={55}
+                      />
+                      <Tooltip
+                        labelFormatter={(value) =>
+                          new Date(Number(value)).toLocaleString()
+                        }
+                        formatter={(value) => [
+                          `${value} ${config.unit}`,
+                          config.label,
+                        ]}
+                      />
+                      {metric === "ph" && (
+                        <ReferenceLine
+                          y={THRESHOLDS.ph.safe.min}
+                          stroke="#AC750B"
+                          strokeDasharray="4 4"
+                        />
+                      )}
+                      <ReferenceLine
+                        y={normalLimit}
+                        stroke="#AC750B"
+                        strokeDasharray="4 4"
+                      />
+                      <Line
+                        type="linear"
+                        dataKey={metric}
+                        name={config.label}
+                        stroke={config.color}
+                        strokeWidth={2}
+                        dot={history.length < 20}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Horizontal axis: recorded reading time. Lines connect available
+                    samples and do not establish continuous measurement between
+                    them. Dashed lines show the configured normal band.
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Recent readings · newest first
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Reading time</TableHead>
+                        <TableHead>pH</TableHead>
+                        <TableHead>TDS (ppm)</TableHead>
+                        <TableHead>Turbidity (NTU)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleReadings.slice(0, 20).map((reading) => (
+                        <TableRow key={reading._id}>
+                          <TableCell>
+                            <time dateTime={reading.timestamp}>
+                              {new Date(reading.timestamp).toLocaleString()}
+                            </time>
+                            <span className="block text-xs text-muted-foreground">
+                              {reading.timeBasis === "gateway_observation" ? "Gateway observation" : "Backend receipt · legacy"}
+                            </span>
+                          </TableCell>
+                          <TableCell>{reading.ph.toFixed(2)}</TableCell>
+                          <TableCell>{reading.tds.toFixed(1)}</TableCell>
+                          <TableCell>{reading.turbidity.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Timestamps use gateway observation for upgraded bridges and backend receipt for legacy records; neither establishes probe acquisition time. Device
+        ingestion alone does not establish physical calibration or water
+        compliance. This view is limited to 200 recent records per device.
+      </p>
     </div>
+  );
+}
+
+function DemoHistory() {
+  const { state } = useDemo();
+  const [metric, setMetric] = useState<"ph" | "tds" | "turbidity" | "flowRate">(
+    "turbidity",
+  );
+  const metrics = {
+    ...METRICS,
+    flowRate: { label: "Flow", unit: "L/min", color: "#087EA4" },
+  };
+  const config = metrics[metric];
+  const normalLimit =
+    metric === "ph"
+      ? THRESHOLDS.ph.safe.max
+      : metric === "tds"
+        ? THRESHOLDS.tds.safe.max
+        : metric === "turbidity"
+          ? THRESHOLDS.turbidity.safe.max
+          : THRESHOLDS.flowRate.safe.max;
+  const history = state.history.map((reading) => ({
+    ...reading,
+    at: Date.parse(reading.timestamp),
+  }));
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
+      <div>
+        <p className="mb-2 text-sm font-medium text-primary">Monitoring</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Trends</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Explore the readings from your current simulation session.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <label className="grid gap-2 text-sm font-medium">
+          Parameter
+          <select
+            className="min-h-11 rounded-lg border border-border bg-card px-3"
+            value={metric}
+            onChange={(event) => setMetric(event.target.value as typeof metric)}
+          >
+            {Object.entries(metrics).map(([key, item]) => (
+              <option key={key} value={key}>
+                {item.label} ({item.unit})
+              </option>
+            ))}
+          </select>
+        </label>
+        <Link
+          to="/dashboard"
+          className="text-sm font-medium text-primary underline underline-offset-4"
+        >
+          Run another scenario
+        </Link>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            {config.label} · {config.unit}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart
+              data={history}
+              margin={{ top: 12, right: 16, bottom: 12, left: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+              <XAxis
+                dataKey="at"
+                type="number"
+                domain={["dataMin", "dataMax"]}
+                tickFormatter={(value: number) =>
+                  new Date(value).toLocaleTimeString()
+                }
+                tick={{ fontSize: 12 }}
+                minTickGap={50}
+              />
+              <YAxis
+                domain={
+                  metric === "ph"
+                    ? [0, 14]
+                    : [
+                        0,
+                        (maximum: number) =>
+                          Math.max(maximum * 1.1, normalLimit * 1.2),
+                      ]
+                }
+                tick={{ fontSize: 12 }}
+                width={50}
+              />
+              <Tooltip
+                labelFormatter={(value) =>
+                  new Date(Number(value)).toLocaleTimeString()
+                }
+                formatter={(value) => [`${value} ${config.unit}`, config.label]}
+              />
+              {metric === "ph" && (
+                <ReferenceLine
+                  y={THRESHOLDS.ph.safe.min}
+                  stroke="#AC750B"
+                  strokeDasharray="4 4"
+                />
+              )}
+              <ReferenceLine
+                y={normalLimit}
+                stroke="#AC750B"
+                strokeDasharray="4 4"
+              />
+              <Line
+                type="linear"
+                dataKey={metric}
+                stroke={config.color}
+                strokeWidth={2}
+                dot={history.length < 15}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          <p className="mt-4 text-sm text-muted-foreground">
+            {history.length} scenario{" "}
+            {history.length === 1 ? "sample" : "samples"}. Samples are added
+            when you apply a scenario; lines connect those example values.
+            Dashed lines show the configured normal band.
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Session readings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Applied at</TableHead>
+                <TableHead>Scenario</TableHead>
+                <TableHead>pH</TableHead>
+                <TableHead>TDS · ppm</TableHead>
+                <TableHead>Turbidity · NTU</TableHead>
+                <TableHead>Flow · L/min</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {state.history
+                .slice()
+                .reverse()
+                .slice(0, 20)
+                .map((reading, index) => (
+                  <TableRow key={`${reading.timestamp}-${index}`}>
+                    <TableCell>
+                      {new Date(reading.timestamp).toLocaleTimeString()}
+                    </TableCell>
+                    <TableCell className="capitalize">
+                      {reading.scenario === "filtration"
+                        ? "Response"
+                        : reading.scenario}
+                    </TableCell>
+                    <TableCell>{reading.ph.toFixed(2)}</TableCell>
+                    <TableCell>{reading.tds.toFixed(0)}</TableCell>
+                    <TableCell>{reading.turbidity.toFixed(1)}</TableCell>
+                    <TableCell>{reading.flowRate.toFixed(1)}</TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function HistoricalData() {
+  const { dataMode } = useProcessMode();
+  const { isAuthenticated } = useConvexAuth();
+  return dataMode === "demo" ? (
+    <DemoHistory />
+  ) : (
+    <LiveAccessState title="Live trends">
+      <HistoryInner />
+    </LiveAccessState>
   );
 }

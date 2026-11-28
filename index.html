@@ -4,59 +4,38 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>LDWMS - Defense Water Monitoring System</title>
-    <meta name="description" content="Live Defense Water Monitoring System — real-time water quality monitoring, sensor analytics, and plant control." />
+    <title>DWMS — AI-Powered Water Intelligence</title>
+    <meta name="description" content="Monitor. Understand. Respond. Ethm explains water-monitoring evidence; independent deterministic controls enforce safety." />
     <meta name="author" content="DWMS" />
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>"
-    />
+    <link rel="icon" type="image/svg+xml" href="/brand/mark.svg" />
 
-    <meta property="og:title" content="DWMS - Defense Water Monitoring System" />
+    <meta property="og:title" content="DWMS — AI-Powered Water Intelligence" />
     <meta
       property="og:description"
-      content="Real-time water-quality monitoring, sensor analytics, and filtration status."
+      content="Ethm Water Intelligence Engine. Sensor evidence, operational insight and independent deterministic safety."
     />
     <meta property="og:type" content="website" />
 
     <meta name="twitter:card" content="summary" />
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Noto+Serif:ital,wght@0,100..900;1,100..900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap"
-      rel="stylesheet"
-      crossorigin
-    />
-
-    <!-- Detect dark mode preference and set the class before next-themes loads. This avoids a flash of unstyled content (FOUC) when the page loads. -->
-    <script>
-      try {
-        let theme = localStorage.getItem("theme");
-        if (theme === "system" || !theme) {
-          let prefersDark = window.matchMedia(
-            "(prefers-color-scheme: dark)",
-          ).matches;
-          theme = prefersDark ? "dark" : "light";
-        }
-        document.documentElement.classList.add(theme);
-      } catch (e) {}
-    </script>
-
     <link href="/src/index.css" rel="stylesheet" />
 
     <!-- PWA Configuration -->
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#00f5d4" />
+    <meta name="theme-color" content="#0B2039" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="DWMS" />
     <link rel="apple-touch-icon" href="/icon/icon-192.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main role="status" style="min-height:100vh;display:grid;place-content:center;gap:12px;background:#F3F7FA;color:#142B40;font-family:Inter,Arial,sans-serif;text-align:center">
+        <strong style="font-size:24px;color:#0B2039">DWMS</strong>
+        <p style="margin:0;font-size:16px">Loading your water-monitoring workspace…</p>
+      </main>
+    </div>
+    <noscript>Enable JavaScript to use the DWMS monitoring platform.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

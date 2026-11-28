@@ -81,3 +81,55 @@ export function classifyParam(key: ParamKey, value: number): SafetyLevel {
       return classifyFlow(value);
   }
 }
+
+/** Receipt-age policy; no acquisition timestamp is currently transmitted. */
+export const SENSOR_FRESHNESS_MS = 10_000;
+
+export type SensorValues = { ph: number; tds: number; turbidity: number };
+
+/** Reject partial/disconnected, nonnumeric and physically invalid input. */
+export function isValidSensorValues(value: unknown): value is SensorValues {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const reading = value as Record<string, unknown>;
+  return (
+    typeof reading.ph === "number" &&
+    Number.isFinite(reading.ph) &&
+    reading.ph >= 0 &&
+    reading.ph <= 14 &&
+    typeof reading.tds === "number" &&
+    Number.isFinite(reading.tds) &&
+    reading.tds >= 0 &&
+    typeof reading.turbidity === "number" &&
+    Number.isFinite(reading.turbidity) &&
+    reading.turbidity >= 0
+  );
+}
+
+export function isFreshTimestamp(
+  timestamp: string | undefined,
+  now = Date.now(),
+): boolean {
+  const age = timestamp === undefined ? NaN : now - Date.parse(timestamp);
+  return Number.isFinite(age) && age >= 0 && age <= SENSOR_FRESHNESS_MS;
+}
+
+/** Prototype response only; pumping does not establish treatment effectiveness. */
+export function automaticPumpTarget(reading: SensorValues): {
+  mode: "auto" | "emergency";
+  pumpOn: boolean;
+} {
+  if (
+    !isValidSensorValues(reading) ||
+    classifyPh(reading.ph) === "critical" ||
+    classifyTurbidity(reading.turbidity) === "critical"
+  ) {
+    return { mode: "emergency", pumpOn: false };
+  }
+  return {
+    mode: "auto",
+    pumpOn:
+      reading.tds > THRESHOLDS.tds.critical.above ||
+      reading.turbidity > THRESHOLDS.turbidity.filtration.above,
+  };
+}

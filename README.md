@@ -1,84 +1,55 @@
-# DWMS — Defense Water Monitoring System
+# DWMS · AI-Powered Water Intelligence Platform
 
-**IoThon 2026 — IoT water-quality monitoring for networks, reservoirs, and treated-water reuse**
+**Monitor. Understand. Respond.**
 
-DWMS is a prototype distributed IoT platform for monitoring water quality using pH, TDS, and turbidity sensing, with alerts, operator dashboards, deterministic safety logic, and an extensible path toward automated protection.
+**Ethm is the Water Intelligence Engine at the core of DWMS.** Sensor evidence feeds transparent trend analysis and contextual AI explanations; operators make informed decisions while independent deterministic controls enforce safety. The IoThon prototype targets water networks, reservoirs and treated-water reuse. Live acquisition covers pH, TDS and turbidity; flow remains Demo-only.
 
-**Sense → Analyze → Alert → Protect → Record**
+| Component    | Purpose                                                                         | Current boundary                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Live**     | Authenticated readings, alerts, history and authorized device controls          | Backend deployed and anonymous access denied; Auth0 callback accepted; end-user session acceptance remains blocked |
+| **Demo**     | Public scenarios plus genuine AI interpretation of canonical simulated evidence | Separate guest sessions and model allowance; no operational data or physical action                                |
+| **Hardware** | Arduino/USB bridge and deterministic local interlocks                           | Owner reports an earlier operating prototype; it is currently unavailable for audited revalidation                 |
+| **Ethm**     | Contextual interpretation, reviewed references and analytical evidence reports  | Genuine English/Arabic guest conversations verified; authenticated Live conversation acceptance remains pending    |
 
-## Prototype architecture
+Competition implementation: [improvement branch](https://github.com/ethm09/DWMS-IoThon-2026/tree/improve/iothon-2026-focus) · [Draft PR #2](https://github.com/ethm09/DWMS-IoThon-2026/pull/2). Main is unchanged pending approval.
 
-```text
-Water Source
-    ↓
-Sensors (pH / TDS / Turbidity)
-    ↓
-Edge Controller
-    ↓
-IoT Backend (Convex)
-    ↓
-Safety Engine + Alerting
-    ↓
-Dashboard / Operator / AI Explanation
+[Prior-version narrated demonstration](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/media/dwms-competition-narrated.mp4) (98 seconds, supplied narration and simulated readings; predates the Ethm-first release and is not current application evidence). The [original silent technical recording](public/media/dwms-software-demo.mp4) is preserved.
+
+**[Open Demo](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/demo)** · [Live workspace — gated](https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site/live) · [Readiness and evidence](docs/VALIDATION.md) · [Demo runbook](docs/DEMO.md)
+
+![DWMS overview showing the three water-quality readings and demo-only flow in Simulation mode](docs/screenshots/dashboard-desktop.png)
+
+Actual application screenshot using synthetic browser values; no physical output is connected.
+
+## Run locally
+
+Use Node.js 24 and pnpm 10:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-## Core capabilities
+Open `/demo` for the browser demonstration; `/live` is the separate operational workspace. Demo requires no login, changes no physical output and does not write device history. Connected operation uses the existing React/TypeScript + Convex architecture with Auth0 identities and a Python/USB Arduino bridge; see [setup](docs/SETUP.md).
 
-- Real-time water-quality monitoring
-- Device registration and multi-node architecture
-- pH, TDS, and turbidity readings
-- Warning/critical alerting
-- Auto / Manual / Emergency operating concepts
-- Historical data, analytics, reports, and activity logging
-- PWA support
-- Simulation/demo mode for competition demonstration
-- AI assistant for explanation and decision support
+```bash
+pnpm test
+pnpm demo:e2e
+pnpm lint
+pnpm build
+```
 
-## Safety boundary
+The integration runner uses a disposable local backend with synthetic readings/operator/ACKs. CI and Uno compilation are software evidence. No audited physical measurements from the earlier prototype were supplied; current repository calibration/relay gates remain disabled. Use the [hardware reconnection guide](docs/HARDWARE.md) before commissioning. An ACK does not prove pump motion or water safety.
 
-The deterministic Safety Engine is the authority for threshold evaluation. The AI assistant is intended to explain readings and support operators; it is not the safety controller. This prototype is not presented as a certified industrial safety or SIL system.
+## Review the project
 
-## Evidence boundary
+- [Architecture](docs/ARCHITECTURE.md): three physical channel design and acknowledged command path.
+- [Single readiness record](docs/VALIDATION.md): Implemented, Software verified, Simulation verified, Physically validated, Pending and Blocked evidence; calibration and hardware information required.
+- [Audit and priorities](docs/AUDIT.md): retained functionality and focused reliability changes.
+- [Pilot and competitive context](docs/COMPETITION.md): proposed utilities-engineer pilot, primary-source competitors and feasibility.
+- [English submission draft](deliverables/IoThon-Submission.md) · [100-second video storyboard](deliverables/Demo-Video-Storyboard.md).
+- Pitch: [editable PPTX](deliverables/DWMS-Pitch.pptx) · [PDF](deliverables/DWMS-Pitch.pdf). Feasibility: [editable DOCX](deliverables/DWMS-Feasibility.docx) · [PDF](deliverables/DWMS-Feasibility.pdf) · [editable SAR model](deliverables/DWMS-Financial-Model.xlsx) (illustrative assumptions, no actual revenue or costs).
+- [Narrated MP4](public/media/dwms-competition-narrated.mp4), [supplied voice MP3](deliverables/video/DWMS-Voiceover.mp3), [speech-timed English SRT](deliverables/video/DWMS-English.srt) and [actual transcript](deliverables/video/DWMS-Narration.txt). Original recording is preserved; native footage is framed without upscaling.
+- Actual application captures: [desktop](docs/screenshots/dashboard-desktop.png) · [mobile](docs/screenshots/dashboard-mobile.png) · genuine Ethm [English](docs/screenshots/ethm-genuine-desktop.png) / [Arabic mobile](docs/screenshots/ethm-genuine-mobile.png).
 
-Where hardware is not physically connected, the interface must clearly identify simulated/demo data. Flow rate is not represented as a physical live sensor unless a corresponding hardware source is connected.
-
-## Documentation
-
-- [Architecture](docs/ARCHITECTURE.md)
-- [Competition notes](docs/COMPETITION.md)
-- [Environment variables](.env.example)
-
-## Development
-
-This project uses Vite, React, TypeScript, Convex, and Auth0 authentication. Convex generates the `convex/_generated` bindings from the local schema and functions. The generated bindings are committed so production frontend builds do not need to start a Convex backend.
-
-Install dependencies, then run `pnpm exec convex dev` in one terminal to select or create a development deployment and generate the Convex bindings. Keep it running while you use the app. Set `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` for that deployment, then run `pnpm dev` in a second terminal. A production deployment is not needed for local development.
-
-### Configure Auth0
-
-Create an Auth0 Single Page Application and add the local and deployed callback URLs (`http://localhost:5173/auth/callback` and `<your-site-origin>/auth/callback`), logout URLs, and web origins. Copy the Auth0 domain and client ID into `VITE_AUTH0_DOMAIN` and `VITE_AUTH0_CLIENT_ID`.
-
-Set the same Auth0 domain and client ID as `AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` in the Convex deployment environment, then run `pnpm exec convex dev` or `pnpm exec convex deploy` to publish the auth provider configuration. Until both server-side values are configured, Convex remains in guest/local mode. The first login links an existing DWMS user by verified email so their stored role is retained.
-
-Before enabling sign-in on a new deployment, set `DWMS_INITIAL_ADMIN_EMAIL` in Convex to the owner's email address. That address must be verified by Auth0 to receive the initial administrator role. All other new accounts start as viewers; existing stored roles are retained when accounts are linked.
-
-### Configure the AI assistant
-
-Set `OPENAI_API_KEY` as a server-side environment variable for the Convex deployment. The key is used only by the Convex action and must not be prefixed with `VITE_`.
-
-### Deploy the dashboard with Vercel
-
-Import `ethm09/DWMS-IoThon-2026` into a Vercel project. `vercel.json` provides the single-page-app route fallback and builds the Vite frontend from the committed Convex bindings. Add `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_AUTH0_DOMAIN`, and `VITE_AUTH0_CLIENT_ID` to the Vercel project environment settings. The Convex backend remains a separate deployment: set `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `DWMS_INITIAL_ADMIN_EMAIL`, and (optionally) `OPENAI_API_KEY` in Convex, then deploy the backend with `pnpm exec convex deploy` from an authenticated terminal. Configure the Vercel production origin in Auth0's allowed callback, logout, and web-origin lists.
-
-Vercel project settings and environment variables are managed outside this repository; no deployment secrets are stored here.
-
-### Connect an Arduino Uno
-
-The firmware template is in `hardware/arduino/dwms_controller/` and the matching Python bridge is available at `/hardware/serial_bridge.py`. The design uses pH A0, TDS A1, turbidity A2, LCD I2C A4/A5, LEDs D2–D4, and relay D7. The sketch intentionally leaves sensor calibration and relay control disabled until the exact probe models, calibration equations, and relay active polarity are verified. It will not upload readings or energize the relay with its defaults. There is no relay-contact or pump-motion feedback sensor, so the web page can show only the controller's reported relay state.
-
-The bridge polls the authenticated `/arduino/control/next` endpoint and acknowledges relay results at `/arduino/control/ack`; controller status is reported at `/arduino/control/status`. Commands expire after 20 seconds without acknowledgement. Server-side Auto starts the pump above the prototype TDS/turbidity thresholds and stops it after readings recover. Critical pH or turbidity enters a latched emergency state. Manual starts require fresh sensor data and pass the same critical-reading interlock. These settings are prototype parameters and require validation against the installed sensor modules and hardware before physical operation.
-
-Set `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` for the selected Convex deployment. The device setup page uses the Convex site URL for the Arduino HTTP endpoint.
-
-Never commit real environment variables, API keys, tokens, or deployment secrets.
-
+Founder and Project Lead: **Ahmed Alzahrani**. Original contributor history and the [MIT license](LICENSE) are preserved. DWMS retains its formal expansion, Defense Water Monitoring System; Water Intelligence is the display brand.

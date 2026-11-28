@@ -1,0 +1,21 @@
+{
+  "checked_at_utc": "2026-11-27T18:35:58.238721+00:00",
+  "source_commit": "44afc0b2fdd09b912407b455af4e07e279d358bf",
+  "width": 390,
+  "response": {
+    "contextAsOf": "2026-11-27T18:35:53.637Z",
+    "contextFingerprint": "4e20d090856c7a5c1ad89829d6a7929831661ebc4bf960919fb22ffbab278231",
+    "contextScenario": "recovery",
+    "dataBasis": "simulated",
+    "expiresAt": "2026-11-27T19:05:54.344Z",
+    "generatedAt": "2026-11-27T18:35:58.009Z",
+    "kind": "ai_interpretation",
+    "nextRequestAt": "2026-11-27T18:36:00.386Z",
+    "ok": true,
+    "remainingTurns": 5,
+    "sources": [],
+    "text": "حقائق (محاكاة): بعد ذروة الحادث سجلت القراءة عادت إلى pH 7.2، TDS 300 ppm، عكارة 2 NTU عند 2026-11-27T18:35:53.637Z. القفل الطارئ لا يزال مُلحَقًا (حالة تحكم حرجة). أسباب محتملة: استعادة ظروف المياه أو قراءة مغلوطة/انجراف مستشعر. تحقق مقترح: فحص حالة القفل المادي وإجراءات الإفراج المصرح بها، ومراجعة سجل أجهزة القياس. لا، البيانات غير كافية للتنبؤ (مذكورة كـ insufficient_data)."
+  },
+  "page_errors": [],
+  "scope": "Actual published390px Arabic guest question sent and genuine model response received, simulated recovery only. Screenshot after ordinary transcript/window scrolling; no operational account, data or equipment."
+}

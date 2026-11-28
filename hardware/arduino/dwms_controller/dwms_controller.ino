@@ -13,9 +13,15 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef DWMS_SENSOR_CALIBRATION_CONFIGURED
 #define DWMS_SENSOR_CALIBRATION_CONFIGURED 0
+#endif
+#ifndef DWMS_RELAY_CONTROL_ENABLED
 #define DWMS_RELAY_CONTROL_ENABLED 0
+#endif
+#ifndef DWMS_RELAY_ACTIVE_LOW
 #define DWMS_RELAY_ACTIVE_LOW 0
+#endif
 
 const uint8_t PH_PIN = A0;
 const uint8_t TDS_PIN = A1;
@@ -28,6 +34,8 @@ const uint8_t RELAY_PIN = 7;
 const unsigned long SAMPLE_INTERVAL_MS = 1000;
 const unsigned long STATUS_INTERVAL_MS = 5000;
 const unsigned long SENSOR_STALE_MS = 5000;
+// Renewed only after a successful authenticated backend poll by the bridge.
+const unsigned long CONTROL_LEASE_MS = 15000;
 const float PH_CRITICAL_LOW = 5.5f;
 const float PH_CRITICAL_HIGH = 10.0f;
 const float TURBIDITY_CRITICAL = 50.0f;
@@ -37,10 +45,15 @@ const float TURBIDITY_AUTO_START = 20.0f;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 char serialBuffer[96];
 size_t serialLength = 0;
+bool discardSerialLine = false;
 char lastCommandId[40] = "";
+bool lastCommandOk = false;
+const char *lastCommandMessage = "";
 unsigned long lastSampleAt = 0;
 unsigned long lastStatusAt = 0;
 unsigned long lastValidReadingAt = 0;
+unsigned long lastKeepaliveAt = 0;
+bool keepaliveReceived = false;
 float phValue = NAN;
 float tdsValue = NAN;
 float turbidityValue = NAN;
@@ -99,8 +112,12 @@ bool hasCriticalReading() {
          phValue > PH_CRITICAL_HIGH || turbidityValue > TURBIDITY_CRITICAL;
 }
 
+bool controlLeaseActive() {
+  return keepaliveReceived && millis() - lastKeepaliveAt <= CONTROL_LEASE_MS;
+}
+
 bool canStartPump() {
-  return DWMS_RELAY_CONTROL_ENABLED && readingsValid &&
+  return DWMS_RELAY_CONTROL_ENABLED && readingsValid && controlLeaseActive() &&
          millis() - lastValidReadingAt <= SENSOR_STALE_MS && !emergencyLock &&
          phValue >= PH_CRITICAL_LOW && phValue <= PH_CRITICAL_HIGH &&
          turbidityValue <= TURBIDITY_CRITICAL;
@@ -118,25 +135,56 @@ void printAck(const char *commandId, bool ok, const char *message) {
   Serial.println();
 }
 
+void rememberAck(const char *commandId, bool ok, const char *message) {
+  lastCommandOk = ok;
+  lastCommandMessage = message;
+  printAck(commandId, ok, message);
+}
+
+void reportStatus();
+
+void enforceLocalSafety() {
+  if (pumpOn && (!controlLeaseActive() ||
+      millis() - lastValidReadingAt > SENSOR_STALE_MS)) {
+    emergencyLock = true;
+    strncpy(controlMode, "emergency", sizeof(controlMode) - 1);
+    writeRelay(false);
+    Serial.println(F("LOCAL_WATCHDOG_STOP"));
+    reportStatus();
+  }
+}
+
 void handleCommand(char *line) {
+  // A late heartbeat cannot erase a lease expiry while the pump was running.
+  enforceLocalSafety();
+  if (strcmp(line, "KEEPALIVE") == 0) {
+    keepaliveReceived = true;
+    lastKeepaliveAt = millis();
+    return;
+  }
   char *kind = strtok(line, ",");
   char *commandId = strtok(NULL, ",");
   char *mode = strtok(NULL, ",");
   char *requested = strtok(NULL, ",");
-  if (!kind || !commandId || !mode || !requested || strcmp(kind, "SET_PUMP") != 0) {
+  // Legacy four-field commands never clear a local emergency latch.
+  char *clearEmergency = strtok(NULL, ",");
+  char *extra = strtok(NULL, ",");
+  if (!kind || !commandId || !mode || !requested || extra || strcmp(kind, "SET_PUMP") != 0) {
     Serial.println(F("SERIAL_COMMAND_INVALID"));
     return;
   }
   if (strlen(commandId) >= sizeof(lastCommandId) ||
       (strcmp(mode, "auto") != 0 && strcmp(mode, "manual") != 0 &&
        strcmp(mode, "emergency") != 0) ||
-      (strcmp(requested, "0") != 0 && strcmp(requested, "1") != 0)) {
+      (strcmp(requested, "0") != 0 && strcmp(requested, "1") != 0) ||
+      (clearEmergency && strcmp(clearEmergency, "0") != 0 && strcmp(clearEmergency, "1") != 0) ||
+      (clearEmergency && strcmp(clearEmergency, "1") == 0 && strcmp(mode, "auto") != 0)) {
     printAck(commandId, false, "INVALID_COMMAND");
     return;
   }
 
   if (strcmp(commandId, lastCommandId) == 0) {
-    printAck(commandId, true, "DUPLICATE_ACK");
+    printAck(commandId, lastCommandOk, lastCommandMessage);
     return;
   }
   strncpy(lastCommandId, commandId, sizeof(lastCommandId) - 1);
@@ -146,7 +194,7 @@ void handleCommand(char *line) {
     emergencyLock = true;
     strncpy(controlMode, "emergency", sizeof(controlMode) - 1);
     writeRelay(false);
-    printAck(commandId, true, "EMERGENCY_STOPPED");
+    rememberAck(commandId, true, "EMERGENCY_STOPPED");
     return;
   }
 
@@ -154,40 +202,54 @@ void handleCommand(char *line) {
     emergencyLock = true;
     strncpy(controlMode, "emergency", sizeof(controlMode) - 1);
     writeRelay(false);
-    printAck(commandId, false, "SAFETY_INTERLOCK");
+    rememberAck(commandId, false, "SAFETY_INTERLOCK");
     return;
   }
 
-  if (emergencyLock && strcmp(mode, "auto") != 0) {
+  const bool clearRequested = clearEmergency && strcmp(clearEmergency, "1") == 0;
+  // Recovery is an explicit operator action. A queued pre-outage Auto command
+  // must never release the local watchdog latch after reconnecting.
+  if (emergencyLock && !clearRequested) {
     writeRelay(false);
-    printAck(commandId, false, "EMERGENCY_ACK_REQUIRED");
+    rememberAck(commandId, false, "EMERGENCY_ACK_REQUIRED");
     return;
   }
-  // A server-side emergency acknowledgement can release the local latch only
-  // while current calibrated readings remain fresh and below critical limits.
-  if (strcmp(mode, "auto") == 0) emergencyLock = false;
+  // Even an OFF recovery command requires fresh calibrated readings and a live
+  // control lease; a mode change alone cannot acknowledge an emergency.
+  if (clearRequested && (!controlLeaseActive() ||
+      millis() - lastValidReadingAt > SENSOR_STALE_MS)) {
+    emergencyLock = true;
+    writeRelay(false);
+    rememberAck(commandId, false, "SAFETY_INTERLOCK");
+    return;
+  }
+  if (clearRequested) emergencyLock = false;
   strncpy(controlMode, mode, sizeof(controlMode) - 1);
   controlMode[sizeof(controlMode) - 1] = '\0';
 
   const bool desiredOn = strcmp(requested, "1") == 0;
   if (desiredOn && !DWMS_RELAY_CONTROL_ENABLED) {
     writeRelay(false);
-    printAck(commandId, false, "RELAY_CONTROL_DISABLED");
+    rememberAck(commandId, false, "RELAY_CONTROL_DISABLED");
     return;
   }
   if (desiredOn && !canStartPump()) {
     writeRelay(false);
-    printAck(commandId, false, "SAFETY_INTERLOCK");
+    rememberAck(commandId, false, "SAFETY_INTERLOCK");
     return;
   }
   writeRelay(desiredOn);
-  printAck(commandId, true, "APPLIED");
+  rememberAck(commandId, true, "APPLIED");
 }
 
 void readSerialCommands() {
   while (Serial.available() > 0) {
     const char ch = (char)Serial.read();
     if (ch == '\r') continue;
+    if (discardSerialLine) {
+      if (ch == '\n') discardSerialLine = false;
+      continue;
+    }
     if (ch == '\n') {
       serialBuffer[serialLength] = '\0';
       if (serialLength > 0) handleCommand(serialBuffer);
@@ -196,6 +258,7 @@ void readSerialCommands() {
       serialBuffer[serialLength++] = ch;
     } else {
       serialLength = 0;
+      discardSerialLine = true;  // Ignore the entire oversized frame, including its tail.
       Serial.println(F("SERIAL_COMMAND_TOO_LONG"));
     }
   }
@@ -230,6 +293,8 @@ void reportStatus() {
   Serial.println(emergencyLock ? '1' : '0');
 }
 
+unsigned long telemetrySequence = 0;
+
 void sampleAndSend() {
   float ph = NAN;
   float tds = NAN;
@@ -252,9 +317,11 @@ void sampleAndSend() {
     Serial.print(F("{\"ph\":")); Serial.print(phValue, 2);
     Serial.print(F(",\"tds\":")); Serial.print(tdsValue, 2);
     Serial.print(F(",\"turbidity\":")); Serial.print(turbidityValue, 2);
+    Serial.print(F(",\"sourceSequence\":")); Serial.print(++telemetrySequence);
+    Serial.print(F(",\"sourceUptimeMs\":")); Serial.print(lastValidReadingAt);
     Serial.println(F(",\"calibrated\":true}"));
   } else {
-    if (pumpOn && millis() - lastValidReadingAt > SENSOR_STALE_MS) writeRelay(false);
+    enforceLocalSafety();
     Serial.println(F("CALIBRATION_REQUIRED"));
   }
   updateIndicators();
@@ -265,9 +332,9 @@ void setup() {
   pinMode(LED_YELLOW_PIN, OUTPUT);
   pinMode(LED_GREEN_PIN, OUTPUT);
   if (DWMS_RELAY_CONTROL_ENABLED) {
-    pinMode(RELAY_PIN, OUTPUT);
-    // Output inactive level only after the relay module polarity is verified.
+    // Set the output latch before enabling output to avoid an active-low pulse.
     digitalWrite(RELAY_PIN, DWMS_RELAY_ACTIVE_LOW ? HIGH : LOW);
+    pinMode(RELAY_PIN, OUTPUT);
   } else {
     // Unknown active polarity: keep the relay pin undriven until configured.
     pinMode(RELAY_PIN, INPUT);
@@ -284,6 +351,7 @@ void setup() {
 }
 
 void loop() {
+  enforceLocalSafety();
   readSerialCommands();
   const unsigned long now = millis();
   if (now - lastSampleAt >= SAMPLE_INTERVAL_MS) {

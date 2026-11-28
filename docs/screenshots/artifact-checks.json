@@ -1,0 +1,24 @@
+{
+  "checked_at_utc": "2026-11-28T02:04:15.299031+00:00",
+  "url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site",
+  "page_errors": [],
+  "model_calls": [],
+  "exports": [
+    {
+      "file": "DWMS-incident-demo.csv",
+      "bytes": 3095,
+      "sha256": "2398b83b3233fc9f14ad2b6e22132e4920c3e4b67719f9c5ce6e8c47a209159d"
+    },
+    {
+      "file": "DWMS-incident-demo.pdf",
+      "bytes": 15460,
+      "sha256": "1aaaad72f2975b3ce6e9666f55ea70603c11fdf884d1e090742db7dd135c3182"
+    }
+  ],
+  "scope": "Actual published desktop/mobile dashboard captures and mobile PDF/CSV downloads using simulated critical/recovery samples; no AI inference, Auth0 session or physical validation.",
+  "published_source_commit": "3425914abdaefcacff5f2e8db30b7e6dd2589d02",
+  "site_version": 13,
+  "pdf_text_provenance_and_requested_period": "passed",
+  "csv_simulation_provenance": "passed",
+  "intelligence_core_commit": "44afc0b2fdd09b912407b455af4e07e279d358bf"
+}

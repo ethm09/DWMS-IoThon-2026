@@ -1,0 +1,792 @@
+const assert = require("node:assert/strict");
+const test = require("node:test");
+const path = require("node:path");
+const build = process.env.DWMS_TEST_BUILD_DIR;
+assert.ok(build, "Run using pnpm test so TypeScript is compiled first");
+const devices = require(path.join(build, "convex/devices.js"));
+const policy = require(path.join(build, "convex/safetyPolicy.js"));
+const safety = require(path.join(build, "src/lib/dwms-safety.js"));
+const analysis = require(path.join(build, "convex/agentAnalysis.js"));
+const http = require(path.join(build, "convex/http.js")).default;
+const { getFunctionName } = require("convex/server");
+
+const healthy = { ph: 7.2, tds: 200, turbidity: 2 };
+const stamp = (offset = 0) => new Date(Date.now() + offset).toISOString();
+
+// An in-memory transaction adapter exercises the actual registered handlers.
+// It does not replace a deployed Convex integration or physical controller test.
+function fixture({
+  role = "operator",
+  authenticated = true,
+  registered = true,
+  fleetAccess,
+  ...deviceOverrides
+} = {}) {
+  const tables = {
+    devices: [
+      {
+        _id: "device:1",
+        _creationTime: 1,
+        deviceId: "site-a",
+        name: "Reservoir inlet",
+        apiKey: "test-only-device-key",
+        status: "online",
+        lastSeen: stamp(),
+        controlMode: "auto",
+        desiredPumpState: false,
+        ...deviceOverrides,
+      },
+    ],
+    deviceCommands: [],
+    sensorReadings: [],
+    notifications: [],
+    users: registered
+      ? [
+          {
+            _id: "user:1",
+            _creationTime: 1,
+            tokenIdentifier: "test-user",
+            role,
+            fleetAccess,
+          },
+        ]
+      : [],
+  };
+  const scheduled = [];
+  let creationTime = Date.now();
+  const ctx = {
+    auth: {
+      getUserIdentity: async () =>
+        authenticated ? { tokenIdentifier: "test-user" } : null,
+    },
+    scheduler: {
+      runAfter: async (delay, fn, args) => {
+        scheduled.push({ delay, fn: getFunctionName(fn), args });
+      },
+    },
+    db: {
+      query(table) {
+        const conditions = [];
+        let direction = "asc";
+        const results = () =>
+          [...tables[table]]
+            .filter((row) =>
+              conditions.every(([key, value]) => row[key] === value),
+            )
+            .sort((a, b) => {
+              const left = a.timestamp ?? a.createdAt ?? a._creationTime;
+              const right = b.timestamp ?? b.createdAt ?? b._creationTime;
+              // Convex indexes append _creationTime as their final field.
+              // Multiple writes can have identical ISO millisecond timestamps.
+              const order =
+                left < right
+                  ? -1
+                  : left > right
+                    ? 1
+                    : (a._creationTime ?? 0) - (b._creationTime ?? 0);
+              return order * (direction === "desc" ? -1 : 1);
+            })
+            .map((row) => ({ ...row }));
+        const query = {
+          withIndex(_name, callback) {
+            const range = {
+              eq(key, value) {
+                conditions.push([key, value]);
+                return range;
+              },
+            };
+            callback(range);
+            return query;
+          },
+          order(order) {
+            direction = order;
+            return query;
+          },
+          unique: async () => {
+            const rows = results();
+            assert.ok(rows.length <= 1);
+            return rows[0] ?? null;
+          },
+          first: async () => results()[0] ?? null,
+          take: async (limit) => results().slice(0, limit),
+          collect: async () => results(),
+        };
+        return query;
+      },
+      async insert(table, value) {
+        const id = `${table}:${tables[table].length + 1}`;
+        creationTime = Math.max(Date.now(), creationTime + 0.001);
+        tables[table].push({ _id: id, _creationTime: creationTime, ...value });
+        return id;
+      },
+      async patch(id, patch) {
+        const row = Object.values(tables)
+          .flat()
+          .find((item) => item._id === id);
+        assert.ok(row, `Missing document ${id}`);
+        Object.assign(row, patch);
+      },
+    },
+  };
+  const invoke = (name, args) => devices[name]._handler(ctx, args);
+  const ingest = (values) =>
+    invoke("internalSaveReading", { deviceId: "site-a", ...values });
+  const request = async (
+    endpoint,
+    body,
+    { key = "test-only-device-key", deviceId = "site-a", raw = false } = {},
+  ) => {
+    const actionCtx = {
+      runQuery: (fn, args) => invoke(getFunctionName(fn).split(":")[1], args),
+      runMutation: (fn, args) =>
+        invoke(getFunctionName(fn).split(":")[1], args),
+    };
+    const [handler] = http.lookup(endpoint, "POST");
+    return handler._handler(
+      actionCtx,
+      new Request(`https://test.invalid${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": key,
+          "X-Device-ID": deviceId,
+        },
+        body: raw ? body : JSON.stringify(body),
+      }),
+    );
+  };
+  return { tables, scheduled, invoke, ingest, request };
+}
+
+test("threshold boundaries and one automatic response agree across UI and backend", () => {
+  assert.equal(policy.classifyPh(5.5), "warning");
+  assert.equal(policy.classifyPh(6.5), "safe");
+  assert.equal(policy.classifyPh(8.5), "safe");
+  assert.equal(policy.classifyPh(10), "warning");
+  assert.equal(policy.classifyTds(499.9), "safe");
+  assert.equal(policy.classifyTds(500), "warning");
+  assert.equal(policy.classifyTds(1500), "warning");
+  assert.equal(policy.classifyTurbidity(5), "warning");
+  assert.equal(policy.classifyTurbidity(50), "warning");
+  for (const sample of [
+    { ...healthy, ph: 5.4 },
+    { ...healthy, turbidity: 51 },
+  ]) {
+    assert.deepEqual(policy.automaticPumpTarget(sample), {
+      mode: "emergency",
+      pumpOn: false,
+    });
+    assert.equal(safety.evaluateState(sample).kind, "emergency");
+  }
+  const elevated = { ...healthy, tds: 1501 };
+  assert.deepEqual(policy.automaticPumpTarget(elevated), {
+    mode: "auto",
+    pumpOn: true,
+  });
+  assert.equal(safety.evaluateState(elevated).startFiltration, true);
+  assert.equal(safety.evaluateChange("tds", elevated.tds).kind, "correction");
+  assert.equal(safety.evaluateChange("turbidity", 51).kind, "emergency");
+});
+
+test("partial, disconnected and invalid samples never become a healthy overall status", () => {
+  for (const sample of [
+    {},
+    { ph: 7 },
+    { ...healthy, turbidity: null },
+    { ...healthy, ph: NaN },
+    { ...healthy, tds: -1 },
+    { ...healthy, turbidity: Infinity },
+  ]) {
+    assert.equal(policy.isValidSensorValues(sample), false);
+    assert.equal(safety.overallQuality(sample), "unknown");
+    assert.equal(safety.evaluateState(sample).riskLevel, "unknown");
+  }
+  assert.equal(safety.overallQuality(healthy), "safe");
+});
+
+test("strict freshness rejects stale, invalid and future timestamps", () => {
+  const now = Date.now();
+  assert.equal(
+    policy.isFreshTimestamp(new Date(now - 10000).toISOString(), now),
+    true,
+  );
+  for (const timestamp of [
+    undefined,
+    "bad-date",
+    new Date(now - 10001).toISOString(),
+    new Date(now + 1).toISOString(),
+  ]) {
+    assert.equal(policy.isFreshTimestamp(timestamp, now), false);
+    assert.equal(
+      analysis.evaluateSafetyState({ ...healthy, timestamp }, now)
+        .pumpStartAllowed,
+      false,
+    );
+  }
+});
+
+test("HTTP ingestion authenticates device and rejects malformed or disconnected sensors before writing", async () => {
+  const f = fixture();
+  assert.equal(
+    (await f.request("/arduino/data", healthy, { key: "" })).status,
+    401,
+  );
+  assert.equal(
+    (await f.request("/arduino/data", healthy, { key: "wrong" })).status,
+    403,
+  );
+  assert.equal(
+    (await f.request("/arduino/data", healthy, { deviceId: "other-site" }))
+      .status,
+    403,
+  );
+  for (const value of [
+    {},
+    { ph: 7, tds: 200 },
+    { ...healthy, ph: "7" },
+    { ...healthy, ph: 15 },
+    { ...healthy, tds: -1 },
+    { ...healthy, turbidity: null },
+    null,
+    [],
+  ]) {
+    assert.equal((await f.request("/arduino/data", value)).status, 400);
+  }
+  assert.equal(
+    (await f.request("/arduino/data", "{broken", { raw: true })).status,
+    400,
+  );
+  assert.equal(f.tables.sensorReadings.length, 0);
+  assert.equal((await f.request("/arduino/data", healthy)).status, 200);
+  assert.equal(f.tables.sensorReadings.length, 1);
+  assert.equal(f.tables.devices[0].status, "online");
+  assert.ok(
+    f.scheduled.some(
+      (item) => item.fn === "devices:checkDeviceStale" && item.delay === 10000,
+    ),
+  );
+});
+
+test("internal ingestion validates too and never saves to an unregistered site", async () => {
+  const f = fixture();
+  await assert.rejects(f.ingest({ ...healthy, ph: NaN }));
+  await assert.rejects(
+    f.invoke("internalSaveReading", { deviceId: "missing", ...healthy }),
+  );
+  assert.equal(f.tables.sensorReadings.length, 0);
+});
+
+test("critical sample stops manual pump, latches emergency and needs safe explicit acknowledgement", async () => {
+  const f = fixture({
+    controlMode: "manual",
+    desiredPumpState: true,
+    reportedPumpState: true,
+    pumpReportedAt: stamp(),
+  });
+  await f.ingest({ ...healthy, turbidity: 51 });
+  assert.equal(f.tables.devices[0].controlMode, "emergency");
+  assert.equal(f.tables.deviceCommands[0].pumpOn, false);
+  await assert.rejects(
+    f.invoke("acknowledgeDeviceEmergency", { deviceId: "site-a" }),
+  );
+  await assert.rejects(
+    f.invoke("setDeviceControlMode", { deviceId: "site-a", mode: "manual" }),
+  );
+  await f.ingest(healthy);
+  assert.equal(f.tables.devices[0].controlMode, "emergency");
+  await f.invoke("acknowledgeDeviceEmergency", { deviceId: "site-a" });
+  assert.equal(f.tables.devices[0].controlMode, "auto");
+});
+
+test("automatic command retries after expiration and reconciles controller reset without duplicate pending commands", async () => {
+  const f = fixture();
+  const values = { ...healthy, turbidity: 25 };
+  await f.ingest(values);
+  const first = f.tables.deviceCommands[0];
+  assert.equal(first.pumpOn, true);
+  await f.ingest(values);
+  assert.equal(f.tables.deviceCommands.length, 1);
+  await f.invoke("expireControlCommand", { commandId: first.commandId });
+  await f.ingest(values);
+  assert.equal(f.tables.deviceCommands.length, 2);
+  const second = f.tables.deviceCommands[1];
+  await f.invoke("acknowledgeControlCommand", {
+    deviceId: "site-a",
+    commandId: second.commandId,
+    ok: true,
+    pumpOn: true,
+  });
+  await f.ingest(values);
+  assert.equal(f.tables.deviceCommands.length, 2);
+  await f.invoke("reportPumpStatus", { deviceId: "site-a", pumpOn: false });
+  await f.ingest(values);
+  assert.equal(f.tables.deviceCommands.length, 3);
+});
+
+test("stale callback ignores older sample schedules and requests a latched stop for the current sample", async () => {
+  const f = fixture({ desiredPumpState: true, reportedPumpState: true });
+  await f.invoke("checkDeviceStale", {
+    deviceId: "site-a",
+    expectedLastSeen: "old-sample",
+  });
+  assert.equal(f.tables.devices[0].status, "online");
+  await f.invoke("checkDeviceStale", {
+    deviceId: "site-a",
+    expectedLastSeen: f.tables.devices[0].lastSeen,
+  });
+  assert.equal(f.tables.devices[0].status, "offline");
+  assert.equal(f.tables.devices[0].controlMode, "emergency");
+  assert.equal(f.tables.devices[0].desiredPumpState, false);
+  assert.equal(f.tables.deviceCommands.at(-1).pumpOn, false);
+  assert.equal(f.tables.devices[0].reportedPumpState, undefined);
+});
+
+test("controller watchdog lock propagates into backend and supersedes pending start", async () => {
+  const f = fixture();
+  await f.ingest({ ...healthy, tds: 1600 });
+  assert.equal(
+    (
+      await f.request("/arduino/control/status", {
+        pumpOn: false,
+        emergencyLock: true,
+      })
+    ).status,
+    200,
+  );
+  assert.equal(f.tables.devices[0].controlMode, "emergency");
+  assert.equal(f.tables.deviceCommands[0].status, "superseded");
+  assert.deepEqual(
+    await f.invoke("acknowledgeControlCommand", {
+      deviceId: "site-a",
+      commandId: f.tables.deviceCommands[0].commandId,
+      ok: true,
+      pumpOn: true,
+    }),
+    { accepted: false },
+  );
+  assert.equal(f.tables.deviceCommands.at(-1).pumpOn, false);
+});
+
+test("acknowledgements reject wrong devices, mismatched output and late commands", async () => {
+  const f = fixture();
+  await f.ingest({ ...healthy, turbidity: 25 });
+  const command = f.tables.deviceCommands[0];
+  assert.deepEqual(
+    await f.invoke("acknowledgeControlCommand", {
+      deviceId: "wrong",
+      commandId: command.commandId,
+      ok: true,
+      pumpOn: true,
+    }),
+    { accepted: false },
+  );
+  assert.deepEqual(
+    await f.invoke("acknowledgeControlCommand", {
+      deviceId: "site-a",
+      commandId: command.commandId,
+      ok: true,
+      pumpOn: false,
+    }),
+    { accepted: false },
+  );
+  assert.equal(command.status, "failed");
+  await f.ingest({ ...healthy, turbidity: 25 });
+  const late = f.tables.deviceCommands.at(-1);
+  late.createdAt = stamp(-21000);
+  assert.deepEqual(
+    await f.invoke("acknowledgeControlCommand", {
+      deviceId: "site-a",
+      commandId: late.commandId,
+      ok: true,
+      pumpOn: true,
+    }),
+    { accepted: false },
+  );
+  assert.equal(late.status, "expired");
+});
+
+test("stale start commands are not delivered and pump controls enforce roles and freshness", async () => {
+  const f = fixture({ controlMode: "manual" });
+  await f.ingest(healthy);
+  f.tables.sensorReadings[0].timestamp = stamp(-11000);
+  await assert.rejects(
+    f.invoke("setDevicePump", { deviceId: "site-a", pumpOn: true }),
+  );
+  f.tables.sensorReadings[0].timestamp = stamp(1000);
+  await assert.rejects(
+    f.invoke("setDevicePump", { deviceId: "site-a", pumpOn: true }),
+  );
+  f.tables.sensorReadings[0].timestamp = stamp();
+  f.tables.devices[0].status = "offline";
+  await assert.rejects(
+    f.invoke("setDevicePump", { deviceId: "site-a", pumpOn: true }),
+  );
+  // OFF remains available even without fresh sensors.
+  await f.invoke("setDevicePump", { deviceId: "site-a", pumpOn: false });
+  for (const options of [{ role: "viewer" }, { authenticated: false }]) {
+    await assert.rejects(
+      fixture(options).invoke("setDeviceControlMode", {
+        deviceId: "site-a",
+        mode: "emergency",
+      }),
+    );
+  }
+  const auto = fixture();
+  await auto.ingest({ ...healthy, tds: 1600 });
+  auto.tables.devices[0].lastSeen = stamp(-11000);
+  assert.equal(
+    await auto.invoke("getPendingControlCommand", { deviceId: "site-a" }),
+    null,
+  );
+});
+
+test("device query redacts credentials and history is capped and isolated by site", async () => {
+  const f = fixture();
+  assert.equal((await f.invoke("listDevices", {}))[0].apiKey, undefined);
+  for (let i = 0; i < 250; i++)
+    f.tables.sensorReadings.push({
+      _id: `r:${i}`,
+      deviceId: "site-a",
+      timestamp: new Date(i).toISOString(),
+      ...healthy,
+    });
+  f.tables.sensorReadings.push({
+    _id: "other",
+    deviceId: "other-site",
+    timestamp: stamp(),
+    ...healthy,
+  });
+  const readings = await f.invoke("getRecentReadings", {
+    deviceId: "site-a",
+    limit: 100000,
+  });
+  assert.equal(readings.length, 200);
+  assert.ok(readings.every((row) => row.deviceId === "site-a"));
+  assert.equal(
+    (await f.invoke("getRecentReadings", { deviceId: "site-a", limit: -1 }))
+      .length,
+    1,
+  );
+  for (let i = 0; i < 70; i++) f.tables.deviceCommands.push({
+    commandId: `site-a-${i}`, deviceId: "site-a", createdAt: new Date(i).toISOString(),
+    pumpOn: false, mode: "auto", source: "automatic", status: "applied", requestedBy: "private-operator@example.invalid",
+  });
+  f.tables.deviceCommands.push({ commandId: "other-site", deviceId: "other-site", createdAt: stamp(), pumpOn: true });
+  const commands = await f.invoke("getRecentCommands", { deviceId: "site-a", limit: 10000 });
+  assert.equal(commands.length, 50);
+  assert.ok(commands.every(command => command.commandId.startsWith("site-a-")));
+  assert.equal(commands[0].requestedBy, undefined);
+  assert.equal(commands[0].reportedPumpState, null, "unconfirmed output must not become OFF");
+
+});
+
+test("only explicit emergency acknowledgement authorizes local latch reset and survives pre-delivery status", async () => {
+  const f = fixture();
+  await f.ingest({ ...healthy, tds: 1600 });
+  assert.equal(f.tables.deviceCommands[0].clearEmergency, false);
+  assert.equal(
+    (await f.invoke("getPendingControlCommand", { deviceId: "site-a" }))
+      .clearEmergency,
+    false,
+  );
+  await f.invoke("reportPumpStatus", {
+    deviceId: "site-a",
+    pumpOn: false,
+    emergencyLock: true,
+  });
+  await f.invoke("acknowledgeDeviceEmergency", { deviceId: "site-a" });
+  const reset = f.tables.deviceCommands.at(-1);
+  assert.equal(reset.clearEmergency, true);
+  assert.equal(
+    (await f.invoke("getPendingControlCommand", { deviceId: "site-a" }))
+      .clearEmergency,
+    true,
+  );
+  await f.invoke("reportPumpStatus", {
+    deviceId: "site-a",
+    pumpOn: false,
+    emergencyLock: true,
+  });
+  assert.equal(reset.status, "pending");
+  assert.equal(f.tables.devices[0].controlMode, "auto");
+  reset.createdAt = stamp(-21000);
+  await f.invoke("reportPumpStatus", {
+    deviceId: "site-a",
+    pumpOn: false,
+    emergencyLock: true,
+  });
+  assert.equal(f.tables.devices[0].controlMode, "emergency");
+  assert.equal(f.tables.deviceCommands.at(-1).clearEmergency, false);
+});
+
+test("readings with the same receipt millisecond use creation order, matching Convex indexes", async () => {
+  const f = fixture();
+  const timestamp = stamp();
+  f.tables.sensorReadings.push(
+    {
+      _id: "older",
+      _creationTime: 100,
+      deviceId: "site-a",
+      timestamp,
+      ...healthy,
+      ph: 4,
+    },
+    {
+      _id: "newer",
+      _creationTime: 100.001,
+      deviceId: "site-a",
+      timestamp,
+      ...healthy,
+    },
+  );
+  const latest = await f.invoke("getLatestReading", { deviceId: "site-a" });
+  assert.equal(latest._id, "newer");
+  const recent = await f.invoke("getRecentReadings", {
+    deviceId: "site-a",
+    limit: 2,
+  });
+  assert.deepEqual(
+    recent.map((row) => row._id),
+    ["newer", "older"],
+  );
+});
+
+test("critical input before recovery delivery supersedes the reset with emergency OFF", async () => {
+  for (const critical of [
+    { ...healthy, ph: 4.5 },
+    { ...healthy, turbidity: 51 },
+  ]) {
+    const f = fixture({ controlMode: "emergency" });
+    await f.ingest(healthy);
+    await f.invoke("acknowledgeDeviceEmergency", { deviceId: "site-a" });
+    const reset = f.tables.deviceCommands.at(-1);
+    assert.equal(reset.status, "pending");
+    assert.equal(reset.clearEmergency, true);
+
+    // A new critical sample arrives before the controller receives the reset.
+    await f.ingest(critical);
+    const stop = await f.invoke("getPendingControlCommand", {
+      deviceId: "site-a",
+    });
+    assert.equal(reset.status, "superseded");
+    assert.equal(f.tables.devices[0].controlMode, "emergency");
+    assert.equal(f.tables.devices[0].desiredPumpState, false);
+    assert.notEqual(stop.commandId, reset.commandId);
+    assert.equal(stop.mode, "emergency");
+    assert.equal(stop.pumpOn, false);
+    assert.equal(stop.clearEmergency, false);
+    assert.deepEqual(
+      await f.invoke("acknowledgeControlCommand", {
+        deviceId: "site-a",
+        commandId: reset.commandId,
+        ok: true,
+        pumpOn: false,
+      }),
+      { accepted: false },
+    );
+  }
+});
+
+test("live registry, telemetry and command state require explicit shared-fleet approval", async () => {
+  const reads = [
+    ["listDevices", {}],
+    ["getLatestReading", { deviceId: "site-a" }],
+    ["getRecentReadings", { deviceId: "site-a", limit: 200 }],
+    ["getControlState", { deviceId: "site-a" }],
+    ["getRecentCommands", { deviceId: "site-a" }],
+  ];
+  for (const options of [
+    { authenticated: false },
+    { registered: false },
+    { role: "viewer" },
+    { role: "viewer", fleetAccess: false },
+  ]) {
+    const blocked = fixture(options);
+    for (const [name, args] of reads) {
+      await assert.rejects(blocked.invoke(name, args), (error) => {
+        assert.ok(
+          ["UNAUTHENTICATED", "NOT_FOUND", "FORBIDDEN"].includes(
+            error.data?.code,
+          ),
+        );
+        return true;
+      });
+    }
+  }
+  // Roles assigned by an admin or explicit viewer approval grant shared-fleet
+  // reads. An approved viewer still cannot operate the pump.
+  for (const role of ["viewer", "operator", "admin"]) {
+    const allowed = fixture({ role, fleetAccess: role === "viewer" });
+    await allowed.ingest(healthy);
+    for (const [name, args] of reads) {
+      const value = await allowed.invoke(name, args);
+      assert.ok(value !== null);
+    }
+    assert.equal(
+      (await allowed.invoke("listDevices", {}))[0].apiKey,
+      undefined,
+    );
+  }
+});
+
+test("the legacy AI confirmation endpoint cannot enqueue actuator commands", async () => {
+  const chat = require(path.join(build, "convex/chatAction.js"));
+  for (const identity of [null, { tokenIdentifier: "test-user" }]) {
+    const calls = [];
+    const ctx = {
+      auth: { getUserIdentity: async () => identity },
+      runQuery: async (...args) => {
+        calls.push(["query", ...args]);
+        throw new Error("AI endpoint must not access control state");
+      },
+      runMutation: async (...args) => {
+        calls.push(["mutation", ...args]);
+        throw new Error("AI endpoint must not enqueue actuator commands");
+      },
+    };
+    await assert.rejects(
+      chat.confirmPumpAction._handler(ctx, { runId: "agentRuns:legacy" }),
+      (error) => {
+        assert.equal(
+          error.data?.code,
+          identity ? "READ_ONLY_ASSISTANT" : "UNAUTHENTICATED",
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(calls, []);
+  }
+});
+
+test("automatic threshold fanout excludes viewers without fleet approval", async () => {
+  const f = fixture({ role: "viewer" });
+  f.tables.users.push(
+    {
+      _id: "user:approved",
+      tokenIdentifier: "approved",
+      role: "viewer",
+      fleetAccess: true,
+    },
+    { _id: "user:operator", tokenIdentifier: "operator", role: "operator" },
+  );
+  await f.ingest({ ...healthy, turbidity: 25 });
+  assert.ok(f.tables.notifications.length > 0);
+  assert.ok(f.tables.notifications.every((item) => item.userId !== "user:1"));
+  assert.deepEqual(
+    new Set(f.tables.notifications.map((item) => item.userId)),
+    new Set(["user:approved", "user:operator"]),
+  );
+  await assert.rejects(
+    fixture({ role: "viewer", fleetAccess: true }).invoke(
+      "setDeviceControlMode",
+      { deviceId: "site-a", mode: "emergency" },
+    ),
+    (error) => error.data?.code === "FORBIDDEN",
+  );
+});
+
+const envelope = (seq = 1, offset = -2000, sessionId = "gateway_session_a") => ({
+  sessionId, seq, gatewayObservedAt: stamp(offset),
+});
+test("gateway observation and receipt are separate persistent timestamps", async () => {
+  const f = fixture();
+  const frame = { ...healthy, ...envelope(), sourceSequence: 1, sourceUptimeMs: 1000 };
+  assert.equal((await f.request("/arduino/data", frame)).status, 200);
+  const reading = f.tables.sensorReadings[0];
+  assert.equal(reading.timestamp, frame.gatewayObservedAt);
+  assert.equal(reading.timeBasis, "gateway_observation");
+  assert.ok(reading.receivedAt > reading.timestamp);
+  assert.equal(reading.sourceSequence, 1);
+  assert.ok(f.scheduled.find(s => s.fn === "devices:checkDeviceStale").delay <= 8000);
+});
+test("exact duplicate is idempotent without renewing receipt, alerts, commands or offline lease", async () => {
+  const f = fixture();
+  const frame = { ...healthy, tds: 900, ...envelope() };
+  await f.request("/arduino/data", frame);
+  const before = JSON.stringify({ tables: f.tables, scheduled: f.scheduled });
+  const duplicate = await f.request("/arduino/data", frame);
+  assert.equal(duplicate.status, 200);
+  assert.equal((await duplicate.json()).duplicate, true);
+  assert.equal(JSON.stringify({ tables: f.tables, scheduled: f.scheduled }), before);
+  assert.equal((await f.request("/arduino/data", { ...frame, tds: 901 })).status, 409);
+});
+test("gateway sequence, replay, delayed and future frames cannot refresh accepted data", async () => {
+  const f = fixture();
+  const first = { ...healthy, ...envelope(2) };
+  await f.request("/arduino/data", first);
+  for (const frame of [
+    { ...healthy, ...envelope(1, -1000) },
+    { ...healthy, ...envelope(3, -11000) },
+    { ...healthy, ...envelope(3, 5000) },
+    { ...healthy, ...envelope(3, -5000) },
+    { ...healthy, ...envelope(1, -5000, "older_gateway_session") },
+    healthy,
+  ]) assert.equal((await f.request("/arduino/data", frame)).status, 409);
+  assert.equal(f.tables.sensorReadings.length, 1);
+});
+test("new gateway session reconnects with newer observation despite a lost first upload", async () => {
+  const f = fixture();
+  await f.request("/arduino/data", { ...healthy, ...envelope() });
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000, "new_gateway_session") })).status, 200);
+  assert.equal(f.tables.sensorReadings.length, 2);
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope() })).status, 409);
+});
+test("invalid telemetry identity and partial controller metadata fail closed", async () => {
+  for (const bad of [{ seq: true }, { sessionId: 123 }, { ...envelope(), seq: 0 }, { ...envelope(), sourceSequence: 1 }, { ...envelope(), sourceSequence: 1, sourceUptimeMs: -1 }, { ...envelope(), gatewayObservedAt: "not-a-date" }, { ...envelope(), sessionId: "short" }]) {
+    const f = fixture();
+    assert.ok([400, 409].includes((await f.request("/arduino/data", { ...healthy, ...bad })).status));
+    assert.equal(f.tables.sensorReadings.length, 0);
+  }
+});
+test("controller duplicate sequence cannot be rewrapped in a newer gateway packet", async () => {
+  const f = fixture();
+  await f.request("/arduino/data", { ...healthy, ...envelope(), sourceSequence: 5, sourceUptimeMs: 1000 });
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000), sourceSequence: 5, sourceUptimeMs: 1000 })).status, 409);
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000) })).status, 409);
+  assert.equal((await f.request("/arduino/data", { ...healthy, ...envelope(2, -1000), sourceSequence: 6, sourceUptimeMs: 500 })).status, 409);
+});
+
+test("pump ON delivery requires a fresh valid observation even when receipt is fresh and stale scheduler is delayed", async () => {
+  const f = fixture();
+  await f.ingest({ ...healthy, tds: 1600 });
+  await f.invoke("setDeviceControlMode", { deviceId: "site-a", mode: "manual" });
+  const next = () => f.invoke("getPendingControlCommand", { deviceId: "site-a" });
+  assert.equal((await next()).pumpOn, true);
+  const reading = f.tables.sensorReadings[0];
+  for (const patch of [
+    { ...healthy, timestamp: stamp(-11000) },
+    { ...healthy, timestamp: stamp(1000) },
+    { ...healthy, timestamp: stamp(), tds: NaN },
+    { ...healthy, timestamp: stamp(), ph: 4 },
+    { ...healthy, timestamp: stamp(), turbidity: 60 },
+  ]) {
+    Object.assign(reading, patch);
+    f.tables.devices[0].lastSeen = stamp();
+    f.tables.devices[0].status = "online";
+    assert.equal(await next(), null);
+  }
+  // A stop request remains available when measurements are unusable.
+  await f.invoke("setDevicePump", { deviceId: "site-a", pumpOn: false });
+  assert.equal((await next()).pumpOn, false);
+});
+
+test("new device registration validates identity and credential without fabricated initial telemetry", async () => {
+  const valid = { deviceId: "reservoir-node-2", name: " Tank outlet ", location: " Reuse tank ", apiKey: "ldwms_01234567-89ab-4def-8123-456789abcdef" };
+  for (const options of [{ role: "operator" }, { role: "viewer", fleetAccess: true }, { authenticated: false }]) {
+    await assert.rejects(fixture(options).invoke("registerDevice", valid));
+  }
+  const f = fixture({ role: "admin" });
+  for (const patch of [{ deviceId: "" }, { deviceId: " bad id " }, { deviceId: "a\nheader" }, { name: " " }, { name: "a".repeat(121) }, { location: "a".repeat(201) }, { apiKey: "short" }, { apiKey: "x".repeat(32) + "\n" }]) {
+    await assert.rejects(f.invoke("registerDevice", { ...valid, ...patch }), error => error.data?.code === "BAD_REQUEST");
+  }
+  assert.equal(f.tables.devices.length, 1);
+  await f.invoke("registerDevice", valid);
+  const registered = f.tables.devices[1];
+  assert.equal(registered.name, "Tank outlet");
+  assert.equal(registered.location, "Reuse tank");
+  assert.equal(registered.status, "offline");
+  assert.equal(registered.lastSeen, undefined);
+  assert.equal(f.tables.sensorReadings.length, 0);
+  await assert.rejects(f.invoke("registerDevice", valid), error => error.data?.code === "CONFLICT");
+  await assert.rejects(f.invoke("registerDevice", { ...valid, deviceId: "other-id" }), error => error.data?.code === "CONFLICT");
+});

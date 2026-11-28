@@ -1,4 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useUserRole } from "@/hooks/use-user-role";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api.js";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
@@ -18,7 +20,6 @@ import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { useProcessMode } from "@/hooks/use-process-mode.ts";
 import type { HardwareStatus } from "@/hooks/use-process-mode.ts";
-import type { DataMode } from "@/lib/dwms-safety.ts";
 
 // Status display constants
 const HW_STATUS_CONFIG: Record<HardwareStatus, { label: string; color: string; icon: typeof Wifi; description: string }> = {
@@ -43,13 +44,12 @@ const HW_STATUS_CONFIG: Record<HardwareStatus, { label: string; color: string; i
 };
 
 function DataSourceInner() {
+  const navigate = useNavigate();
   const {
     dataMode, setDataMode,
-    hardwareStatus,
     apiUrl, setApiUrl,
     selectedDeviceId, setSelectedDeviceId,
-    lastUpdated,
-    setSensorData,
+    sensorData,
   } = useProcessMode();
 
   const devices = useQuery(api.devices.listDevices, {});
@@ -57,29 +57,27 @@ function DataSourceInner() {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [urlDraft, setUrlDraft] = useState(apiUrl);
 
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const receivedAt = dataMode === "hardware" && sensorData?.source === "device"
+    ? Date.parse(sensorData.timestamp) : NaN;
+  const ageMs = now - receivedAt;
+  const hardwareStatus: HardwareStatus = !Number.isFinite(ageMs) || ageMs < 0 || ageMs > 30_000
+    ? "disconnected" : ageMs > 10_000 ? "warning" : "connected";
   const hwConfig = HW_STATUS_CONFIG[hardwareStatus];
   const HwIcon = hwConfig.icon;
 
-  // Handle mode change with safety checks
+  // A workspace change is navigation, never a simulated reading inside Live.
   const handleModeChange = useCallback((newMode: string) => {
-    if (newMode === "hardware" && hardwareStatus === "connected") {
-      // Already connected, just switch
-      setDataMode(newMode as DataMode);
-      toast.success("Switched to Real Hardware mode");
-    } else if (newMode === "hardware") {
-      // Switch with a warning
-      setDataMode(newMode as DataMode);
-      toast("Switched to Hardware mode — waiting for device data", {
-        description: "If no data arrives in 30 seconds, consider switching back to Demo.",
-      });
-    } else {
-      // Switch to demo — safe to do unless hardware is actively connected
-      if (hardwareStatus === "connected") {
-        toast("Switched to Demo Data — hardware data will be ignored while in Demo mode");
-      }
-      setDataMode(newMode as DataMode);
+    if (newMode === "demo") {
+      navigate("/demo");
+      return;
     }
-  }, [hardwareStatus, setDataMode]);
+    setDataMode("hardware");
+  }, [navigate, setDataMode]);
 
   // Test connection by making a lightweight GET/OPTIONS to the API URL
   const handleTestConnection = useCallback(async () => {
@@ -91,21 +89,19 @@ function DataSourceInner() {
     setTestLoading(true);
     setTestResult(null);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
     try {
-      // Attempt a basic connectivity check using OPTIONS preflight
+      // OPTIONS proves HTTP reachability only, never device ingestion or calibration.
       const testUrl = urlDraft.trim().replace(/\/$/, "") + "/arduino/data";
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-
       const resp = await fetch(testUrl, {
         method: "OPTIONS",
         signal: controller.signal,
       });
-      clearTimeout(timeout);
 
       if (resp.ok || resp.status === 204) {
-        setTestResult({ ok: true, message: `Endpoint reachable (${resp.status})` });
-        toast.success("Connection successful — endpoint is reachable");
+        setTestResult({ ok: true, message: `Backend reachable (${resp.status}). Device ingestion and sensor calibration are not tested.` });
+        toast.success("Backend endpoint reachable; check actual readings to verify ingestion");
       } else {
         setTestResult({ ok: false, message: `Endpoint responded with ${resp.status}` });
         toast.error(`Connection test failed: HTTP ${resp.status}`);
@@ -115,13 +111,20 @@ function DataSourceInner() {
       setTestResult({ ok: false, message: message.includes("abort") ? "Request timed out (5s)" : message });
       toast.error(`Connection test failed: ${message}`);
     } finally {
+      clearTimeout(timeout);
       setTestLoading(false);
     }
   }, [urlDraft]);
 
   const handleSaveUrl = useCallback(() => {
-    setApiUrl(urlDraft.trim());
-    toast.success("API URL saved");
+    try {
+      const url = new URL(urlDraft.trim());
+      if (!["https:", "http:"].includes(url.protocol)) throw new Error("Unsupported protocol");
+      setApiUrl(url.href.replace(/\/$/, ""));
+      toast.success("Bridge endpoint reference saved");
+    } catch {
+      toast.error("Enter a valid HTTP or HTTPS backend URL");
+    }
   }, [urlDraft, setApiUrl]);
 
   return (
@@ -132,7 +135,7 @@ function DataSourceInner() {
           <Settings2 className="w-5 h-5" /> DATA SOURCE
         </h1>
         <p className="text-xs text-muted-foreground mt-1 tracking-wider">
-          Configure how the system receives sensor data — Demo simulation or Real Hardware
+          Select the registered device and check its bridge connection.
         </p>
       </div>
 
@@ -150,7 +153,7 @@ function DataSourceInner() {
               onClick={() => handleModeChange("demo")}
               icon={<Database className="w-5 h-5" />}
               title="DEMO DATA"
-              description="Gentle random drift of sensor values for testing and demonstration"
+              description="Local deterministic scenarios on the dashboard; no real sensor readings or relay control"
               color="#3b82f6"
             />
             <ModeCard
@@ -165,11 +168,11 @@ function DataSourceInner() {
 
           {/* Safety note */}
           <div className="rounded-lg p-3 text-xs"
-            style={{ background: "oklch(0.1 0.03 145)", border: "1px solid oklch(0.2 0.04 145)" }}>
+            style={{ background: "var(--muted)", border: "1px solid var(--border)" }}>
             <p className="font-bold tracking-wider text-muted-foreground mb-1">SAFETY RULE</p>
             <p className="text-muted-foreground">
-              Demo mode uses simulated readings and replaces the displayed values with the simulation.
-              Choose Real Hardware to display readings received from the selected device.
+              Demo Data opens the separate public simulation workspace.
+              Live readings continue to come only from the selected registered device.
             </p>
           </div>
         </CardContent>
@@ -215,10 +218,10 @@ function DataSourceInner() {
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="w-3 h-3" />
             <span>
-              Last data received:{" "}
-              {lastUpdated && lastUpdated !== new Date(0).toISOString()
-                ? new Date(lastUpdated).toLocaleString()
-                : "Never"}
+              Last stored hardware reading:{" "}
+              {Number.isFinite(receivedAt)
+                ? `${new Date(receivedAt).toLocaleString()} (recorded reading time)`
+                : "No selected-device hardware reading"}
             </span>
           </div>
 
@@ -237,7 +240,7 @@ function DataSourceInner() {
                   <p className="font-bold text-yellow-500 tracking-wider">HARDWARE UNREACHABLE</p>
                   <p className="text-muted-foreground mt-0.5">
                     No data in 30+ seconds. Hardware mode stays active and never silently switches to simulated readings.
-                    Switch to Demo mode manually if you want simulated data while hardware is offline.
+                    Open the separate Demo workspace to explore simulated scenarios.
                   </p>
                 </div>
               </motion.div>
@@ -274,7 +277,7 @@ function DataSourceInner() {
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground tracking-wider">
-              The Convex HTTP Actions endpoint. Your Python bridge sends data to this URL + /arduino/data
+              The Python bridge sends data to this URL + /arduino/data. This saved reference does not change the frontend subscription; VITE_CONVEX_URL configures that backend.
             </p>
           </div>
 
@@ -312,7 +315,7 @@ function DataSourceInner() {
               className="gap-2 cursor-pointer"
             >
               {testLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TestTube2 className="w-3.5 h-3.5" />}
-              {testLoading ? "Testing..." : "Test Connection"}
+              {testLoading ? "Checking..." : "Check backend reachability"}
             </Button>
 
             {/* Test result */}
@@ -345,16 +348,15 @@ function DataSourceInner() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-bold tracking-widest flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-primary" /> SUPPORTED HARDWARE
+            <Cpu className="w-4 h-4 text-primary" /> INTEGRATION STATUS
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
-              { name: "Arduino Uno + Serial Bridge", desc: "Firmware, Python telemetry bridge, and acknowledged relay commands are included", supported: true },
+              { name: "Arduino Uno + Serial Bridge", desc: "Firmware and bridge are included; sensor conversion functions require verified calibration before physical operation", supported: true },
               { name: "Authenticated HTTP endpoint", desc: "Accepts JSON sensor readings from a custom HTTP client", supported: true },
               { name: "ESP32 / Wi-Fi MCU", desc: "Requires device-specific firmware; no ESP32 sketch is included", supported: false },
-              { name: "Firebase / Supabase", desc: "No connector is implemented", supported: false },
             ].map((proto) => (
               <div key={proto.name} className="rounded-lg border border-border p-3 flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full mt-1.5 shrink-0"
@@ -388,8 +390,8 @@ function ModeCard({
       onClick={onClick}
       className="cursor-pointer rounded-xl border p-4 text-left transition-all relative overflow-hidden"
       style={{
-        borderColor: active ? `${color}80` : "oklch(0.26 0.04 145)",
-        background: active ? `${color}10` : "oklch(0.13 0.02 145)",
+        borderColor: active ? `${color}80` : "var(--border)",
+        background: active ? `${color}10` : "var(--card)",
       }}
     >
       {active && (
@@ -402,13 +404,13 @@ function ModeCard({
       <div className="flex items-center gap-3 mb-2">
         <div className="w-9 h-9 rounded-lg flex items-center justify-center"
           style={{
-            background: active ? `${color}20` : "oklch(0.18 0.03 145)",
-            color: active ? color : "oklch(0.55 0.04 145)",
+            background: active ? `${color}20` : "var(--muted)",
+            color: active ? color : "var(--primary)",
           }}>
           {icon}
         </div>
         <span className="text-xs font-bold tracking-widest"
-          style={{ color: active ? color : "oklch(0.75 0.02 90)" }}>
+          style={{ color: active ? color : "var(--foreground)" }}>
           {title}
         </span>
       </div>
@@ -418,6 +420,7 @@ function ModeCard({
 }
 
 export default function DataSourcePage() {
+  const { canControl } = useUserRole();
   return (
     <>
       <Unauthenticated>
@@ -437,7 +440,7 @@ export default function DataSourcePage() {
         </div>
       </AuthLoading>
       <Authenticated>
-        <DataSourceInner />
+        {canControl ? <DataSourceInner /> : <Card className="m-6 space-y-3 p-6"><p>Connection settings require operator or administrator access.</p><Link to="/live" className="text-primary underline">Open monitoring</Link></Card>}
       </Authenticated>
     </>
   );

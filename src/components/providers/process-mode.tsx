@@ -57,8 +57,11 @@ function loadPersisted(): PersistedState {
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     const state = { ...DEFAULT_STATE, ...parsed };
 
-    // Old saved states predate explicit hardware-output confirmation.
-    if (state.dataMode === "hardware") state.pumpStatusKnown = false;
+    // Physical telemetry is session data, never restored as a fresh measurement.
+    if (state.dataMode === "hardware") {
+      state.ph = null; state.tds = null; state.turbidity = null; state.flowRate = null;
+      state.pumpStatusKnown = false;
+    }
 
     // If in demo mode, clamp readings to safe ranges and clear any lingering
     // emergency state that was triggered by the old unclamped drift.
@@ -76,17 +79,6 @@ function loadPersisted(): PersistedState {
     return state;
   } catch {
     return DEFAULT_STATE;
-  }
-}
-
-function loadLog(): DwmsEvent[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(LOG_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as DwmsEvent[];
-  } catch {
-    return [];
   }
 }
 
@@ -116,7 +108,7 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
   );
   const [sensorData, setSensorDataState] = useState<SensorSnapshot | null>(null);
 
-  const [eventLog, setEventLog] = useState<DwmsEvent[]>(() => loadLog());
+  const [eventLog, setEventLog] = useState<DwmsEvent[]>([]);
   const [alerts, setAlerts] = useState<EthmAlert[]>([]);
   const [guardianOpen, setGuardianOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -139,7 +131,10 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
       ...patch,
       lastUpdated: new Date().toISOString(),
     };
-    localStorage.setItem(STATE_KEY, JSON.stringify(next));
+    const stored = next.dataMode === "hardware"
+      ? { ...DEFAULT_STATE, dataMode: "hardware", apiUrl: next.apiUrl, ph: null, tds: null, turbidity: null, flowRate: null, pumpStatusKnown: false }
+      : next;
+    localStorage.setItem(STATE_KEY, JSON.stringify(stored));
     setLastUpdated(next.lastUpdated);
   }, []);
 
@@ -156,7 +151,6 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
       };
       setEventLog((prev) => {
         const next = [entry, ...prev].slice(0, 300);
-        if (typeof window !== "undefined") localStorage.setItem(LOG_KEY, JSON.stringify(next));
         return next;
       });
     },
@@ -363,8 +357,10 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
     (data: SensorSnapshot) => {
       setSensorDataState(data);
       if (data.source === "device") {
-        lastHardwareAt.current = Date.now();
-        setHardwareStatus("connected");
+        const receivedAt = Date.parse(data.timestamp);
+        const age = Date.now() - receivedAt;
+        lastHardwareAt.current = Number.isFinite(receivedAt) ? receivedAt : null;
+        setHardwareStatus(!Number.isFinite(age) || age < 0 || age > 30_000 ? "disconnected" : age > 10_000 ? "warning" : "connected");
       }
       setReadings((prev) => {
         const next: Readings = {
@@ -512,40 +508,16 @@ export function ProcessModeProvider({ children }: { children: ReactNode }) {
         return;
       }
       const elapsed = Date.now() - last;
-      if (elapsed > 30000) setHardwareStatus("disconnected");
+      if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 30000) setHardwareStatus("disconnected");
       else if (elapsed > 10000) setHardwareStatus("warning");
       else setHardwareStatus("connected");
     }, 2000);
     return () => clearInterval(interval);
   }, [dataMode]);
 
-  // Keep state synchronized across tabs/windows.
-  useEffect(() => {
-    function onStorage(e: StorageEvent) {
-      if (e.key === LOG_KEY) {
-        setEventLog(loadLog());
-        return;
-      }
-      if (e.key !== STATE_KEY || !e.newValue) return;
-      try {
-        const s = JSON.parse(e.newValue) as PersistedState;
-        setModeInternal(s.systemMode);
-        setManualOverride(s.manualOverride);
-        setEmergencyShutdown(s.emergencyShutdown);
-        setPumpStatusState(s.pumpStatus);
-        setPumpStatusKnown(s.pumpStatusKnown ?? s.dataMode === "demo");
-        setFilterStatusState(s.filterStatus);
-        setReadings({ ph: s.ph, tds: s.tds, turbidity: s.turbidity, flowRate: s.flowRate });
-        setDataModeState(s.dataMode);
-        setApiUrlState(s.apiUrl);
-        setLastUpdated(s.lastUpdated);
-      } catch {
-        // ignore malformed payloads
-      }
-    }
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  // Routes own workspace selection. Never copy operational buffers or modes
+  // across Live/Demo tabs; live truth arrives through authorized subscriptions.
+  useEffect(() => { localStorage.removeItem(LOG_KEY); }, []);
 
   return (
     <ProcessModeContext.Provider
