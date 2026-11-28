@@ -74,6 +74,7 @@ export async function downloadIntelligencePdf(report: IntelligenceReportData) {
   };
   line("DWMS | Ethm Water Intelligence Engine",17,true);line(report.title,13,true);line(report.sourceLabel,9,true);
   line(`Generated UTC: ${report.generatedAt}`);line(`Device: ${report.device} | Site: ${report.site}`);
+  line(`Requested period UTC: ${report.requestedFrom??"Loaded window"} to ${report.requestedTo}`);
   line(`Loaded evidence: ${report.availableFrom??"unavailable"} to ${report.availableTo??"unavailable"}`);
   line(report.coverageNote);line(report.assessment.summary,11,true);line(`Freshness: ${report.assessment.freshness}`);line(report.assessment.operationalAssessment);
   line("Observed evidence and operator checks",11,true);
