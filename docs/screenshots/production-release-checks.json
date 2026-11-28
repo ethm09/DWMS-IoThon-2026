@@ -1,7 +1,7 @@
 {
-  "checked_at_utc": "2026-11-27T13:03:44.972Z",
+  "checked_at_utc": "2026-11-28T02:06:09.958Z",
   "deployment": "canny-mosquito-637",
-  "backend_source_commit": "a3e6ad8f5dacd24b2bf04ba5b9dc1899072c1df6",
+  "backend_source_commit": "44afc0b2fdd09b912407b455af4e07e279d358bf",
   "anonymous_access_checks": [
     {
       "operation": "devices:listDevices",
@@ -39,10 +39,9 @@
       "code": "UNAUTHENTICATED"
     }
   ],
-  "scope": "Actual existing production deployment. Negative authorization probes and backend-only provider check; no test identities, devices or measurements created. Not authenticated browser or physical evidence.",
-  "ethm_provider_connection": {
-    "available": true,
-    "model": "gpt-5-mini",
-    "reason": "completion_received"
-  }
+  "guest_guards": {
+    "untrusted_origin_status": 403,
+    "oversized_body_status": 413
+  },
+  "scope": "Actual production negative checks only. No operational test devices, users or measurements created; no model request. Public guest AI is intentionally separate from protected operational APIs."
 }

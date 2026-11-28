@@ -1,6 +1,6 @@
 {
   "url": "https://dwms-iothon-competition-demo.merryllama4097.chatgpt.site",
-  "checked_at_utc": "2026-11-27T13:08:40.578342+00:00",
+  "checked_at_utc": "2026-11-27T18:33:32.043205+00:00",
   "scope": "Signed-out browser UI and local simulation only; no Auth0 login, physical sensor validation, relay actuation, treatment result or load test.",
   "results": [
     {
@@ -16,7 +16,7 @@
         "/demo/devices: no horizontal overflow",
         "device readings match the warning scenario",
         "/demo/assistant: no horizontal overflow",
-        "Ethm demo context uses scenario values without a model or live records",
+        "Ethm guest workspace identifies scenario context and keeps model submission explicit",
         "/demo/sites: no horizontal overflow",
         "site status matches the warning scenario",
         "/demo: no horizontal overflow",
@@ -34,7 +34,7 @@
         "landing page: no horizontal overflow",
         "/demo/rules: no horizontal overflow",
         "/demo/about: no horizontal overflow",
-        "no browser runtime errors or observed device/mutation writes"
+        "no runtime errors, operational mutation traffic or automatic model questions"
       ],
       "screenshots": [
         "alerts-warning-390.png",
@@ -45,7 +45,8 @@
         "landing-390.png"
       ],
       "page_errors": [],
-      "observed_backend_writes": []
+      "observed_backend_writes": [],
+      "observed_model_requests": []
     },
     {
       "width": 430,
@@ -60,7 +61,7 @@
         "/demo/devices: no horizontal overflow",
         "device readings match the warning scenario",
         "/demo/assistant: no horizontal overflow",
-        "Ethm demo context uses scenario values without a model or live records",
+        "Ethm guest workspace identifies scenario context and keeps model submission explicit",
         "/demo/sites: no horizontal overflow",
         "site status matches the warning scenario",
         "/demo: no horizontal overflow",
@@ -78,13 +79,14 @@
         "landing page: no horizontal overflow",
         "/demo/rules: no horizontal overflow",
         "/demo/about: no horizontal overflow",
-        "no browser runtime errors or observed device/mutation writes"
+        "no runtime errors, operational mutation traffic or automatic model questions"
       ],
       "screenshots": [
         "dashboard-430.png"
       ],
       "page_errors": [],
-      "observed_backend_writes": []
+      "observed_backend_writes": [],
+      "observed_model_requests": []
     },
     {
       "width": 768,
@@ -99,7 +101,7 @@
         "/demo/devices: no horizontal overflow",
         "device readings match the warning scenario",
         "/demo/assistant: no horizontal overflow",
-        "Ethm demo context uses scenario values without a model or live records",
+        "Ethm guest workspace identifies scenario context and keeps model submission explicit",
         "/demo/sites: no horizontal overflow",
         "site status matches the warning scenario",
         "/demo: no horizontal overflow",
@@ -117,13 +119,14 @@
         "landing page: no horizontal overflow",
         "/demo/rules: no horizontal overflow",
         "/demo/about: no horizontal overflow",
-        "no browser runtime errors or observed device/mutation writes"
+        "no runtime errors, operational mutation traffic or automatic model questions"
       ],
       "screenshots": [
         "dashboard-768.png"
       ],
       "page_errors": [],
-      "observed_backend_writes": []
+      "observed_backend_writes": [],
+      "observed_model_requests": []
     },
     {
       "width": 1024,
@@ -138,7 +141,7 @@
         "/demo/devices: no horizontal overflow",
         "device readings match the warning scenario",
         "/demo/assistant: no horizontal overflow",
-        "Ethm demo context uses scenario values without a model or live records",
+        "Ethm guest workspace identifies scenario context and keeps model submission explicit",
         "/demo/sites: no horizontal overflow",
         "site status matches the warning scenario",
         "/demo: no horizontal overflow",
@@ -156,13 +159,14 @@
         "landing page: no horizontal overflow",
         "/demo/rules: no horizontal overflow",
         "/demo/about: no horizontal overflow",
-        "no browser runtime errors or observed device/mutation writes"
+        "no runtime errors, operational mutation traffic or automatic model questions"
       ],
       "screenshots": [
         "dashboard-1024.png"
       ],
       "page_errors": [],
-      "observed_backend_writes": []
+      "observed_backend_writes": [],
+      "observed_model_requests": []
     },
     {
       "width": 1440,
@@ -177,7 +181,7 @@
         "/demo/devices: no horizontal overflow",
         "device readings match the warning scenario",
         "/demo/assistant: no horizontal overflow",
-        "Ethm demo context uses scenario values without a model or live records",
+        "Ethm guest workspace identifies scenario context and keeps model submission explicit",
         "/demo/sites: no horizontal overflow",
         "site status matches the warning scenario",
         "/demo: no horizontal overflow",
@@ -196,7 +200,7 @@
         "landing page: no horizontal overflow",
         "/demo/rules: no horizontal overflow",
         "/demo/about: no horizontal overflow",
-        "no browser runtime errors or observed device/mutation writes"
+        "no runtime errors, operational mutation traffic or automatic model questions"
       ],
       "screenshots": [
         "alerts-warning-1440.png",
@@ -207,7 +211,8 @@
         "landing-1440.png"
       ],
       "page_errors": [],
-      "observed_backend_writes": []
+      "observed_backend_writes": [],
+      "observed_model_requests": []
     }
   ]
 }

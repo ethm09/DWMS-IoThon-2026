@@ -1,0 +1,10 @@
+{
+  "checked_at_utc": "2026-11-28T01:59:19.582Z",
+  "deployment": "canny-mosquito-637",
+  "key": "lifetime-v1",
+  "reservedTokens": 91166,
+  "hardTokenCeiling": 250000,
+  "requests": 7,
+  "sessions": 20,
+  "scope": "Authorized read of dedicated guest budget counter only; reserved tokens are conservative allowance consumption, not measured invoice cost or operational telemetry."
+}

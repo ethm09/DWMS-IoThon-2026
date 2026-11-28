@@ -1,0 +1,58 @@
+{
+  "checked_at_utc": "2026-11-27T18:33:45.148062+00:00",
+  "frontend_source_commit": "44afc0b2fdd09b912407b455af4e07e279d358bf",
+  "backend_source_commit": "44afc0b2fdd09b912407b455af4e07e279d358bf",
+  "results": [
+    {
+      "language": "en",
+      "request_scenario": "critical",
+      "response": {
+        "contextAsOf": "2026-11-27T18:33:19.953Z",
+        "contextFingerprint": "30ee75bb7a936a959021c97e6444e0d42ecb246e4da10e53dba7764a43b52581",
+        "contextScenario": "critical",
+        "dataBasis": "simulated",
+        "expiresAt": "2026-11-27T19:03:23.674Z",
+        "generatedAt": "2026-11-27T18:33:37.901Z",
+        "kind": "ai_interpretation",
+        "nextRequestAt": "2026-11-27T18:33:38.948Z",
+        "ok": true,
+        "remainingTurns": 5,
+        "sources": [
+          {
+            "id": "WHO_PH_2022",
+            "title": "Chemical fact sheets: pH",
+            "url": "https://www.who.int/publications/m/item/chemical-fact-sheets--ph"
+          }
+        ],
+        "text": "Facts (simulated): pH = 4.5 (critical), TDS = 300 ppm, turbidity = 2 NTU, flow = 1.5 L/min. Emergency interlock is latched and pump is off; system mode = emergency. Evidence timestamps: 2026-11-27T18:33:19.953Z.\n\nPossible causes: real process upset, sample/sensor fault or calibration drift — readings alone do not identify the root cause.\n\nOperator recovery checks (do not bypass interlock): 1) Verify interlock status at the controller and follow the authorised recovery procedure. 2) Confirm the low pH with an independent calibrated meter or grab sample and lab if required. 3) Inspect sensor for fouling/wiring and review recent process changes. 4) Only clear the emergency latch using the dedicated authorised control after checks.\n\nReference: WHO pH fact sheet [WHO_PH_2022] https://www.who.int/publications/m/item/chemical-fact-sheets--ph"
+      }
+    },
+    {
+      "language": "ar",
+      "request_scenario": "recovery",
+      "response": {
+        "contextAsOf": "2026-11-27T18:33:39.104Z",
+        "contextFingerprint": "44731e0195b1c514fdab4eeeb555efc01d9a14de6fdc955fab5be248b1918bc5",
+        "contextScenario": "recovery",
+        "dataBasis": "simulated",
+        "expiresAt": "2026-11-27T19:03:23.674Z",
+        "generatedAt": "2026-11-27T18:33:44.667Z",
+        "kind": "ai_interpretation",
+        "nextRequestAt": "2026-11-27T18:33:45.269Z",
+        "ok": true,
+        "remainingTurns": 4,
+        "sources": [
+          {
+            "id": "WHO_PH_2022",
+            "title": "Chemical fact sheets: pH",
+            "url": "https://www.who.int/publications/m/item/chemical-fact-sheets--ph"
+          }
+        ],
+        "text": "الوقائع (محاكاة): القراءة الحالية بعد التعافي تظهر pH = 7.2، TDS = 300 ppm، عكارة = 2 NTU، تدفق نموذجي = 1.5 L/min. سجل النظام يبيّن أن القفل الطارئ (Emergency stop) لا يزال مُعلّقاً والضخ معطّل؛ مصدر الدليل: حالة الاستجابة وإنذار \"Emergency stop latched\" عند 2026-11-27T18:33:39.104Z.\n\nلماذا القراءات الطبيعية لا تمنح تصريح تشغيل المضخة:\n- القفل الطارئ هو تحقق أمني مادي/لوحي مستقل؛ إزالته يجب أن يتم عبر إجراء استعادة مصرح ومفصّل. Ethm لا يمكنه أوامر بفتح القفل أو تشغيل المضخة في هذا المحاكاة.\n- قياسات المستشعرات وحدها لا تثبت أن الأجهزة الفعلية والدوائر التحكمية آمنة للعمل أو أن الحدث الأصلي قد زال؛ قد تكون القراءات نتيجة لخطأ جهاز استشعار أو تداخل قياسي.\n\nهل تكفي هذه البيانات للتنبؤ؟\n- لا. عدد العينات وزمن الرصد غير كافيان للتنبؤ (تقرير الحالة يذكر \"insufficient_data\"). لا يوجد أساس للتنبؤ القيمي أو توقعي من هذه القراءات المحاكية. \n\nمرجع موجز: pH كمعامل تشغيلي — WHO [WHO_PH_2022] https://www.who.int/publications/m/item/chemical-fact-sheets--ph\n\nهل تود خطوات استعادة مفصّلة للمتابعة؟"
+      }
+    }
+  ],
+  "page_errors": [],
+  "observed_operational_writes": [],
+  "scope": "Actual published browser and genuine existing-provider guest responses, English critical and Arabic recovery. Canonical simulated fixtures only; no Auth0 login, operational records, physical control or measurement validation. Session capability omitted from evidence."
+}
